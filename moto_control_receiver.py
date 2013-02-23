@@ -287,7 +287,13 @@ class moto_control_receiver(gr.hier_block2):
 									else:
 										allocated_receiver.set_codec_p25(False)
 									allocated_receiver.set_codec_provoice(False)
-									cdr = {'system_id': self.system['id'], 'system_group_local': tg, 'system_channel_local': cmd, 'type': 'group', 'center_freq': center}
+									cdr = {
+										'system_id': self.system['id'], 
+										'system_group_local': tg, 
+										'system_user_local': 0,
+										'system_channel_local': cmd, 
+										'type': 'group', 
+										'center_freq': center}
 		
 									allocated_receiver.open(cdr, 20000.0)
 											

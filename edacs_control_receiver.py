@@ -13,35 +13,34 @@ from logging_receiver import logging_receiver
 
 class edacs_control_receiver(gr.hier_block2):
 	def __init__(self, system, samp_rate, sources, top_block):
+		gr.hier_block2.__init__(self, "edacs_control_receiver",
+                                gr.io_signature(2, 2, gr.sizeof_gr_complex), # Input signature
+                                gr.io_signature(0, 0, 0)) # Output signature
 		print 'Control receiver startup, '
 		print system
 	
 		self.tb = top_block
+		self.sources = sources
 		self.system = system
 		self.samp_rate = samp_rate
-		self.audiorate = audiorate = 12500
+
+		self.audio_rate = audio_rate = 12500
 		self.symbol_rate = symbol_rate = system['symbol_rate']
 		self.channels = channels = system['channels']
 		self.channels_list = self.channels.keys()
 		self.control_channel_key = 0
                 self.control_channel = control_channel = self.channels[self.channels_list[0]]
+		self.control_source = 0
 
 		#legacy
-		#self.control_lcn = control_lcn = 1
+		self.control_lcn = control_lcn = 1
 		#self.center_freq = center_freq
 		#self.control_lcn_alt = control_lcn_alt = system['control_alt']
 		#/legacy
 		self.bad_messages = 0
 		self.total_messages = 0
 
-		self.control_lcn_alt.insert(0, self.control_lcn) # add primary LCN to end of alternate list
-
-		gr.hier_block2.__init__(self, "control_receiver",
-                                gr.io_signature(2, 2, gr.sizeof_gr_complex), # Input signature
-                                gr.io_signature(0, 0, 0)) # Output signature
-
-
-
+		#self.control_lcn_alt.insert(0, self.control_lcn) # add primary LCN to end of alternate list
 
 		################################################
 		# Blocks
@@ -52,7 +51,7 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.taps = taps = firdes.low_pass(1, samp_rate, 8000, 12000, firdes.WIN_HAMMING)
 
-        	self.control_freq_xlating_fir_filter = gr.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
+        	self.control_prefilter = gr.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
 		self.control_quad_demod = gr.quadrature_demod_cf(5)
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/decimation_s1/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
                 self.control_binary_slicer = digital.binary_slicer_fb()
@@ -71,8 +70,8 @@ class edacs_control_receiver(gr.hier_block2):
 		# Connections
 		################################################
 	
-		self.connect(   self.source,
-                                self.control_freq_xlating_fir_filter,
+		self.connect(   (self.source, self.control_source),
+                                self.control_prefilter,
                                 self.control_quad_demod,
                                 self.control_clock_recovery,
                                 self.control_binary_slicer,
@@ -108,6 +107,8 @@ class edacs_control_receiver(gr.hier_block2):
                 self.control_channel_key += 1
                 if(self.control_channel_key >= len(self.channels_list)):
                         self.control_channel_key = 0
+
+		self.control_lcn = self.control_channel_key
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 			
 		if(abs(self.control_channel-self.sources[self.control_source]['center_freq']) > (self.samp_rate/2)):
@@ -130,7 +131,7 @@ class edacs_control_receiver(gr.hier_block2):
                 else:
                         self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
                         print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
-                        self.control_msg_sink_msgq.flush()
+                        self.control_msg_queue.flush()
                         time.sleep(0.1)
 
 
@@ -147,7 +148,7 @@ class edacs_control_receiver(gr.hier_block2):
         def build_audio_channel(self, c):
                 #self.audiologgers.append(logging_receiver(self.system, c, self.audiorate, self.samp_rate))
 		allocated_receiver = logging_receiver(self.samp_rate)
-		center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
+		center = self.tb.connect_channel(self.channels[c], allocated_receiver)
 		self.tb.active_receivers.append(allocated_receiver)
 		
 		return (allocated_receiver, center)
@@ -228,8 +229,8 @@ class edacs_control_receiver(gr.hier_block2):
 
                                 #if(r['channel'] in active_channels):
                                 channel_matched = False
-                                for v in self.audiologgers:
-                                        if(v.system['id'] == system['id'] and v.channel == r['channel'] and v.in_use):
+                                for v in self.tb.active_receivers:
+                                        if(v.cdr != {} and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel'] and v.in_use):
                                                 v.activity()
                                                 channel_matched = True
 
@@ -242,7 +243,8 @@ class edacs_control_receiver(gr.hier_block2):
                                                                 self.new_call_group(system, r['channel'],r['id'], 0, False)
 
                                                 else:
-                                                        self.new_call_individual(system, r['channel'] ,0, r['id'], False)
+							pass
+                                                        #self.new_call_individual(system, r['channel'] ,0, r['id'], False)
 
                                         #active_channels[r['channel']] = time()
                                 m = 'Channel Update - ' + str(r)
@@ -267,7 +269,8 @@ class edacs_control_receiver(gr.hier_block2):
                                 m = 'iCall - ' + str(r)
                                 if( r['channel'] in system['channels'].keys() and r['channel'] != self.control_lcn): # nd r['group'] == 609): #and r['channel'] in self.wav_sinks):
                                         #check if channel is already tuned to
-                                        self.new_call_individual(system, r['channel'], r['callee_logical_id'], r['caller_logical_id'], r['tx_trunked'])
+					pass
+                                        #self.new_call_individual(system, r['channel'], r['callee_logical_id'], r['caller_logical_id'], r['tx_trunked'])
                         elif(mtb == '110'):
                                 r['drop'] = True if m1[8:9] == '1' else False
                                 r['unkey'] = True if m1[8:9] == '0' else False
@@ -360,9 +363,10 @@ class edacs_control_receiver(gr.hier_block2):
         def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
                 (receiver,center) = self.get_receiver(system, channel)
                 #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
-                print 'Tuning new group call - %s %s' % ( system['channels'][channel]['frequency'], center)
-                receiver.tuneoffset(system['channels'][channel]['frequency'], center)
-                receiver.set_provoice(provoice)
+                print 'Tuning new group call - %s %s' % ( system['channels'][channel], center)
+                receiver.tuneoffset(system['channels'][channel], center)
+                receiver.set_codec_provoice(provoice)
+		receiver.set_codec_p25(False)
 		cdr = {
 			'system_id': self.system['id'], 
 			'system_type': self.system['type'],
@@ -372,12 +376,13 @@ class edacs_control_receiver(gr.hier_block2):
 			'type': 'group',
 			'center_freq': center
 		}
-		receiver.open(cdr, 25000.0)
+		receiver.open(cdr, self.audio_rate)
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
-                receiver = self.get_receiver(system, channel)
+                (receiver,center) = self.get_receiver(system, channel)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
-                receiver.tuneoffset(system['channels'][channel]['frequency'], self.center_freq)
-                receiver.set_provoice(False)
+                receiver.tuneoffset(system['channels'][channel], self.center_freq)
+                receiver.set_codec_provoice(False)
+		receiver.set_codec_p25(False)
                 cdr = {
                         'system_id': self.system['id'],
 			'system_type': self.system['type'],
@@ -387,17 +392,18 @@ class edacs_control_receiver(gr.hier_block2):
                         'type': 'individual',
                         'center_freq': center
                 }
-		receiver.open(cdr, 25000.0)
+		receiver.open(cdr, self.audio_rate)
 
         def get_receiver(self, system, channel):
                 free_al = []
                 receiver = False
                 for v in self.tb.active_receivers:
                         if(v.in_use == False): free_al.append(v)
-                        if(v.cdr['id'] == system['id'] and v.cdr['system_channel_local'] == channel and v.in_use == True):
+                        if(v.cdr != {} and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == channel and v.in_use == True):
                                 print 'emergency close of open audiologger for new traffic'
                                 v.close(self.patches, True, True)
                                 receiver = v
+				center = receiver.center_freq
                 if(receiver == False):
                         if(len(free_al) == 0):
                                  (receiver, center) = self.build_audio_channel(channel)
@@ -451,7 +457,7 @@ class edacs_control_receiver(gr.hier_block2):
                                 self.failed_loops = 0
                                 self.loop_start = time.time()
 
-                                print 'Cant get framesync lock, %s trying next control LCN: %s ' % (self.system['id'], self.control_lcn_alt[1])
+                                print 'Cant get framesync lock, %s trying next control ' % (self.system['id'])
                                 self.tune_next_control_channel()
                                 buf = ''
                                 self.control_msg_queue.flush()
@@ -561,7 +567,7 @@ class edacs_control_receiver(gr.hier_block2):
 		self.failed_loops = failed_loops =  0
 	        self.loop_start = loop_start = time.time()
 		system = self.system
-		self.audiologgers = []
+		#self.audiologgers = []
 
 	        while(1):
 			for patch in self.patches:
