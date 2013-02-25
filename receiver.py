@@ -39,6 +39,8 @@ class receiver(gr.top_block):
 	def __init__(self):
 		gr.top_block.__init__(self, "RadioCapture.com receiver")
 
+
+		gr.enable_realtime_scheduling()
 		##################################################
 		# Variables
 		##################################################
