@@ -131,15 +131,21 @@ class logging_receiver(gr.hier_block2):
 		if(audio_rate != self.audio_rate):
 			self.audio_rate = audio_rate
 			channel_rate = audio_rate*1.4
-			self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.2), firdes.WIN_HAMMING)
+			self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.6), firdes.WIN_HAMMING)
 			#self.prefilter_decim = int(self.samp_rate/audio_rate)
 	                #self.prefilter.set_decim(self.prefilter_decim)
 			#self.prefilter.set_taps(self.audiotaps)
 			self.lock()
-			self.disconnect((self.valve,1), self.prefilter)
-			self.disconnect(self.prefilter, self.sink)
+
+			self.disconnect(self, self.prefilter)
+			self.disconnect(self.prefilter, (self.valve, 0))
+			
+			#self.disconnect((self.valve,1), self.prefilter)
+			#self.disconnect(self.prefilter, self.sink)
 			self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
-			self.connect((self.valve, 1), self.prefilter, self.sink)
+			#self.connect((self.valve, 1), self.prefilter, self.sink)
+                        self.connect(self, self.prefilter)
+                        self.connect(self.prefilter, (self.valve, 0))
 			self.unlock()
 
 

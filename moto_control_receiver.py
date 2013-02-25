@@ -82,7 +82,7 @@ class moto_control_receiver(gr.hier_block2):
 		channel_rate = control_sample_rate*1.8
 		self.f1d = f1d = int(samp_rate/channel_rate) #filter 1 decimation
 		#self.set_max_output_buffer(100000)
-		self.control_prefilter_taps = firdes.low_pass(1,samp_rate,(control_sample_rate/2), (control_sample_rate*0.4))
+		self.control_prefilter_taps = firdes.low_pass(1,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
 		self.control_prefilter = gr.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
 		self.control_quad_demod = gr.quadrature_demod_cf(0.5)
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
