@@ -210,7 +210,9 @@ class receiver(gr.top_block):
 		self.source.set_gain(0, 0)
 		self.source.set_gain(0, 1)
 
-	
+		self.source.set_max_output_buffer(65536000)
+		print self.source.max_output_buffer(0)
+		print self.source.max_output_buffer(1)
 		##################################################
 		# Connections
 		##################################################

@@ -32,11 +32,7 @@ class edacs_control_receiver(gr.hier_block2):
                 self.control_channel = control_channel = self.channels[self.channels_list[0]]
 		self.control_source = 0
 
-		#legacy
-		self.control_lcn = control_lcn = 1
-		#self.center_freq = center_freq
-		#self.control_lcn_alt = control_lcn_alt = system['control_alt']
-		#/legacy
+		#self.control_lcn = control_lcn = 1
 		self.bad_messages = 0
 		self.total_messages = 0
 
@@ -51,6 +47,7 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.taps = taps = firdes.low_pass(1, samp_rate, 8000, 12000, firdes.WIN_HAMMING)
 
+		#self.set_max_output_buffer(100000)
         	self.control_prefilter = gr.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
 		self.control_quad_demod = gr.quadrature_demod_cf(5)
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/decimation_s1/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
@@ -94,16 +91,8 @@ class edacs_control_receiver(gr.hier_block2):
                 quality_check_0.start()
 
 
-	#def tune_control_channel(self):
-         #       self.control_freq_xlating_fir_filter.set_center_freq(self.center_freq-self.channels[self.control_lcn]['frequency'])
-	#	print 'Tuning CC to ' + str(self.center_freq-self.channels[self.control_lcn]['frequency'])
-         #       return True
 
 	def tune_next_control_channel(self):
-		#self.control_lcn_alt.append(self.control_lcn_alt[0])
-		#del self.control_lcn_alt[0]
-		#self.control_lcn = self.control_lcn_alt[0]
-		#self.control_channel = self.channels[self.control_lcn]['frequency']
                 self.control_channel_key += 1
                 if(self.control_channel_key >= len(self.channels_list)):
                         self.control_channel_key = 0
@@ -141,22 +130,14 @@ class edacs_control_receiver(gr.hier_block2):
         def recv_pkt(self):
                 pkt = ""
 
-                #if self.control_msg_queue.count():
-		#print self.control_msg_queue.count()
                 pkt = self.control_msg_queue.delete_head().to_string()
                 return pkt
         def build_audio_channel(self, c):
-                #self.audiologgers.append(logging_receiver(self.system, c, self.audiorate, self.samp_rate))
 		allocated_receiver = logging_receiver(self.samp_rate)
 		center = self.tb.connect_channel(self.channels[c], allocated_receiver)
 		self.tb.active_receivers.append(allocated_receiver)
 		
 		return (allocated_receiver, center)
-                #self.audiologgers[-1].tuneoffset(self.system['channels'][c]['frequency'], self.center_freq)
-                #self.lock()
-                #self.connect(self, self.audiologgers[-1])
-                #self.unlock()
-                #return self.audiologgers[-1]
 		
 
         def binary_invert(self, s):
@@ -396,7 +377,6 @@ class edacs_control_receiver(gr.hier_block2):
 
         def get_receiver(self, system, channel):
                 free_al = []
-                receiver = False
                 for v in self.tb.active_receivers:
                         if(v.in_use == False): free_al.append(v)
                         if(v.cdr != {} and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == channel and v.in_use == True):
@@ -404,12 +384,14 @@ class edacs_control_receiver(gr.hier_block2):
                                 v.close(self.patches, True, True)
                                 receiver = v
 				center = receiver.center_freq
-                if(receiver == False):
-                        if(len(free_al) == 0):
-                                 (receiver, center) = self.build_audio_channel(channel)
-                        else:
-                                 receiver = free_al[0]
-				 center = receiver.center_freq
+				return (receiver,center)
+		for v in free_al:
+			if abs(v.center_freq-system['channels'][channel]) < (self.samp_rate/2):
+	                	receiver = v
+				center = receiver.center_freq
+				return (receiver,center)
+
+		(receiver, center) = self.build_audio_channel(channel)
                 return (receiver,center)
 
         def packet_framer(self, system, frame, bad_messages, total_messages):
@@ -460,7 +442,6 @@ class edacs_control_receiver(gr.hier_block2):
                                 print 'Cant get framesync lock, %s trying next control ' % (self.system['id'])
                                 self.tune_next_control_channel()
                                 buf = ''
-                                self.control_msg_queue.flush()
                         return (buf, False)
                 if(len(frame) < 240):
                         print 'Buffer Underrun in Framer: ' + str(len(frame))
@@ -567,7 +548,6 @@ class edacs_control_receiver(gr.hier_block2):
 		self.failed_loops = failed_loops =  0
 	        self.loop_start = loop_start = time.time()
 		system = self.system
-		#self.audiologgers = []
 
 	        while(1):
 			for patch in self.patches:
@@ -598,13 +578,3 @@ class edacs_control_receiver(gr.hier_block2):
                                 if(frame == False): continue #Failed to get packet
                                 m1, m2, self.bad_messages, self.total_messages = self.packet_framer(system, frame, self.bad_messages, self.total_messages)
                                 self.bad_messages = self.process_commands(m1, m2, self.bad_messages)
-
-                              #  for v in self.audiologgers:
-                               #         if(v.in_use and time.time()-v.time_activity > 2):
-                                #                #print 'LCN ' + str(v.channel) + ' expired; shutting down ' + str(v.time_open)
-                                 #               v.close(self.patches)
-                                  #      if(v.time_activity < time.time()-60): #disconnect and destroy if idle for > 10 sec
-                                   #             self.lock()
-                                    #            self.disconnect(self, v)
-                                     #           self.unlock()
-                                      #          del self.audiologgers[self.audiologgers.index(v)]
