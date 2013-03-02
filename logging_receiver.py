@@ -11,7 +11,10 @@ import os
 import threading
 import uuid
 
-import gnuradio.extras as gr_extras
+try:
+	import grextras as gr_extras
+except ImportError:
+	import gnuradio.extras as gr_extras
 
 
 class logging_receiver(gr.hier_block2):
@@ -37,15 +40,16 @@ class logging_receiver(gr.hier_block2):
 		self.sink = gr.file_sink(gr.sizeof_gr_complex*1, self.filename)
 
 		self.connect((self.valve,0), self.null)
-		#self.connect(self, (self.valve, 0))
-		#self.connect((self.valve, 1), self.prefilter, self.sink)
-		self.connect(self, self.prefilter)
-		self.connect(self.prefilter, (self.valve, 0))
-		self.connect((self.valve, 1), self.sink)
+		self.connect(self, (self.valve, 0))
+		self.connect((self.valve, 1), self.prefilter, self.sink)
+		#self.connect(self, self.prefilter)
+		#self.connect(self.prefilter, (self.valve, 0))
+		#self.connect((self.valve, 1), self.sink)
 
 		self.cdr = {}
 		self.time_open = 0
 		self.time_activity = 0
+		self.time_last_use = time.time()
 		self.uuid = ''
 		self.freq = 0
 		self.center_freq = 0
@@ -119,9 +123,8 @@ class logging_receiver(gr.hier_block2):
 				except:
 					print 'Error removing ' +self.filename
 
-		#self.set_tgid(0)
-		#self.call_id = 0
 		self.time_open = 0
+		self.time_last_use = time.time()
 		self.in_use = False
 		self.uuid =''
 		self.cdr = {}
@@ -129,24 +132,27 @@ class logging_receiver(gr.hier_block2):
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
 
 		if(audio_rate != self.audio_rate):
+			print 'System: Adjusting audio rate'
 			self.audio_rate = audio_rate
 			channel_rate = audio_rate*1.4
 			self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.6), firdes.WIN_HAMMING)
 			#self.prefilter_decim = int(self.samp_rate/audio_rate)
 	                #self.prefilter.set_decim(self.prefilter_decim)
-			#self.prefilter.set_taps(self.audiotaps)
-			self.lock()
+			self.prefilter.set_taps(self.audiotaps)
+			#self.lock()
 
-			self.disconnect(self, self.prefilter)
-			self.disconnect(self.prefilter, (self.valve, 0))
+			#self.disconnect(self, self.prefilter)
+			#self.disconnect(self.prefilter, (self.valve, 0))
 			
 			#self.disconnect((self.valve,1), self.prefilter)
 			#self.disconnect(self.prefilter, self.sink)
-			self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
+			#self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
 			#self.connect((self.valve, 1), self.prefilter, self.sink)
-                        self.connect(self, self.prefilter)
-                        self.connect(self.prefilter, (self.valve, 0))
-			self.unlock()
+
+                        #self.connect(self, self.prefilter)
+                        #self.connect(self.prefilter, (self.valve, 0))
+
+			#self.unlock()
 
 
 		self.uuid = cdr['uuid'] = str(uuid.uuid4())
@@ -194,3 +200,4 @@ class logging_receiver(gr.hier_block2):
 		return self.muted
 	def activity(self):
 		self.time_activity = time.time()
+		self.time_last_use = time.time()

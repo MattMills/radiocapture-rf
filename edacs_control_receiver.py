@@ -28,7 +28,7 @@ class edacs_control_receiver(gr.hier_block2):
 		self.symbol_rate = symbol_rate = system['symbol_rate']
 		self.channels = channels = system['channels']
 		self.channels_list = self.channels.keys()
-		self.control_channel_key = 0
+		self.control_channel_key = 8
                 self.control_channel = control_channel = self.channels[self.channels_list[0]]
 		self.control_source = 0
 
@@ -42,10 +42,15 @@ class edacs_control_receiver(gr.hier_block2):
 		# Blocks
 		################################################
 	
-		self.decimation_s1 = decimation_s1 = 360
 
+		control_samp_rate = 6250
+		control_channel_rate = control_samp_rate*3 #Channel rate must be higher for clock recovery
+		decimation_s1 = int(samp_rate/control_channel_rate)
+		post_decimation_samp_rate = int(samp_rate/decimation_s1)
 
-		self.taps = taps = firdes.low_pass(1, samp_rate, 8000, 12000, firdes.WIN_HAMMING)
+		print 'Decimation: %s' % (decimation_s1)
+
+		self.taps = taps = firdes.low_pass(5, samp_rate, control_samp_rate, control_samp_rate*0.55, firdes.WIN_HAMMING)
 
 		#self.set_max_output_buffer(100000)
         	self.control_prefilter = gr.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)

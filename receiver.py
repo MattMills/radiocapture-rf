@@ -40,7 +40,7 @@ class receiver(gr.top_block):
 		gr.top_block.__init__(self, "RadioCapture.com receiver")
 
 
-		gr.enable_realtime_scheduling()
+		#gr.enable_realtime_scheduling()
 		##################################################
 		# Variables
 		##################################################
@@ -57,7 +57,7 @@ class receiver(gr.top_block):
 		self.sources[0]['center_freq'] = 857400000
 		self.sources[1]['center_freq'] = 865000000
 
-		self.systems = {0:{}, 1:{}, 2:{}, 3:{}, 4:{}}
+		self.systems = {0:{}, 1:{}, 2:{}, 3:{}}#, 4:{}}
 		
 		#San Bernadino County 06/07
 		self.systems[0]['type'] = 'moto'
@@ -168,24 +168,24 @@ class receiver(gr.top_block):
                                0x18e: 860962500
                        }
 		#Riverside EDACS - West site
-		self.systems[4]['type'] = 'edacs'
-		self.systems[4]['id'] = 1
-		self.systems[4]['symbol_rate'] = 9600.0
-		self.systems[4]['esk'] = False
-		self.systems[4]['channels'] = {
-				1: 866212500,
-                                2: 866262500,
-                                3: 866712500,
-                                4: 866762500,
-                                5: 867212500,
-                                6: 867712500,
-                                7: 868212500,
-                                8: 867262500,
-                                9: 868262500,
-                                10: 868712500,
-                                11: 867787500,
-                                12: 868787500
-			}
+		#self.systems[4]['type'] = 'edacs'
+		#self.systems[4]['id'] = 1
+		#self.systems[4]['symbol_rate'] = 9600.0
+		#self.systems[4]['esk'] = False
+		#self.systems[4]['channels'] = {
+		#		1: 866212500,
+                #                2: 866262500,
+                #                3: 866712500,
+                #                4: 866762500,
+                #                5: 867212500,
+                #                6: 867712500,
+                #                7: 868212500,
+                #                8: 867262500,
+                #                9: 868262500,
+                #                10: 868712500,
+                #                11: 867787500,
+                #                12: 868787500
+		#	}
 
 		##################################################
 		# Blocks
@@ -197,7 +197,7 @@ class receiver(gr.top_block):
 			stream_args=uhd.stream_args(
 				cpu_format="fc32",
 				otw_format="sc8",
-				#args="peak=0.1",
+				args="peak=0.1",
 				channels=range(2),
 			),
 		)
@@ -211,8 +211,8 @@ class receiver(gr.top_block):
 		self.source.set_gain(0, 1)
 
 		self.source.set_max_output_buffer(65536000)
-		print self.source.max_output_buffer(0)
-		print self.source.max_output_buffer(1)
+		#print self.source.max_output_buffer(0)
+		#print self.source.max_output_buffer(1)
 		##################################################
 		# Connections
 		##################################################
@@ -250,8 +250,14 @@ if __name__ == '__main__':
 	print 'Entering top_block loop'
 
 	while 1:
-		for receiver in tb.active_receivers:
+		for i,receiver in enumerate(tb.active_receivers):
+			#receiver = tb.active_receivers[i]
 			if receiver.in_use == True and time.time()-receiver.time_activity > 1 and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
+			if receiver.in_use == False and time.time()-receiver.time_last_use > 30:
+				tb.lock()
+				tb.disconnect(tb.active_receivers[i])
+				del tb.active_receivers[i]
+				tb.unlock()
 		time.sleep(0.1)
 
