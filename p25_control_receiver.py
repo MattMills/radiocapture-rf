@@ -45,7 +45,7 @@ class p25_control_receiver (gr.hier_block2):
 	def __init__(self, system, samp_rate, sources, top_block):
 
 		gr.hier_block2.__init__(self, "p25_control_receiver",
-	        	gr.io_signature(2, 2, gr.sizeof_gr_complex), # Input signature
+	        	gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
 	                gr.io_signature(0, 0, 0)) # Output signature
 	
 	
@@ -101,11 +101,11 @@ class p25_control_receiver (gr.hier_block2):
 		qsink = gr.message_sink(gr.sizeof_char, self.decodequeue, False)
 		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq)
 	
-		self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
-		self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
+		#self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
+		#self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
 
-		self.connect((self,0), self.null_sink0)
-		self.connect((self,1), self.null_sink1)
+		#self.connect((self,0), self.null_sink0)
+		#self.connect((self,1), self.null_sink1)
 
 	        self.connect(self.channel_filter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
 	
@@ -507,6 +507,7 @@ class p25_control_receiver (gr.hier_block2):
 			#sleep(0.05)
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
+				sleep(0.01)
 				buf += pkt
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
 			fsnext   = buf.find(binascii.unhexlify('5575f5ff77ff'), fsoffset+6)
