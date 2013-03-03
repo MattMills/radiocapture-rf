@@ -58,7 +58,7 @@ class moto_control_receiver(gr.hier_block2):
 		##################################################
 		# Message Queues
 		##################################################
-		self.control_msg_sink_msgq = gr.msg_queue(2)
+		self.control_msg_sink_msgq = gr.msg_queue(1024)
 
 		##################################################
 		# Threads
@@ -78,12 +78,16 @@ class moto_control_receiver(gr.hier_block2):
 
 		self.source = self
 
-		control_sample_rate = 12000
-		channel_rate = control_sample_rate*1.8
+		control_sample_rate = 10000
+		channel_rate = control_sample_rate*5
 		self.f1d = f1d = int(samp_rate/channel_rate) #filter 1 decimation
-		self.control_prefilter_taps = firdes.low_pass(1,samp_rate,(control_sample_rate/2), (control_sample_rate*0.4))
+		#self.set_max_output_buffer(100000)
+		self.control_prefilter_taps = firdes.low_pass(5,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
 		self.control_prefilter = gr.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
-		self.control_quad_demod = gr.quadrature_demod_cf(0.5)
+		self.control_quad_demod = gr.quadrature_demod_cf(0.1)
+		#(omega, gain_omega, mu, gain_mu, omega_relative_limit)
+		#(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
+		#(samp_rate/f1d/symbol_rate, 0.000025, 0.5, 0.01, 0.3)
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_byte_pack = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
@@ -152,7 +156,7 @@ class moto_control_receiver(gr.hier_block2):
 				#time.sleep(2)
 				#self.unlock()
                         sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.packets-last_total) + '/' + str(self.packets_bad-last_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel)
+                        print 'System: ' + str(sid) + ' (' + str(self.packets-last_total) + '/' + str(self.packets_bad-last_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
                         last_total = self.packets
                         last_bad = self.packets_bad
 
@@ -186,6 +190,7 @@ class moto_control_receiver(gr.hier_block2):
 		#packets = tb.packets
 		#packets_bad = tb.packets_bad
 		sync_loops = 0
+		locked = 0
 
 		while 1:
 			if(sync_loops < -200):
@@ -193,18 +198,32 @@ class moto_control_receiver(gr.hier_block2):
 				#print 'b/p: %s %s' % (packets, packets_bad)
 				sync_loops = 0
 				self.tune_next_control()
+				locked = 0
 			data = self.get_msgq()
 			for byte in data:
 				buf = buf + str("{0:08b}" . format(ord(byte)))
 			if len(buf) > frame_len*3:
+				
 				fs_loc = buf.find(frame_sync)
 				fs_next_loc = buf[fs_loc+fs_len:].find(frame_sync)+fs_loc+fs_len
-				if fs_loc > -1 and fs_next_loc > -1 and fs_next_loc-fs_loc == frame_len+fs_len:
+				if locked > 2 or (fs_loc > -1 and fs_next_loc > -1 and fs_next_loc-fs_loc == frame_len+fs_len):
+					if fs_loc != 0:
+						print 'Packet jump %s - %s' % (fs_loc, buf[:fs_loc])
+						locked -= 1
+					elif locked < 5:
+						locked += 1
+
 					self.packets += 1
 					if sync_loops < 1000:
 						sync_loops += 50
-					pkt = buf[fs_loc+fs_len:fs_next_loc]
-					buf = buf[fs_next_loc:]
+					if locked > 2:
+						pkt = buf[fs_len:fs_len+frame_len]
+						buf = buf[fs_len+frame_len:]
+					else:
+						print '--- no lock ---'
+						pkt = buf[fs_loc+fs_len:fs_loc+fs_len+frame_len]
+						buf = buf[fs_loc+fs_len+frame_len:]
+
 					pkt = self.deinterleave(pkt)
 
 					data = []
@@ -242,6 +261,8 @@ class moto_control_receiver(gr.hier_block2):
 									data[x] = 1
 								else:
 									data[x] = 0
+					elif fs_loc != 0:
+						locked += 1
 					
 
 					pkt = ''.join(map(str, data))
@@ -257,7 +278,7 @@ class moto_control_receiver(gr.hier_block2):
 						#310 == aff 2
 						#320 == Network info
 						#
-						if cmd != 0x3c0 and cmd != 0x3bf and cmd != 0x30b and cmd != 0x320 and cmd != 0x361 and lid != self.system_id and lid != 0x1ff3:
+						if cmd != 0x3c0 and cmd != 0x3bf and cmd != 0x30b and cmd != 0x320 and cmd != 0x361 and lid != self.system_id and tg != 0x1ff0:
 							if self.channels.has_key(cmd):
 								#print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
 								#print 'b/p: %s %s' % (packets, packets_bad)
@@ -287,7 +308,13 @@ class moto_control_receiver(gr.hier_block2):
 									else:
 										allocated_receiver.set_codec_p25(False)
 									allocated_receiver.set_codec_provoice(False)
-									cdr = {'system_id': self.system['id'], 'system_group_local': tg, 'system_channel_local': cmd, 'type': 'group', 'center_freq': center}
+									cdr = {
+										'system_id': self.system['id'], 
+										'system_group_local': tg, 
+										'system_user_local': 0,
+										'system_channel_local': cmd, 
+										'type': 'group', 
+										'center_freq': center}
 		
 									allocated_receiver.open(cdr, 20000.0)
 											

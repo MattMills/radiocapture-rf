@@ -1,33 +1,46 @@
 #!/usr/bin/env python
-##################################################
-# Gnuradio Python Flow Graph
-# Title: Moto Smartzone Test1
-# Generated: Thu Oct  4 23:49:39 2012
-##################################################
+###################################################
+#                                                 #
+# Radoicapture.com Trunked radio receiver         #
+# Developer: Matt Mills (mmills@2bn.net)          #
+# Date: 2/21/2013                                 #
+#                                                 #
+# Copyright 2013 Matt Mills                       #
+# All rights reserved                             #
+#                                                 #
+# Unauthorized use or distribution of this code   #
+# is prohibited.                                  #
+#                                                 #
+###################################################
 
-from gnuradio import digital
-from gnuradio import eng_notation
-from gnuradio import filter
+#from gnuradio import digital
+#from gnuradio import eng_notation
+#from gnuradio import filter
 from gnuradio import gr
 from gnuradio import uhd
-from gnuradio.eng_option import eng_option
-from gnuradio.filter import firdes
-from gnuradio.gr import firdes
-from optparse import OptionParser
+#from gnuradio.eng_option import eng_option
+#from gnuradio.filter import firdes
+#from gnuradio.gr import firdes
+#from optparse import OptionParser
 
-import binascii
-#import baz
+#import binascii
 import time
-import threading
+#import threading
+
+
+# import custom modules
+from moto_control_receiver import moto_control_receiver
+from edacs_control_receiver import edacs_control_receiver
 
 from logging_receiver import logging_receiver
-from control_receiver import moto_control_receiver
 
-class moto_smartzone_test1(gr.top_block):
+class receiver(gr.top_block):
 
 	def __init__(self):
-		gr.top_block.__init__(self, "Moto Smartzone Test1")
+		gr.top_block.__init__(self, "RadioCapture.com receiver")
 
+
+		#gr.enable_realtime_scheduling()
 		##################################################
 		# Variables
 		##################################################
@@ -44,9 +57,10 @@ class moto_smartzone_test1(gr.top_block):
 		self.sources[0]['center_freq'] = 857400000
 		self.sources[1]['center_freq'] = 865000000
 
-		self.systems = {0:{}, 1:{}, 2:{}, 3:{}}
+		self.systems = {0:{}, 1:{}, 2:{}, 3:{}}#, 4:{}}
 		
 		#San Bernadino County 06/07
+		self.systems[0]['type'] = 'moto'
 		self.systems[0]['id'] = 0x3c33
 		self.systems[0]['channels'] = {
 				0x99: 854837500,
@@ -80,6 +94,7 @@ class moto_smartzone_test1(gr.top_block):
 
 			}
 		#San Bernadino County 08
+                self.systems[1]['type'] = 'moto'
 		self.systems[1]['id'] = 0x363f
 		self.systems[1]['channels'] = {
 				0xfe: 857362500,
@@ -98,6 +113,7 @@ class moto_smartzone_test1(gr.top_block):
 
 		#San Bernadino County 09
 		#First channel is OUT OF RANGE
+                self.systems[2]['type'] = 'moto'
                 self.systems[2]['id'] = 0x262c
                 self.systems[2]['channels'] = {
                                 #014x: 851500000, #Not valid standard, valid splinter
@@ -125,6 +141,7 @@ class moto_smartzone_test1(gr.top_block):
 		}
 		# CCCS Countywide
 		# FIRST CHANNEL IS out of range
+                self.systems[3]['type'] = 'moto'
 		self.systems[3]['id'] = 0x6c3f
                 self.systems[3]['channels'] = {
 				#0x??: 851062500,
@@ -150,6 +167,25 @@ class moto_smartzone_test1(gr.top_block):
                                0x184: 860712500,
                                0x18e: 860962500
                        }
+		#Riverside EDACS - West site
+		#self.systems[4]['type'] = 'edacs'
+		#self.systems[4]['id'] = 1
+		#self.systems[4]['symbol_rate'] = 9600.0
+		#self.systems[4]['esk'] = False
+		#self.systems[4]['channels'] = {
+		#		1: 866212500,
+                #                2: 866262500,
+                #                3: 866712500,
+                #                4: 866762500,
+                #                5: 867212500,
+                #                6: 867712500,
+                #                7: 868212500,
+                #                8: 867262500,
+                #                9: 868262500,
+                #                10: 868712500,
+                #                11: 867787500,
+                #                12: 868787500
+		#	}
 
 		##################################################
 		# Blocks
@@ -161,7 +197,7 @@ class moto_smartzone_test1(gr.top_block):
 			stream_args=uhd.stream_args(
 				cpu_format="fc32",
 				otw_format="sc8",
-				#args="peak=0.1",
+				args="peak=0.1",
 				channels=range(2),
 			),
 		)
@@ -174,12 +210,19 @@ class moto_smartzone_test1(gr.top_block):
 		self.source.set_gain(0, 0)
 		self.source.set_gain(0, 1)
 
-	
+		self.source.set_max_output_buffer(65536000)
+		#print self.source.max_output_buffer(0)
+		#print self.source.max_output_buffer(1)
 		##################################################
 		# Connections
 		##################################################
 		for system in self.systems:
-			self.systems[system]['block'] = moto_control_receiver( self.systems[system], self.samp_rate, self.sources, self)
+			if self.systems[system]['type'] == 'moto':
+				self.systems[system]['block'] = moto_control_receiver( self.systems[system], self.samp_rate, self.sources, self)
+			elif self.systems[system]['type'] == 'edacs':
+				self.systems[system]['block'] = edacs_control_receiver( self.systems[system], self.samp_rate, self.sources, self)
+			else:
+				raise Exception('Invalid system type %s' % (self.systems[system]['type']))
 			this_block = self.systems[system]['block']
 			self.connect((self.source,0), (this_block, 0))
 			self.connect((self.source,1), (this_block, 1))
@@ -198,17 +241,23 @@ class moto_smartzone_test1(gr.top_block):
 if __name__ == '__main__':
 ####################################################################################################
 	
-	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
-	(options, args) = parser.parse_args()
+	#parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
+	#(options, args) = parser.parse_args()
 	if gr.enable_realtime_scheduling() != gr.RT_OK:
 		print "Error: failed to enable realtime scheduling."
-	tb = moto_smartzone_test1()
+	tb = receiver()
 	tb.start()
 	print 'Entering top_block loop'
 
 	while 1:
-		for receiver in tb.active_receivers:
+		for i,receiver in enumerate(tb.active_receivers):
+			#receiver = tb.active_receivers[i]
 			if receiver.in_use == True and time.time()-receiver.time_activity > 1 and receiver.time_activity != 0 and receiver.time_open != 0:
-				receiver.close()
+				receiver.close({})
+			if receiver.in_use == False and time.time()-receiver.time_last_use > 30:
+				tb.lock()
+				tb.disconnect(tb.active_receivers[i])
+				del tb.active_receivers[i]
+				tb.unlock()
 		time.sleep(0.1)
 

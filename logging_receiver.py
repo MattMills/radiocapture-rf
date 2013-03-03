@@ -3,18 +3,19 @@
 from gnuradio import blks2, gr
 from gnuradio.gr import firdes
 from grc_gnuradio import blks2 as grc_blks2
-#import gnuradio.blocks as gr_blocks
 
-import string
+#import string
 import time, datetime
 import os
-import random
+#import random
 import threading
 import uuid
 
-import gnuradio.extras as gr_extras
+try:
+	import grextras as gr_extras
+except ImportError:
+	import gnuradio.extras as gr_extras
 
-#from ID3 import *
 
 class logging_receiver(gr.hier_block2):
 	def __init__(self, samp_rate):
@@ -27,7 +28,7 @@ class logging_receiver(gr.hier_block2):
 		self.samp_rate = samp_rate
 		self.audio_rate = 12500
 		
-		self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.2), firdes.WIN_HAMMING)
+		self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.6), firdes.WIN_HAMMING)
 		self.prefilter_decim = int(self.samp_rate/self.audio_rate)
 		self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
 
@@ -41,10 +42,14 @@ class logging_receiver(gr.hier_block2):
 		self.connect((self.valve,0), self.null)
 		self.connect(self, (self.valve, 0))
 		self.connect((self.valve, 1), self.prefilter, self.sink)
+		#self.connect(self, self.prefilter)
+		#self.connect(self.prefilter, (self.valve, 0))
+		#self.connect((self.valve, 1), self.sink)
 
 		self.cdr = {}
 		self.time_open = 0
 		self.time_activity = 0
+		self.time_last_use = time.time()
 		self.uuid = ''
 		self.freq = 0
 		self.center_freq = 0
@@ -55,7 +60,7 @@ class logging_receiver(gr.hier_block2):
 		self.in_use = False
 		self.codec_provoice = False
 		self.codec_p25 = False
-        def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, codec_provoice, codec_p25):
+        def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, patches, codec_provoice, codec_p25):
 		if(time_open == 0): raise RuntimeError("upload_and_cleanup() with time_open == 0")
 		
 		time.sleep(2)
@@ -70,16 +75,25 @@ class logging_receiver(gr.hier_block2):
                 	os.makedirs('/nfs/%s' % (filepath, ))
                 except:
                         pass
-		#try:
-		#	id3info = ID3('%s' % (filepath + uuid + '.mp3', ))
-		#	id3info['TITLE'] = str(cdr['type']) + ' ' + str(cdr['system_group_local'])
-		#	id3info['ARTIST'] = str(cdr['system_user_local'])
-		#	id3info['ALBUM'] = str(cdr['system'])
-		#	id3info['COMMENT'] = '%s,%s' % (cdr['system_frequency'],cdr['timestamp'])
-		#	id3info.write()
-		#except InvalidTagError, msg:
-		#	print "Invalid ID3 tag:", msg
-		now = datetime.datetime.now()
+		filename = '%s' % (filepath + uuid + '.mp3', )
+		tags = {}
+		tags['TIT2'] = '%s %s' % (cdr['type'],cdr['system_group_local'])
+		tags['TPE1'] = '%s' %(cdr['system_user_local'])
+		tags['TALB'] = '%s' % (cdr['system_id'])
+		
+		if(cdr['system_group_local'] in patches):
+			groups = []
+		        for group in patches[cdr['system_group_local']]:
+		        	groups.append(group)
+			tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['timestamp'], groups)
+		else:
+			tags['COMM'] = '%s,%s,%s' % (cdr['system_channel_local'],cdr['timestamp'], [])
+		tags['COMM'] = tags['COMM'].replace(':', '|')
+		os.system('id3v2 -2 --TIT2 "%s" --TPE1 "%s" --TALB "%s" -c "RC":"%s":"English" %s' % (tags['TIT2'], tags['TPE1'], tags['TALB'], tags['COMM'], filename))
+
+
+
+
 		#try:
 		#        os.remove(filename)
 		#except:
@@ -88,7 +102,8 @@ class logging_receiver(gr.hier_block2):
 			os.remove(filename[:-4] + '.wav')
 		except:
 			print 'error removing '
-	def close(self, upload=True, emergency=False):
+
+	def close(self, patches, upload=True, emergency=False):
 		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')
 		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 		self.cdr['time_open'] = self.time_open
@@ -99,7 +114,7 @@ class logging_receiver(gr.hier_block2):
 			self.sink.close()
 
 			if(upload):
-				_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.time_open, self.uuid, self.cdr, self.filepath, self.codec_provoice, self.codec_p25])
+				_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.time_open, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25])
 	        		_thread_0.daemon = True
 			        _thread_0.start()
 			else:
@@ -108,9 +123,8 @@ class logging_receiver(gr.hier_block2):
 				except:
 					print 'Error removing ' +self.filename
 
-		#self.set_tgid(0)
-		#self.call_id = 0
 		self.time_open = 0
+		self.time_last_use = time.time()
 		self.in_use = False
 		self.uuid =''
 		self.cdr = {}
@@ -118,18 +132,27 @@ class logging_receiver(gr.hier_block2):
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
 
 		if(audio_rate != self.audio_rate):
+			print 'System: Adjusting audio rate'
 			self.audio_rate = audio_rate
 			channel_rate = audio_rate*1.4
-			self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.2), firdes.WIN_HAMMING)
+			self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.6), firdes.WIN_HAMMING)
 			#self.prefilter_decim = int(self.samp_rate/audio_rate)
 	                #self.prefilter.set_decim(self.prefilter_decim)
-			#self.prefilter.set_taps(self.audiotaps)
-			self.lock()
-			self.disconnect((self.valve,1), self.prefilter)
-			self.disconnect(self.prefilter, self.sink)
-			self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
-			self.connect((self.valve, 1), self.prefilter, self.sink)
-			self.unlock()
+			self.prefilter.set_taps(self.audiotaps)
+			#self.lock()
+
+			#self.disconnect(self, self.prefilter)
+			#self.disconnect(self.prefilter, (self.valve, 0))
+			
+			#self.disconnect((self.valve,1), self.prefilter)
+			#self.disconnect(self.prefilter, self.sink)
+			#self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
+			#self.connect((self.valve, 1), self.prefilter, self.sink)
+
+                        #self.connect(self, self.prefilter)
+                        #self.connect(self.prefilter, (self.valve, 0))
+
+			#self.unlock()
 
 
 		self.uuid = cdr['uuid'] = str(uuid.uuid4())
@@ -154,7 +177,7 @@ class logging_receiver(gr.hier_block2):
 			self.sink.open(self.filename)
 			self.unmute()
 
-		self.time_open = time.time()
+		self.time_open = cdr['timestamp'] =  time.time()
 		self.activity()
 	def tuneoffset(self, target_freq, rffreq):
 		print "Tuning to %s, center %s, offset %s" % (target_freq, rffreq, (rffreq-target_freq))
@@ -177,3 +200,4 @@ class logging_receiver(gr.hier_block2):
 		return self.muted
 	def activity(self):
 		self.time_activity = time.time()
+		self.time_last_use = time.time()
