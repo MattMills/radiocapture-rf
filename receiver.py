@@ -219,23 +219,41 @@ class receiver(gr.top_block):
 		self.uhd.set_min_output_buffer(0, 4000000)
 		print self.uhd.max_output_buffer(0)
 		print self.uhd.max_output_buffer(1)
-		
+		self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
+		self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
+		self.connect((self.uhd, 0), self.null_sink0)
+		self.connect((self.uhd, 1), self.null_sink1)
 		self.source = self.uhd
 		##################################################
 		# Connections
 		##################################################
 		for system in self.systems:
 			if self.systems[system]['type'] == 'moto':
-				self.systems[system]['block'] = moto_control_receiver( self.systems[system], self.samp_rate, self.sources, self)
+				self.systems[system]['block'] = moto_control_receiver( self.systems[system], self.samp_rate, self.sources, self, system)
 			elif self.systems[system]['type'] == 'edacs':
-				self.systems[system]['block'] = edacs_control_receiver( self.systems[system], self.samp_rate, self.sources, self)
+				self.systems[system]['block'] = edacs_control_receiver( self.systems[system], self.samp_rate, self.sources, self, system)
 			else:
 				raise Exception('Invalid system type %s' % (self.systems[system]['type']))
 			this_block = self.systems[system]['block']
+			self.systems[system]['source'] = 0
 			self.connect((self.source,0), (this_block, 0))
-			self.connect((self.source,1), (this_block, 1))
 		
 		self.active_receivers = []
+
+	def retune_control(self, system, freq):
+		channel = self.systems[system]['block']
+		for i in self.sources.keys():
+			if(abs(freq-self.sources[i]['center_freq']) < self.samp_rate/2):
+				if i == self.systems[system]['source']:
+					return i
+				else:
+					self.lock()
+					self.disconnect((self.source, self.systems[system]['source']), channel)
+					self.connect((self.source, i), channel)
+					self.systems[system]['source'] = i
+					self.unlock()
+					return i
+		raise Exception('Control Frequency out of range %s' % (freq))
 
 	def connect_channel(self, freq, channel):
 		for i in self.sources.keys():
