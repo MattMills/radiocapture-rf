@@ -24,10 +24,10 @@ from logging_receiver import logging_receiver
 
 class moto_control_receiver(gr.hier_block2):
 
-	def __init__(self, system, samp_rate, sources, top_block):
+	def __init__(self, system, samp_rate, sources, top_block, block_id):
 
                 gr.hier_block2.__init__(self, "moto_control_receiver",
-                                gr.io_signature(2, 2, gr.sizeof_gr_complex), # Input signature
+                                gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
 
 		##################################################
@@ -39,6 +39,7 @@ class moto_control_receiver(gr.hier_block2):
 		self.symbol_rate = symbol_rate = 3600.0
 		self.samp_rate = samp_rate
 		self.control_source = 0
+		self.block_id = block_id
 		
 		self.offset = offset = 0
 
@@ -94,19 +95,14 @@ class moto_control_receiver(gr.hier_block2):
 		self.control_msg_sink = gr.message_sink(gr.sizeof_char*1, self.control_msg_sink_msgq, True)
 		#self.udp = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", 9999, 1472, True)
 	
-		self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
-		self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
-
 		##################################################
 		# Connections
 		##################################################
-		self.connect((self.source,0), self.null_sink0)
-		self.connect((self.source,1), self.null_sink1)
 		self.connect(self.control_prefilter, self.control_quad_demod, self.control_clock_recovery)
 		self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
 		#self.connect(self.control_prefilter, self.udp)
 		
-		self.connect((self.source, self.control_source), self.control_prefilter)
+		self.connect(self.source, self.control_prefilter)
 
 	def get_msgq(self):
 		return self.control_msg_sink_msgq.delete_head().to_string()
@@ -115,29 +111,13 @@ class moto_control_receiver(gr.hier_block2):
                 if(self.control_channel_key >= len(self.channels_list)):
                         self.control_channel_key = 0
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
-		#print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.control_channel-self.sources[self.control_source]['center_freq'])
-		if(abs(self.control_channel-self.sources[self.control_source]['center_freq']) > (self.samp_rate/2)):
-			print 'Source change Required'
-			for i in self.sources.keys():
-	                        if(abs(self.control_channel-self.sources[i]['center_freq']) < (self.samp_rate/2)):
-					
-	                                self.lock()
-					self.disconnect((self.source, self.control_source), self.control_prefilter)
-					print 'New source %s, Old source %s' % (i, self.control_source)
-					self.control_source = i
-	                                self.connect((self.source,i), self.control_prefilter)
-	                                self.unlock()
-					self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
-					print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
-			                self.control_msg_sink_msgq.flush()
-			                time.sleep(0.1)
-	                                return None
-	                raise Exception('Frequency out of range %s' % (self.control_channel))
-		else:
-	                self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
-			print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
-        	        self.control_msg_sink_msgq.flush()
-	                time.sleep(0.1)
+
+		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
+		self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
+
+		print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
+		self.control_msg_sink_msgq.flush()
+		time.sleep(0.1)
 
         def quality_check(self):
                 #global bad_messages, total_messages

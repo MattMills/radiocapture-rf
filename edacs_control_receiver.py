@@ -43,14 +43,14 @@ class edacs_control_receiver(gr.hier_block2):
 		################################################
 	
 
-		control_samp_rate = 6250
+		control_samp_rate = 12500
 		control_channel_rate = control_samp_rate*3 #Channel rate must be higher for clock recovery
 		decimation_s1 = int(samp_rate/control_channel_rate)
 		post_decimation_samp_rate = int(samp_rate/decimation_s1)
 
 		print 'Decimation: %s' % (decimation_s1)
 
-		self.taps = taps = firdes.low_pass(5, samp_rate, control_samp_rate, control_samp_rate*0.55, firdes.WIN_HAMMING)
+		self.taps = taps = firdes.low_pass(5, samp_rate, control_samp_rate/2, control_samp_rate/2*0.55, firdes.WIN_HAMMING)
 
 		#self.set_max_output_buffer(100000)
         	self.control_prefilter = gr.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
@@ -58,8 +58,8 @@ class edacs_control_receiver(gr.hier_block2):
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/decimation_s1/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
                 self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_unpacked_to_packed = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
-		self.control_msg_queue = gr.msg_queue(10240)
-		self.control_msg_sink = gr.message_sink(gr.sizeof_char, self.control_msg_queue, False)
+		self.control_msg_queue = gr.msg_queue(1024)
+		self.control_msg_sink = gr.message_sink(gr.sizeof_char, self.control_msg_queue,True)
 		#self.udp_sink = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", 9995, 1472, True)
 
 		#self.connect(self.control_freq_xlating_fir_filter, self.udp_sink)
@@ -133,10 +133,7 @@ class edacs_control_receiver(gr.hier_block2):
 		#self.tune_control_channel()
 
         def recv_pkt(self):
-                pkt = ""
-
-                pkt = self.control_msg_queue.delete_head().to_string()
-                return pkt
+                return self.control_msg_queue.delete_head().to_string()
         def build_audio_channel(self, c):
 		allocated_receiver = logging_receiver(self.samp_rate)
 		center = self.tb.connect_channel(self.channels[c], allocated_receiver)
