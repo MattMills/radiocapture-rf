@@ -32,6 +32,8 @@ class edacs_control_receiver(gr.hier_block2):
                 self.control_channel = control_channel = self.channels[self.channels_list[0]]
 		self.control_source = 0
 
+		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
+
 		#self.control_lcn = control_lcn = 1
 		self.bad_messages = 0
 		self.total_messages = 0

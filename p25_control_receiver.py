@@ -57,6 +57,8 @@ class p25_control_receiver (gr.hier_block2):
 		self.call_table = {}
 		self.channel_identifier_table = {}
 
+		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
+
 	        # Setup receiver attributes
 	        channel_rate = 125000
 	        symbol_rate = 4800

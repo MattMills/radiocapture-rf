@@ -33,7 +33,9 @@ class file_to_wav(gr.top_block):
 		#self.filepath = filepath = "%s/%s/%s/%s/%s/%s/%s/" % ('audio', now.year, now.month, now.day, now.hour, self.system['id'], self.cdr['system_group_local'])
 
 		#self.audiodemod =  gr.quadrature_demod_cf(0.25)
-		self.audiodemod = blks2.fm_demod_cf(channel_rate=input_rate, audio_decim=1, deviation=5000, audio_pass=6000, audio_stop=7000, gain=1, tau=75e-6)
+		audio_pass = input_rate*0.25
+		audio_stop = audio_pass+1000
+		self.audiodemod = blks2.fm_demod_cf(channel_rate=input_rate, audio_decim=1, deviation=5000, audio_pass=audio_pass, audio_stop=audio_stop, gain=1, tau=75e-6)
 		self.signal_squelch = analog.pwr_squelch_cc(sslevel,0.01, 0, True)
 		self.vox_squelch = analog.pwr_squelch_ff(svlevel, 0.0005, 0, True)
 		

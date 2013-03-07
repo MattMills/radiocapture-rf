@@ -60,6 +60,8 @@ class logging_receiver(gr.hier_block2):
 		self.in_use = False
 		self.codec_provoice = False
 		self.codec_p25 = False
+	
+		self.lock_id = False
         def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, patches, codec_provoice, codec_p25):
 		if(time_open == 0): raise RuntimeError("upload_and_cleanup() with time_open == 0")
 		
@@ -69,7 +71,7 @@ class logging_receiver(gr.hier_block2):
 		elif codec_p25:
 			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -5 2>&1 >/dev/null')
 		else:
-			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -r ' + str(int(25000)) + ' 2>&1 >/dev/null')
+			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -r 25000 2>&1 >/dev/null')
                 os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '.wav' + ' 2>&1 >/dev/null')
 		try:
                 	os.makedirs('/nfs/%s' % (filepath, ))
@@ -201,3 +203,11 @@ class logging_receiver(gr.hier_block2):
 	def activity(self):
 		self.time_activity = time.time()
 		self.time_last_use = time.time()
+	def acquire_lock(self, lock_id):
+		if self.lock_id == False:
+			self.lock_id = lock_id
+			return True
+		else:
+			return False
+	def get_lock(self):
+		return self.lock_id

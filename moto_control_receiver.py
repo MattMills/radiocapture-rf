@@ -50,6 +50,9 @@ class moto_control_receiver(gr.hier_block2):
 		self.channels = system['channels']
 		self.channels_list = self.channels.keys()
 
+		self.thread_id = '%s-%s' % (self.system['type'], self.system_id)
+
+
 		print self.channels
 		print self.channels_list
 
@@ -159,8 +162,10 @@ class moto_control_receiver(gr.hier_block2):
 ####################################################################################################
 	def receive_engine(self):
 		print 'moto_control_receiver: receive_engine() startup'
-		time.sleep(5)
+		time.sleep(1)
 		import sys
+
+		
 
 		frame_len = 76 #bits
 		frame_sync = '10101100'
@@ -296,7 +301,7 @@ class moto_control_receiver(gr.hier_block2):
 										'type': 'group', 
 										'center_freq': center}
 		
-									allocated_receiver.open(cdr, 20000.0)
+									allocated_receiver.open(cdr, 25000.0)
 											
 							#elif cmd == 0x1c:
 							#	print '%s: Grant %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
