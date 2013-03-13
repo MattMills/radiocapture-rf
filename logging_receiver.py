@@ -28,6 +28,7 @@ class logging_receiver(gr.hier_block2):
 		self.samp_rate = samp_rate
 		self.audio_rate = 12500
 		
+		self.thread_id = 'logr-' + str(uuid.uuid4())
 		self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.6), firdes.WIN_HAMMING)
 		self.prefilter_decim = int(self.samp_rate/self.audio_rate)
 		self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
@@ -127,12 +128,13 @@ class logging_receiver(gr.hier_block2):
 
 		self.time_open = 0
 		self.time_last_use = time.time()
-		self.in_use = False
 		self.uuid =''
 		self.cdr = {}
+		self.in_use = False
 	def open(self, cdr, audio_rate):
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
-
+		self.in_use = True
+                self.cdr = cdr
 		if(audio_rate != self.audio_rate):
 			print 'System: Adjusting audio rate'
 			self.audio_rate = audio_rate
@@ -159,8 +161,6 @@ class logging_receiver(gr.hier_block2):
 
 		self.uuid = cdr['uuid'] = str(uuid.uuid4())
 
-		self.in_use = True
-		self.cdr = cdr
 
 		print "(%s) %s %s" %(time.time(), "Open ", str(self.cdr))
 		now = datetime.datetime.utcnow()
@@ -204,6 +204,7 @@ class logging_receiver(gr.hier_block2):
 		self.time_activity = time.time()
 		self.time_last_use = time.time()
 	def acquire_lock(self, lock_id):
+		print '%s attempt lock acquire %s' % (self.thread_id, lock_id)
 		if self.lock_id == False:
 			self.lock_id = lock_id
 			return True
@@ -211,3 +212,5 @@ class logging_receiver(gr.hier_block2):
 			return False
 	def get_lock(self):
 		return self.lock_id
+	def release_lock(self):
+		self.lock_id = False

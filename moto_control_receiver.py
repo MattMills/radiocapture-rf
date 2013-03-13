@@ -161,7 +161,7 @@ class moto_control_receiver(gr.hier_block2):
 	         return True
 ####################################################################################################
 	def receive_engine(self):
-		print 'moto_control_receiver: receive_engine() startup'
+		print self.thread_id + ': receive_engine() startup'
 		time.sleep(1)
 		import sys
 
@@ -275,18 +275,24 @@ class moto_control_receiver(gr.hier_block2):
 										allocated_receiver = -1
 										break
 								
-								if allocated_receiver != -1: #If call does not have an active channel
+								while  allocated_receiver == False or not (allocated_receiver == -1) and allocated_receiver.get_lock() != self.thread_id: #If call does not have an active channel
+									allocated_receiver = False
 									for receiver in self.tb.active_receivers: #look for an empty channel
 										if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-											allocated_receiver = receiver
-											center = receiver.center_freq
-											break
+											receiver.acquire_lock(self.thread_id)
+											if receiver.get_lock() == self.thread_id:
+												allocated_receiver = receiver
+												center = receiver.center_freq
+												break
 								
 									if allocated_receiver == False: #or create a new one if there arent any empty channels
 										allocated_receiver = logging_receiver(self.samp_rate)
 										center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
 										self.tb.active_receivers.append(allocated_receiver)
-			
+									
+									allocated_receiver.acquire_lock(self.thread_id)
+
+								if allocated_receiver != -1:
 									allocated_receiver.tuneoffset(self.channels[cmd], center)
 									if tg > 32000:
 										allocated_receiver.set_codec_p25(True)
@@ -302,6 +308,7 @@ class moto_control_receiver(gr.hier_block2):
 										'center_freq': center}
 		
 									allocated_receiver.open(cdr, 25000.0)
+									allocated_receiver.release_lock()
 											
 							#elif cmd == 0x1c:
 							#	print '%s: Grant %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
