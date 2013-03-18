@@ -68,11 +68,11 @@ class logging_receiver(gr.hier_block2):
 		
 		time.sleep(2)
 		if codec_provoice:
-			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -p 2>&1 >/dev/null')
+			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -p -v -100 2>&1 >/dev/null')
 		elif codec_p25:
-			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -5 2>&1 >/dev/null')
+			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -5 -v -100 2>&1 >/dev/null')
 		else:
-			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -r 25000 2>&1 >/dev/null')
+			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -r 25000 -v -100 2>&1 >/dev/null')
                 os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '.wav' + ' 2>&1 >/dev/null')
 		try:
                 	os.makedirs('/nfs/%s' % (filepath, ))
@@ -97,14 +97,14 @@ class logging_receiver(gr.hier_block2):
 
 
 
-		#try:
-		#        os.remove(filename)
-		#except:
-		#	print 'Error removing ' + filename
+		try:
+		        os.remove(filename[:-4] + '.dat')
+		except:
+			print 'Error removing ' + filename[:-4] + '.dat'
 		try: 
 			os.remove(filename[:-4] + '.wav')
 		except:
-			print 'error removing '
+			print 'error removing ' + filename[:-4] + '.wav'
 
 	def close(self, patches, upload=True, emergency=False):
 		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')

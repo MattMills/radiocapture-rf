@@ -176,6 +176,9 @@ class moto_control_receiver(gr.hier_block2):
 		#packets_bad = tb.packets_bad
 		sync_loops = 0
 		locked = 0
+		last_cmd = 0x0
+		last_i = 0x0
+		last_data = 0x0
 
 		while 1:
 			if(sync_loops < -200):
@@ -256,6 +259,7 @@ class moto_control_receiver(gr.hier_block2):
 						tg = lid & 0xfff0
 						status = lid & 0xf
 						individual = int(pkt[16:17])
+						ind_l = 'G' if int(pkt[16:17]) == 1 else 'I'
 						cmd = int(pkt[17:27],2)^0xd5# ^ 0x32a
 						#3bf == network status
 						#3c0 == System info
@@ -263,53 +267,206 @@ class moto_control_receiver(gr.hier_block2):
 						#310 == aff 2
 						#320 == Network info
 						#
-						if cmd != 0x3c0 and cmd != 0x3bf and cmd != 0x30b and cmd != 0x320 and cmd != 0x361 and lid != self.system_id and tg != 0x1ff0:
-							if self.channels.has_key(cmd):
-								#print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
-								#print 'b/p: %s %s' % (packets, packets_bad)
-								allocated_receiver = False
+						if last_cmd == 0x304 or last_cmd == 0x308 or last_cmd == 0x309: 
+							dual = True
+						else:
+							dual = False
+						if   not dual and cmd == 0x2f8:
+							print '%s: %s %s %s - IDLE ' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif              cmd == 0x300: #s/d
+							print '%s: %s %s %s - Group and PC1 busy' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif not dual and cmd == 0x301: #s
+							print '%s: %s %s %s - Interconnect busy' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif              cmd == 0x302: #s/d
+							print '%s: %s %s %s - Private call busy' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif              cmd == 0x303: #s/d
+							print '%s: %s %s %s - Emergency busy' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif              cmd == 0x304: #f
+							print '%s: %s %s %s - First-word of coded PC grant' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif              cmd == 0x308: #f
+							print '%s: %s %s %s - First-word normal' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif              cmd == 0x309: #f
+							print '%s: %s %s %s - First-word TY2 aliased to TY1' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x30a: #d
+							print '%s: %s %s %s - TY2 dynamic regrouping' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x30b: #d
+							print '%s: %s %s %s - Extended function' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif not dual and cmd == 0x30c: #s
+							print '%s: %s %s %s - TY1 phone status' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x30d: #d
+							print '%s: %s %s %s - Affiliation functions' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif not dual and cmd == 0x30f: #s
+							print '%s: %s %s %s - TY1 Phone disconnect' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif not dual and cmd == 0x310: #s
+							print '%s: %s %s %s - TY1 status value 1' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x310: #d
+							print '%s: %s %s %s - Affiliation - (Radio: %s, TG: %s)' % (time.time(), hex(cmd), ind_l, hex(lid), last_data, lid)
+                                                elif not dual and cmd == 0x311: #s
+                                                        print '%s: %s %s %s - TY1 status value 2' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x311: #d
+							print '%s: %s %s %s - TY2 messages' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x312: #s
+                                                        print '%s: %s %s %s - TY1 status value 3' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x313: #s
+                                                        print '%s: %s %s %s - TY1 status value 4' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x314: #s
+                                                        print '%s: %s %s %s - TY1 status value 5' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x315: #s
+                                                        print '%s: %s %s %s - TY1 status value 6' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x315: #d
+							print '%s: %s %s %s - PC coded ring' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x316: #s
+                                                        print '%s: %s %s %s - TY1 status value 7' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x317: #s
+                                                        print '%s: %s %s %s - TY1 status value 8' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x317: #d
+                                                        print '%s: %s %s %s - PC clear ring' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x318: #s
+							print '%s: %s %s %s - TY1 Call Alert' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x318: #d
+							print '%s: %s %s %s - TY2 PC Ring Ack' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x319: #s
+							print '%s: %s %s %s - TY1 Emergency alarm' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x319: #d
+							print '%s: %s %s %s - TY2 Call Alert' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x31a:
+							print '%s: %s %s %s - TY2 Call Alert Ack' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x31b:
+							print '%s: %s %s %s - Tresspass permitted [AVL indiv high prior grant]' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x31c:
+							print '%s: %s %s %s - [AVL indiv low prior grant]' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x31d:
+							print '%s: %s %s %s - [AVL group high prior grant]' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x324: #s
+                                                        print '%s: %s %s %s - TY2 Interconnect reject' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x325: #s
+                                                        print '%s: %s %s %s - TY2 Interconnect transpond' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x326: #s
+                                                        print '%s: %s %s %s - TY2 Interconnect ring' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x32a: #s
+                                                        print '%s: %s %s %s - Send affiliation request' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x32b: #s
+                                                        print '%s: %s %s %s - Scan marker' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x32d: #s
+                                                        print '%s: %s %s %s - TY1 System wide announcement' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x32e: #d
+							print '%s: %s %s %s - \033[93m Emergency PTT announcement \033[0m' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif     dual and cmd == 0x340: #d
+							pass #print '%s: %s %s %s - TY1 regrouping sizecode A' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x341: #d
+                                                        pass #print '%s: %s %s %s - TY1 regrouping sizecode B' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x342: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode C' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x343: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode D' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x344: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode E' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x345: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode F' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x346: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode G' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x347: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode H' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x348: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode I' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x349: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode J' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x34a: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode K' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x34c: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode M' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x34e: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode O' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif     dual and cmd == 0x350: #d
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode Q' % (time.time(), hex(cmd), ind_l, hex(lid))
 
-								for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
-									if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
+                                                elif not dual and cmd >= 0x360 and cmd <= 0x39F:
+                                                        print '%s: %s %s %s - AMSS site ID' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x3a0: #s
+                                                        print '%s: %s %s %s - System diagnostic or BSI' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x3a8: #s
+                                                        print '%s: %s %s %s - System test' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and cmd == 0x3b0: #s
+                                                        print '%s: %s %s %s - CSC version number' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                elif not dual and (cmd == 0x3bf or cmd == 0x3c0):
+							r = {}
+							r['opcode'] = 			(lid & 0xe000) >> 13 #3 bits
+							if r['opcode'] == 1:
+								
+								r['power'] = 			(lid & 0x1000) >> 12 #1 bit
+								r['dispatch_timeout'] = 	(lid & 0xe00) >> 9 #3 bits
+								r['connect_tone'] = 		(lid & 0x1e0) >> 5 #4 bits
+								r['interconnect_timeout'] = 	(lid & 0x1f)+individual #6 bits
+							elif r['opcode'] == 2:
+                                                                r['b'] = (lid & 0x1000) >> 12
+                                                                r['c'] = (lid & 0x800) >> 11
+                                                                r['d'] = (lid & 0x400) >> 10
+                                                                r['e'] = (lid & 0x200) >> 9
+                                                                r['f'] = (lid & 0x100) >> 8
+                                                                r['g'] = (lid & 0x80) >> 7
+                                                                r['h'] = (lid & 0x40) >> 6
+								r['i'] = (lid & 0x20) >> 5
+								r['j'] = (lid & 0x10) >> 4
+								r['k'] = (lid & 0x8) >> 3
+
+                                                        #print '%s: %s %s %s - System status - %s' % (time.time(), hex(cmd), ind_l, hex(lid), r)
+
+						elif self.channels.has_key(cmd) and lid != self.system_id and tg != 0x1ff0:
+							if dual:
+								print '%s: Call  %s %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd), last_data)
+							#else:
+							#	print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
+							#print 'b/p: %s %s' % (packets, packets_bad)
+							allocated_receiver = False
+
+							for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
+								if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
+									if dual and receiver.cdr['system_user_local'] != last_data:
+										#existing call but user LID does not match!
+										receiver.close({}, True, True)
+										allocated_receiver = receiver
+										center = receiver.center_freq
+									else:
 										receiver.activity()
 										allocated_receiver = -1
 										break
+							
+							while  allocated_receiver == False or not (allocated_receiver == -1) and allocated_receiver.get_lock() != self.thread_id: #If call does not have an active channel
+								allocated_receiver = False
+								for receiver in self.tb.active_receivers: #look for an empty channel
+									if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
+										receiver.acquire_lock(self.thread_id)
+										if receiver.get_lock() == self.thread_id:
+											allocated_receiver = receiver
+											center = receiver.center_freq
+											break
+							
+								if allocated_receiver == False: #or create a new one if there arent any empty channels
+									allocated_receiver = logging_receiver(self.samp_rate)
+									center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
+									self.tb.active_receivers.append(allocated_receiver)
 								
-								while  allocated_receiver == False or not (allocated_receiver == -1) and allocated_receiver.get_lock() != self.thread_id: #If call does not have an active channel
-									allocated_receiver = False
-									for receiver in self.tb.active_receivers: #look for an empty channel
-										if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-											receiver.acquire_lock(self.thread_id)
-											if receiver.get_lock() == self.thread_id:
-												allocated_receiver = receiver
-												center = receiver.center_freq
-												break
-								
-									if allocated_receiver == False: #or create a new one if there arent any empty channels
-										allocated_receiver = logging_receiver(self.samp_rate)
-										center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
-										self.tb.active_receivers.append(allocated_receiver)
-									
-									allocated_receiver.acquire_lock(self.thread_id)
+								allocated_receiver.acquire_lock(self.thread_id)
 
-								if allocated_receiver != -1:
-									allocated_receiver.tuneoffset(self.channels[cmd], center)
-									if tg > 32000:
-										allocated_receiver.set_codec_p25(True)
-									else:
-										allocated_receiver.set_codec_p25(False)
-									allocated_receiver.set_codec_provoice(False)
-									cdr = {
-										'system_id': self.system['id'], 
-										'system_group_local': tg, 
-										'system_user_local': 0,
-										'system_channel_local': cmd, 
-										'type': 'group', 
-										'center_freq': center}
-		
-									allocated_receiver.open(cdr, 25000.0)
-									allocated_receiver.release_lock()
-											
+							if allocated_receiver != -1:
+								allocated_receiver.tuneoffset(self.channels[cmd], center)
+								if tg > 32000:
+									allocated_receiver.set_codec_p25(True)
+								else:
+									allocated_receiver.set_codec_p25(False)
+								allocated_receiver.set_codec_provoice(False)
+								user_local = last_data if dual else 0
+								cdr = {
+									'system_id': self.system['id'], 
+									'system_group_local': tg, 
+									'system_user_local': user_local,
+									'system_channel_local': cmd, 
+									'type': 'group', 
+									'center_freq': center}
+	
+								allocated_receiver.open(cdr, 25000.0)
+								allocated_receiver.release_lock()
+										
 							#elif cmd == 0x1c:
 							#	print '%s: Grant %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
 							#elif cmd == 0x308:
@@ -318,6 +475,11 @@ class moto_control_receiver(gr.hier_block2):
 							#	print '%s: AFF2  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
 							#else:
 							#	print '%s:       %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
+						else:
+							print '%s: %s %s %s - Unknown OSW' % (time.time(), hex(cmd), ind_l, hex(lid))
+						last_cmd = cmd
+						last_i = individual
+						last_data = lid
 				else:
 					buf = buf[fs_loc+fs_len:]
 			

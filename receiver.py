@@ -198,7 +198,7 @@ class receiver(gr.top_block):
 			stream_args=uhd.stream_args(
 				cpu_format="fc32",
 				otw_format="sc8",
-				args="peak=0.1",
+				#args="peak=0.1",
 				channels=range(2),
 			),
 		)
@@ -278,7 +278,7 @@ if __name__ == '__main__':
 	while 1:
 		for i,receiver in enumerate(tb.active_receivers):
 			#receiver = tb.active_receivers[i]
-			if receiver.in_use == True and time.time()-receiver.time_activity > 1 and receiver.time_activity != 0 and receiver.time_open != 0:
+			if receiver.in_use == True and time.time()-receiver.time_activity > 2.5 and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
 			if receiver.in_use == False and time.time()-receiver.time_last_use > 120:
 				tb.lock()
