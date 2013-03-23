@@ -450,10 +450,10 @@ class moto_control_receiver(gr.hier_block2):
 
 							if allocated_receiver != -1:
 								allocated_receiver.tuneoffset(self.channels[cmd], center)
-								if tg > 32000:
-									allocated_receiver.set_codec_p25(True)
-								else:
-									allocated_receiver.set_codec_p25(False)
+								#if tg > 32000:
+								allocated_receiver.set_codec_p25(True)
+								#else:
+								#	allocated_receiver.set_codec_p25(False)
 								allocated_receiver.set_codec_provoice(False)
 								user_local = last_data if dual else 0
 								cdr = {
