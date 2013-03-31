@@ -33,19 +33,19 @@ class logging_receiver(gr.hier_block2):
 		self.prefilter_decim = int(self.samp_rate/self.audio_rate)
 		self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
 
-		self.valve = gr_extras.stream_selector(gr.io_signature(1, 1, gr.sizeof_gr_complex), gr.io_signature(2, 2, gr.sizeof_gr_complex), )
-		self.null = gr.null_sink(gr.sizeof_gr_complex)
+		#self.valve = gr_extras.stream_selector(gr.io_signature(1, 1, gr.sizeof_gr_complex), gr.io_signature(2, 2, gr.sizeof_gr_complex), )
+		#self.null = gr.null_sink(gr.sizeof_gr_complex)
 
 		self.filename = "/dev/null"
 		self.filepath = "/dev/null"
 		self.sink = gr.file_sink(gr.sizeof_gr_complex*1, self.filename)
 
-		self.connect((self.valve,0), self.null)
-		self.connect(self, (self.valve, 0))
-		self.connect((self.valve, 1), self.prefilter, self.sink)
-		#self.connect(self, self.prefilter)
-		#self.connect(self.prefilter, (self.valve, 0))
-		#self.connect((self.valve, 1), self.sink)
+		#self.connect((self.valve,0), self.null)
+		#self.connect(self, (self.valve, 0))
+		#self.connect((self.valve, 1), self.prefilter, self.sink)
+		
+		self.connect(self, self.prefilter, self.sink)
+
 
 		self.cdr = {}
 		self.time_open = 0
@@ -55,8 +55,8 @@ class logging_receiver(gr.hier_block2):
 		self.freq = 0
 		self.center_freq = 0
 
-		self.muted = False
-		self.mute()
+		#self.muted = False
+		#self.mute()
 
 		self.in_use = False
 		self.codec_provoice = False
@@ -112,7 +112,7 @@ class logging_receiver(gr.hier_block2):
 		self.cdr['time_open'] = self.time_open
 		self.cdr['time_close'] = time.time()
 
-		self.mute()
+		#self.mute()
 		if(self.audio_capture):
 			self.sink.close()
 
@@ -177,7 +177,7 @@ class logging_receiver(gr.hier_block2):
 
 		if(self.audio_capture):
 			self.sink.open(self.filename)
-			self.unmute()
+			#self.unmute()
 
 		self.time_open = cdr['timestamp'] =  time.time()
 		self.activity()
@@ -192,14 +192,14 @@ class logging_receiver(gr.hier_block2):
 		self.codec_p25 = input
 	def getfreq(self):
 		return self.freq
-	def mute(self):
-		self.valve.set_paths((0, ))
-		self.muted = True
-	def unmute(self):
-		self.valve.set_paths((1, ))
-		self.muted = False
-	def is_muted(self):
-		return self.muted
+	#def mute(self):
+	#	self.valve.set_paths((0, ))
+	#	self.muted = True
+	#def unmute(self):
+	#	self.valve.set_paths((1, ))
+	#	self.muted = False
+	#def is_muted(self):
+	#	return self.muted
 	def activity(self):
 		self.time_activity = time.time()
 		self.time_last_use = time.time()

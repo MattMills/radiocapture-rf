@@ -83,7 +83,7 @@ class moto_control_receiver(gr.hier_block2):
 		self.source = self
 
 		control_sample_rate = 10000
-		channel_rate = control_sample_rate*5
+		channel_rate = control_sample_rate*3
 		self.f1d = f1d = int(samp_rate/channel_rate) #filter 1 decimation
 		#self.set_max_output_buffer(100000)
 		self.control_prefilter_taps = firdes.low_pass(5,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
@@ -96,14 +96,14 @@ class moto_control_receiver(gr.hier_block2):
 		self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_byte_pack = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		self.control_msg_sink = gr.message_sink(gr.sizeof_char*1, self.control_msg_sink_msgq, True)
-		#self.udp = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", 9999, 1472, True)
+		self.udp = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", self.system_id, 1472, True)
 	
 		##################################################
 		# Connections
 		##################################################
 		self.connect(self.control_prefilter, self.control_quad_demod, self.control_clock_recovery)
 		self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
-		#self.connect(self.control_prefilter, self.udp)
+		self.connect(self.control_prefilter, self.udp)
 		
 		self.connect(self.source, self.control_prefilter)
 
@@ -451,7 +451,7 @@ class moto_control_receiver(gr.hier_block2):
 							if allocated_receiver != -1:
 								allocated_receiver.tuneoffset(self.channels[cmd], center)
 								#if tg > 32000:
-								allocated_receiver.set_codec_p25(True)
+								allocated_receiver.set_codec_p25(False)
 								#else:
 								#	allocated_receiver.set_codec_p25(False)
 								allocated_receiver.set_codec_provoice(False)
