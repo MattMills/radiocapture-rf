@@ -25,7 +25,7 @@ import osmosdr
 
 #import binascii
 import time
-#import threading
+import threading
 
 
 # import custom modules
@@ -128,6 +128,10 @@ class receiver(gr.top_block):
 			}
 
 		#del self.systems[1]
+
+		quality_check = threading.Thread(target=self.quality_check)
+                quality_check.daemon = True
+                quality_check.start()
 		##################################################
 		# Blocks
 		##################################################
@@ -175,6 +179,7 @@ class receiver(gr.top_block):
 					self.connect(self.sources[i]['block'], channel)
 					self.systems[system]['source'] = i
 					self.unlock()
+					channel.source_id = i
 					return i
 		raise Exception('Control Frequency out of range %s' % (freq))
 
@@ -184,8 +189,17 @@ class receiver(gr.top_block):
 				self.lock()
 				self.connect(self.sources[i]['block'], channel)
 				self.unlock()
+				channel.source_id = i
 				return self.sources[i]['center_freq']
 		raise Exception('Frequency out of range %s' % (freq))
+        def quality_check(self):
+                while True:
+                        time.sleep(10); #only check messages once per 10second
+			for i,channel in enumerate(self.active_receivers):
+				if channel.in_use == True:
+					print "System: %s %s %s" %(i, channel.source_id, channel.probe.level())
+			
+				
 
 if __name__ == '__main__':
 ####################################################################################################
