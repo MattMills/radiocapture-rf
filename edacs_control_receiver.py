@@ -12,7 +12,7 @@ import threading
 from logging_receiver import logging_receiver
 
 class edacs_control_receiver(gr.hier_block2):
-	def __init__(self, system, samp_rate, sources, top_block):
+	def __init__(self, system, samp_rate, sources, top_block, block_id):
 		gr.hier_block2.__init__(self, "edacs_control_receiver",
                                 gr.io_signature(2, 2, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
@@ -23,6 +23,7 @@ class edacs_control_receiver(gr.hier_block2):
 		self.sources = sources
 		self.system = system
 		self.samp_rate = samp_rate
+		self.block_id = block_id
 
 		self.audio_rate = audio_rate = 12500
 		self.symbol_rate = symbol_rate = system['symbol_rate']
@@ -52,7 +53,7 @@ class edacs_control_receiver(gr.hier_block2):
 
 		print 'Decimation: %s' % (decimation_s1)
 
-		self.taps = taps = firdes.low_pass(5, samp_rate, control_samp_rate/2, control_samp_rate/2*0.55, firdes.WIN_HAMMING)
+		self.taps = taps = firdes.low_pass(5, samp_rate, control_channel_rate/2, control_channel_rate/2*0.55, firdes.WIN_HAMMING)
 
 		#self.set_max_output_buffer(100000)
         	self.control_prefilter = gr.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
@@ -106,29 +107,13 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.control_lcn = self.control_channel_key
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
-			
-		if(abs(self.control_channel-self.sources[self.control_source]['center_freq']) > (self.samp_rate/2)):
-			print 'Source change Required'
-                        for i in self.sources.keys():
-                                if(abs(self.control_channel-self.sources[i]['center_freq']) < (self.samp_rate/2)):
-
-                                        self.lock()
-                                        self.disconnect((self.source, self.control_source), self.control_prefilter)
-                                        print 'New source %s, Old source %s' % (i, self.control_source)
-                                        self.control_source = i
-                                        self.connect((self.source,i), self.control_prefilter)
-                                        self.unlock()
-                                        self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
-                                        print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
-                                        self.control_msg_queue.flush()
-                                        time.sleep(0.1)
-                                        return None
-                        raise Exception('Frequency out of range %s' % (self.control_channel))
-                else:
-                        self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
-                        print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
-                        self.control_msg_queue.flush()
-                        time.sleep(0.1)
+		
+		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
+	
+                self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
+                print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
+                self.control_msg_queue.flush()
+                time.sleep(0.1)
 
 
 
@@ -438,12 +423,12 @@ class edacs_control_receiver(gr.hier_block2):
                         self.failed_loops = self.failed_loops + 1
                         buf = buf[288:]
                         if(self.failed_loops > 100 and loop_start+2 < time.time()):
-                                print 'Failed loops: ' + str(self.failed_loops)
+                                #print 'Failed loops: ' + str(self.failed_loops)
 
                                 self.failed_loops = 0
                                 self.loop_start = time.time()
 
-                                print 'Cant get framesync lock, %s trying next control ' % (self.system['id'])
+                                print 'Cant get framesync lock, SYS: %s trying next control ' % (self.system['id'])
                                 self.tune_next_control_channel()
                                 buf = ''
                         return (buf, False)
