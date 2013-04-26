@@ -45,14 +45,14 @@ class logging_receiver(gr.hier_block2):
 		
 		self.connect(self, self.prefilter, self.sink)
 
-		quad_demod = analog.quadrature_demod_cf(1)
-		low_pass = self.low_pass_filter_0_0 = gr.fir_filter_fff(1, firdes.low_pass(
-                        1, (samp_rate/self.prefilter_decim), 300, 50, firdes.WIN_HAMMING, 6.76))
-		moving_avg = gr.moving_average_ff(100000, 1, 400000)
-		multiply_const = blocks.multiply_const_vff((0.00001, ))
-		self.probe = gr.probe_signal_f()
+		#quad_demod = analog.quadrature_demod_cf(1)
+		#low_pass = self.low_pass_filter_0_0 = gr.fir_filter_fff(1, firdes.low_pass(
+                #        1, (samp_rate/self.prefilter_decim), 300, 50, firdes.WIN_HAMMING, 6.76))
+		#moving_avg = gr.moving_average_ff(100000, 1, 400000)
+		#multiply_const = blocks.multiply_const_vff((0.00001, ))
+		#self.probe = gr.probe_signal_f()
 		
-		self.connect(self.prefilter, quad_demod, low_pass, moving_avg, multiply_const, self.probe)
+		#self.connect(self.prefilter, quad_demod, low_pass, moving_avg, multiply_const, self.probe)
 
 		self.cdr = {}
 		self.time_open = 0

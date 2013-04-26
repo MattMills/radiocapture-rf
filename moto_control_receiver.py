@@ -8,7 +8,7 @@
 from gnuradio import digital
 from gnuradio import eng_notation
 from gnuradio import filter
-from gnuradio import gr
+from gnuradio import gr, blocks
 from gnuradio import uhd
 from gnuradio.eng_option import eng_option
 from gnuradio.filter import firdes
@@ -92,6 +92,12 @@ class moto_control_receiver(gr.hier_block2):
 		#(omega, gain_omega, mu, gain_mu, omega_relative_limit)
 		#(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		#(samp_rate/f1d/symbol_rate, 0.000025, 0.5, 0.01, 0.3)
+		moving_sum = gr.moving_average_ff(1000, 1, 4000)
+		#subtract = blocks.sub_ff(1)
+		divide_const = blocks.multiply_const_vff((0.001, ))
+		self.probe = gr.probe_signal_f()
+
+
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_byte_pack = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
@@ -101,6 +107,8 @@ class moto_control_receiver(gr.hier_block2):
 		##################################################
 		# Connections
 		##################################################
+		self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
+
 		self.connect(self.control_prefilter, self.control_quad_demod, self.control_clock_recovery)
 		self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
 		self.connect(self.control_prefilter, self.udp)

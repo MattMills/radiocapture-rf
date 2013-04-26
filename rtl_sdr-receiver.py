@@ -13,19 +13,12 @@
 #                                                 #
 ###################################################
 
-#from gnuradio import digital
-#from gnuradio import eng_notation
-#from gnuradio import filter
 from gnuradio import gr
 import osmosdr
-#from gnuradio.eng_option import eng_option
-#from gnuradio.filter import firdes
-#from gnuradio.gr import firdes
-#from optparse import OptionParser
 
-#import binascii
 import time
 import threading
+import os
 
 
 # import custom modules
@@ -47,7 +40,11 @@ class receiver(gr.top_block):
 		self.sources = {
 			0:{}, 
 			1:{},
-			2:{}
+			2:{},
+			3:{},
+			4:{},
+			5:{},
+			6:{}
 		}
 
 		self.packets = 0
@@ -58,19 +55,28 @@ class receiver(gr.top_block):
 		
 		self.offset = offset = 0
 
-		self.sources[0]['center_freq'] = 855050000
-		self.sources[0]['offset'] = 44.99 #C
-		self.sources[0]['serial'] = 'rtl=2'
+		self.cf_key = 0
+		self.cf = {} #center_freqs
+		self.cf[0] = 855050000
+		self.cf[1] = 857450000
+		self.cf[2] = 859850000
+		self.cf[3] = 852200000
+		self.cf[4] = 853850000
+		self.cf[5] = 844850000
 
-		self.sources[1]['center_freq'] = 857450000
-		self.sources[1]['offset'] = 12.43 #B
-		self.sources[1]['serial'] = 'rtl=1'
+		self.sources[0]['serial'] = '0'
+		self.sources[1]['serial'] = '1'
+		self.sources[2]['serial'] = '2'
+		self.sources[3]['serial'] = '3'
+                self.sources[4]['serial'] = '4'
+                self.sources[5]['serial'] = '5'
+                self.sources[6]['serial'] = '6'
+		#del self.sources[3]
+		#del self.sources[4]
+		del self.sources[5]
+		del self.sources[6]
 
-		self.sources[2]['center_freq'] = 859850000
-		self.sources[2]['offset'] = 23.46 #A
-		self.sources[2]['serial'] = 'rtl=0'
-
-		self.systems = {0:{}, 1:{}}
+		self.systems = {0:{}, 1:{}, 2:{}}
 
                 #Denver Public Safety - EDACS
                 self.systems[0]['type'] = 'edacs'
@@ -127,25 +133,71 @@ class receiver(gr.top_block):
                                 20: 860987500
 			}
 
-		#del self.systems[1]
+		#DIA - EDACS
+		#self.systems[2]['type'] = 'edacs'
+		#self.systems[2]['id'] = 3
+		#self.systems[2]['symbol_rate'] = 9600.0
+		#self.systems[2]['esk'] = False
+		#self.systems[2]['channels'] = {
+		#		1: 855212500,
+		#		2: 855712500,
+		#		3: 856462500,
+		#		4: 857212500,
+		#		5: 857712500,
+		#		6: 851362500,
+		#		7: 851662500,
+		#		8: 851937500,
+		#		9: 852537500,
+		#		10: 852837500,
+		#		11: 856437500,
+		#		12: 857437500,
+		#		13: 858437500,
+		#		14: 859437500,
+		#		15: 857637500
+		#	}
 
+		#del self.systems[2]
+		self.systems[2]['type'] = 'edacs'
+                self.systems[2]['id'] = 4
+                self.systems[2]['symbol_rate'] = 9600.0
+                self.systems[2]['esk'] = False
+                self.systems[2]['channels'] = {
+			1: 851062500,
+			2: 851762500,
+			3: 852062500,
+			4: 852325000,
+			5: 853925000,
+			6: 851312500,
+			7: 852162500,
+			8: 852887500,
+			9: 853350000,
+			10: 853650000
+			}
 		quality_check = threading.Thread(target=self.quality_check)
                 quality_check.daemon = True
-                quality_check.start()
 		##################################################
 		# Blocks
 		##################################################
-
 		for source in self.sources.keys():
-			self.rtlsdr = osmosdr.source_c( args="nchan=" + str(1) + " " + self.sources[source]['serial'] )
+			process = os.popen('CellSearch -i '+ self.sources[source]['serial'] +' -s 739e6 -e 739e6 -b | grep 739M | awk \'{sum+=$10} END { printf("%.10f", sum/NR)}\'')
+			output = float(process.read())
+			process.close()
+			self.sources[source]['offset'] = (1000000-(output*1000000))
+			print 'Measured PPM - Dev#%s: %s' % (source, self.sources[source]['offset'])
+
+		self.lock()
+		for source in self.sources.keys():
+			self.sources[source]['freq_offset'] = 0
+			self.rtlsdr = osmosdr.source_c( args="nchan=" + str(1) + " rtl=" + self.sources[source]['serial'] )
         	        self.rtlsdr.set_sample_rate(samp_rate)
-                	self.rtlsdr.set_center_freq(self.sources[source]['center_freq'], 0)
+                	self.rtlsdr.set_center_freq(self.cf[source], 0)
 	                self.rtlsdr.set_freq_corr(self.sources[source]['offset'], 0)
 	                self.rtlsdr.set_gain_mode(0, 0)
-	                self.rtlsdr.set_gain(30, 0)
+	                self.rtlsdr.set_gain(46, 0)
 	                self.rtlsdr.set_if_gain(15, 0)
 
 			self.sources[source]['block'] = self.rtlsdr
+			self.sources[source]['center_freq'] = self.cf[source] #default CF
 			null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
                 	self.connect(self.rtlsdr, null_sink)
 		
@@ -166,7 +218,21 @@ class receiver(gr.top_block):
 			self.connect(self.source, this_block)
 		
 		self.active_receivers = []
+		self.unlock()
+		quality_check.start()
+	def cycle_tuners(self):
+		self.cf_key = self.cf_key+1
+		self.lock()
+		for i in self.sources.keys():
+			old_cf = (self.cf_key-1+i)%self.cf_key.count()
+			new_cf = (self.cf_key+i)%self.cf_key.count()
+			for x in self.systems.keys():
+				if self.systems[x]['source'] == i:
+					self.disconnect(self.sources[i]['block'], self.systems[x]['block'])
+					#self.connect(
 
+		self.unlock()
+			
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']
 		for i in self.sources.keys():
@@ -194,10 +260,14 @@ class receiver(gr.top_block):
 		raise Exception('Frequency out of range %s' % (freq))
         def quality_check(self):
                 while True:
-                        time.sleep(10); #only check messages once per 10second
-			for i,channel in enumerate(self.active_receivers):
-				if channel.in_use == True:
-					print "System: %s %s %s" %(i, channel.source_id, channel.probe.level())
+                        time.sleep(5); #only check messages once per 10second
+			for i in self.systems.keys():
+				source_id = self.systems[i]['source']
+
+				if self.systems[i]['block'].is_locked == True:
+					self.sources[source_id]['freq_offset'] = self.sources[source_id]['freq_offset'] + (200*self.systems[i]['block'].probe.level())
+					print "System: %s %s %s %s" % (source_id, self.systems[i]['id'], self.systems[i]['block'].probe.level(), self.sources[source_id]['freq_offset'])
+					self.sources[source_id]['block'].set_center_freq(self.sources[source_id]['center_freq']+self.sources[source_id]['freq_offset'], 0)
 			
 				
 
