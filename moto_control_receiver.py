@@ -42,6 +42,7 @@ class moto_control_receiver(gr.hier_block2):
 		self.block_id = block_id
 		
 		self.offset = offset = 0
+		self.is_locked = False
 
 		self.system = system
 		print system
@@ -208,6 +209,11 @@ class moto_control_receiver(gr.hier_block2):
 						locked -= 1
 					elif locked < 5:
 						locked += 1
+					
+					if locked >= 5:
+						self.is_locked = True
+					else:
+						self.is_locked = False
 
 					self.packets += 1
 					if sync_loops < 1000:
@@ -426,7 +432,7 @@ class moto_control_receiver(gr.hier_block2):
 							#	print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
 							#print 'b/p: %s %s' % (packets, packets_bad)
 							allocated_receiver = False
-
+							self.tb.ar_lock.acquire()
 							for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
 								if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
 									if dual and receiver.cdr['system_user_local'] != last_data:
@@ -439,24 +445,19 @@ class moto_control_receiver(gr.hier_block2):
 										allocated_receiver = -1
 										break
 							
-							while  allocated_receiver == False or not (allocated_receiver == -1) and allocated_receiver.get_lock() != self.thread_id: #If call does not have an active channel
-								allocated_receiver = False
+							if allocated_receiver != -1:
 								for receiver in self.tb.active_receivers: #look for an empty channel
 									if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-										receiver.acquire_lock(self.thread_id)
-										if receiver.get_lock() == self.thread_id:
-											allocated_receiver = receiver
-											center = receiver.center_freq
-											break
+										allocated_receiver = receiver
+										center = receiver.center_freq
+										break
 							
 								if allocated_receiver == False: #or create a new one if there arent any empty channels
 									allocated_receiver = logging_receiver(self.samp_rate)
 									center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
 									self.tb.active_receivers.append(allocated_receiver)
 								
-								allocated_receiver.acquire_lock(self.thread_id)
 
-							if allocated_receiver != -1:
 								allocated_receiver.tuneoffset(self.channels[cmd], center)
 								#if tg > 32000:
 								allocated_receiver.set_codec_p25(False)
@@ -471,9 +472,9 @@ class moto_control_receiver(gr.hier_block2):
 									'system_channel_local': cmd, 
 									'type': 'group', 
 									'center_freq': center}
-	
+								print 
 								allocated_receiver.open(cdr, 25000.0)
-								allocated_receiver.release_lock()
+							self.tb.ar_lock.release()
 										
 							#elif cmd == 0x1c:
 							#	print '%s: Grant %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))

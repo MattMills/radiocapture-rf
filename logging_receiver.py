@@ -24,6 +24,9 @@ class logging_receiver(gr.hier_block2):
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
 
+
+		self.lock = threading.RLock()
+
 		self.samp_rate = samp_rate
 		self.audio_rate = 12500
 		
@@ -220,7 +223,3 @@ class logging_receiver(gr.hier_block2):
 			return True
 		else:
 			return False
-	def get_lock(self):
-		return self.lock_id
-	def release_lock(self):
-		self.lock_id = False
