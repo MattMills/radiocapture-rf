@@ -1,9 +1,8 @@
 #!/usr/env/python
 
-from gnuradio import blks2, gr
+from gnuradio import blks2, gr, blocks, analog
 from gnuradio.gr import firdes
 from grc_gnuradio import blks2 as grc_blks2
-
 #import string
 import time, datetime
 import os
@@ -25,27 +24,38 @@ class logging_receiver(gr.hier_block2):
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
 
+
+		self.lock = threading.RLock()
+
 		self.samp_rate = samp_rate
 		self.audio_rate = 12500
 		
 		self.thread_id = 'logr-' + str(uuid.uuid4())
-		self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.6), firdes.WIN_HAMMING)
-		self.prefilter_decim = int(self.samp_rate/self.audio_rate)
+		self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate), ((self.audio_rate)*0.6), firdes.WIN_HAMMING)
+		self.prefilter_decim = int(self.samp_rate/((self.audio_rate*1.4)*2))
 		self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
 
-		self.valve = gr_extras.stream_selector(gr.io_signature(1, 1, gr.sizeof_gr_complex), gr.io_signature(2, 2, gr.sizeof_gr_complex), )
-		self.null = gr.null_sink(gr.sizeof_gr_complex)
+		#self.valve = gr_extras.stream_selector(gr.io_signature(1, 1, gr.sizeof_gr_complex), gr.io_signature(2, 2, gr.sizeof_gr_complex), )
+		#self.null = gr.null_sink(gr.sizeof_gr_complex)
 
 		self.filename = "/dev/null"
 		self.filepath = "/dev/null"
 		self.sink = gr.file_sink(gr.sizeof_gr_complex*1, self.filename)
 
-		self.connect((self.valve,0), self.null)
-		self.connect(self, (self.valve, 0))
-		self.connect((self.valve, 1), self.prefilter, self.sink)
-		#self.connect(self, self.prefilter)
-		#self.connect(self.prefilter, (self.valve, 0))
-		#self.connect((self.valve, 1), self.sink)
+		#self.connect((self.valve,0), self.null)
+		#self.connect(self, (self.valve, 0))
+		#self.connect((self.valve, 1), self.prefilter, self.sink)
+		
+		self.connect(self, self.prefilter, self.sink)
+
+		#quad_demod = analog.quadrature_demod_cf(1)
+		#low_pass = self.low_pass_filter_0_0 = gr.fir_filter_fff(1, firdes.low_pass(
+                #        1, (samp_rate/self.prefilter_decim), 300, 50, firdes.WIN_HAMMING, 6.76))
+		#moving_avg = gr.moving_average_ff(100000, 1, 400000)
+		#multiply_const = blocks.multiply_const_vff((0.00001, ))
+		#self.probe = gr.probe_signal_f()
+		
+		#self.connect(self.prefilter, quad_demod, low_pass, moving_avg, multiply_const, self.probe)
 
 		self.cdr = {}
 		self.time_open = 0
@@ -55,8 +65,10 @@ class logging_receiver(gr.hier_block2):
 		self.freq = 0
 		self.center_freq = 0
 
-		self.muted = False
-		self.mute()
+		self.source_id = -1
+
+		#self.muted = False
+		#self.mute()
 
 		self.in_use = False
 		self.codec_provoice = False
@@ -72,7 +84,7 @@ class logging_receiver(gr.hier_block2):
 		elif codec_p25:
 			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -5 -v -100 2>&1 >/dev/null')
 		else:
-			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -r 25000 -v -100 2>&1 >/dev/null')
+			os.system('nice -n 19 ./file_to_wav.py -i '+ filename + ' -r 75000 -s -70 -v -100 2>&1 >/dev/null')
                 os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '.wav' + ' 2>&1 >/dev/null')
 		try:
                 	os.makedirs('/nfs/%s' % (filepath, ))
@@ -98,7 +110,8 @@ class logging_receiver(gr.hier_block2):
 
 
 		try:
-		        os.remove(filename[:-4] + '.dat')
+		        #os.remove(filename[:-4] + '.dat')
+			pass
 		except:
 			print 'Error removing ' + filename[:-4] + '.dat'
 		try: 
@@ -112,7 +125,7 @@ class logging_receiver(gr.hier_block2):
 		self.cdr['time_open'] = self.time_open
 		self.cdr['time_close'] = time.time()
 
-		self.mute()
+		#self.mute()
 		if(self.audio_capture):
 			self.sink.close()
 
@@ -138,8 +151,8 @@ class logging_receiver(gr.hier_block2):
 		if(audio_rate != self.audio_rate):
 			print 'System: Adjusting audio rate'
 			self.audio_rate = audio_rate
-			channel_rate = audio_rate*1.4
-			self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate/2), ((self.audio_rate/2)*0.6), firdes.WIN_HAMMING)
+			channel_rate = (audio_rate*1.4)*2
+			self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate), (self.audio_rate*0.6), firdes.WIN_HAMMING)
 			#self.prefilter_decim = int(self.samp_rate/audio_rate)
 	                #self.prefilter.set_decim(self.prefilter_decim)
 			self.prefilter.set_taps(self.audiotaps)
@@ -177,7 +190,7 @@ class logging_receiver(gr.hier_block2):
 
 		if(self.audio_capture):
 			self.sink.open(self.filename)
-			self.unmute()
+			#self.unmute()
 
 		self.time_open = cdr['timestamp'] =  time.time()
 		self.activity()
@@ -192,14 +205,14 @@ class logging_receiver(gr.hier_block2):
 		self.codec_p25 = input
 	def getfreq(self):
 		return self.freq
-	def mute(self):
-		self.valve.set_paths((0, ))
-		self.muted = True
-	def unmute(self):
-		self.valve.set_paths((1, ))
-		self.muted = False
-	def is_muted(self):
-		return self.muted
+	#def mute(self):
+	#	self.valve.set_paths((0, ))
+	#	self.muted = True
+	#def unmute(self):
+	#	self.valve.set_paths((1, ))
+	#	self.muted = False
+	#def is_muted(self):
+	#	return self.muted
 	def activity(self):
 		self.time_activity = time.time()
 		self.time_last_use = time.time()
@@ -210,7 +223,3 @@ class logging_receiver(gr.hier_block2):
 			return True
 		else:
 			return False
-	def get_lock(self):
-		return self.lock_id
-	def release_lock(self):
-		self.lock_id = False

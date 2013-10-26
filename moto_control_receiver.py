@@ -8,7 +8,7 @@
 from gnuradio import digital
 from gnuradio import eng_notation
 from gnuradio import filter
-from gnuradio import gr
+from gnuradio import gr, blocks
 from gnuradio import uhd
 from gnuradio.eng_option import eng_option
 from gnuradio.filter import firdes
@@ -42,6 +42,7 @@ class moto_control_receiver(gr.hier_block2):
 		self.block_id = block_id
 		
 		self.offset = offset = 0
+		self.is_locked = False
 
 		self.system = system
 		print system
@@ -83,7 +84,7 @@ class moto_control_receiver(gr.hier_block2):
 		self.source = self
 
 		control_sample_rate = 10000
-		channel_rate = control_sample_rate*5
+		channel_rate = control_sample_rate*3
 		self.f1d = f1d = int(samp_rate/channel_rate) #filter 1 decimation
 		#self.set_max_output_buffer(100000)
 		self.control_prefilter_taps = firdes.low_pass(5,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
@@ -92,18 +93,26 @@ class moto_control_receiver(gr.hier_block2):
 		#(omega, gain_omega, mu, gain_mu, omega_relative_limit)
 		#(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		#(samp_rate/f1d/symbol_rate, 0.000025, 0.5, 0.01, 0.3)
+		moving_sum = gr.moving_average_ff(1000, 1, 4000)
+		#subtract = blocks.sub_ff(1)
+		divide_const = blocks.multiply_const_vff((0.001, ))
+		self.probe = gr.probe_signal_f()
+
+
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_byte_pack = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		self.control_msg_sink = gr.message_sink(gr.sizeof_char*1, self.control_msg_sink_msgq, True)
-		#self.udp = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", 9999, 1472, True)
+		self.udp = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", self.system_id, 1472, True)
 	
 		##################################################
 		# Connections
 		##################################################
+		self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
+
 		self.connect(self.control_prefilter, self.control_quad_demod, self.control_clock_recovery)
 		self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
-		#self.connect(self.control_prefilter, self.udp)
+		self.connect(self.control_prefilter, self.udp)
 		
 		self.connect(self.source, self.control_prefilter)
 
@@ -200,6 +209,11 @@ class moto_control_receiver(gr.hier_block2):
 						locked -= 1
 					elif locked < 5:
 						locked += 1
+					
+					if locked >= 5:
+						self.is_locked = True
+					else:
+						self.is_locked = False
 
 					self.packets += 1
 					if sync_loops < 1000:
@@ -418,7 +432,7 @@ class moto_control_receiver(gr.hier_block2):
 							#	print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
 							#print 'b/p: %s %s' % (packets, packets_bad)
 							allocated_receiver = False
-
+							self.tb.ar_lock.acquire()
 							for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
 								if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
 									if dual and receiver.cdr['system_user_local'] != last_data:
@@ -431,29 +445,24 @@ class moto_control_receiver(gr.hier_block2):
 										allocated_receiver = -1
 										break
 							
-							while  allocated_receiver == False or not (allocated_receiver == -1) and allocated_receiver.get_lock() != self.thread_id: #If call does not have an active channel
-								allocated_receiver = False
+							if allocated_receiver != -1:
 								for receiver in self.tb.active_receivers: #look for an empty channel
 									if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-										receiver.acquire_lock(self.thread_id)
-										if receiver.get_lock() == self.thread_id:
-											allocated_receiver = receiver
-											center = receiver.center_freq
-											break
+										allocated_receiver = receiver
+										center = receiver.center_freq
+										break
 							
 								if allocated_receiver == False: #or create a new one if there arent any empty channels
 									allocated_receiver = logging_receiver(self.samp_rate)
 									center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
 									self.tb.active_receivers.append(allocated_receiver)
 								
-								allocated_receiver.acquire_lock(self.thread_id)
 
-							if allocated_receiver != -1:
 								allocated_receiver.tuneoffset(self.channels[cmd], center)
-								if tg > 32000:
-									allocated_receiver.set_codec_p25(True)
-								else:
-									allocated_receiver.set_codec_p25(False)
+								#if tg > 32000:
+								allocated_receiver.set_codec_p25(False)
+								#else:
+								#	allocated_receiver.set_codec_p25(False)
 								allocated_receiver.set_codec_provoice(False)
 								user_local = last_data if dual else 0
 								cdr = {
@@ -463,9 +472,9 @@ class moto_control_receiver(gr.hier_block2):
 									'system_channel_local': cmd, 
 									'type': 'group', 
 									'center_freq': center}
-	
+								print 
 								allocated_receiver.open(cdr, 25000.0)
-								allocated_receiver.release_lock()
+							self.tb.ar_lock.release()
 										
 							#elif cmd == 0x1c:
 							#	print '%s: Grant %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))

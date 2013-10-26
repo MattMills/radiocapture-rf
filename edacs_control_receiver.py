@@ -1,6 +1,6 @@
 #!/usr/env/python
 
-from gnuradio import blks2, gr, digital
+from gnuradio import blks2, gr, digital, blocks
 from gnuradio.gr import firdes
 from grc_gnuradio import blks2 as grc_blks2
 
@@ -12,17 +12,16 @@ import threading
 from logging_receiver import logging_receiver
 
 class edacs_control_receiver(gr.hier_block2):
-	def __init__(self, system, samp_rate, sources, top_block):
+	def __init__(self, system, samp_rate, sources, top_block, block_id):
 		gr.hier_block2.__init__(self, "edacs_control_receiver",
                                 gr.io_signature(2, 2, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
-		print 'Control receiver startup, '
-		print system
 	
 		self.tb = top_block
 		self.sources = sources
 		self.system = system
 		self.samp_rate = samp_rate
+		self.block_id = block_id
 
 		self.audio_rate = audio_rate = 12500
 		self.symbol_rate = symbol_rate = system['symbol_rate']
@@ -38,6 +37,8 @@ class edacs_control_receiver(gr.hier_block2):
 		self.bad_messages = 0
 		self.total_messages = 0
 
+		self.is_locked = False
+
 		#self.control_lcn_alt.insert(0, self.control_lcn) # add primary LCN to end of alternate list
 
 		################################################
@@ -52,7 +53,7 @@ class edacs_control_receiver(gr.hier_block2):
 
 		print 'Decimation: %s' % (decimation_s1)
 
-		self.taps = taps = firdes.low_pass(5, samp_rate, control_samp_rate/2, control_samp_rate/2*0.55, firdes.WIN_HAMMING)
+		self.taps = taps = firdes.low_pass(5, samp_rate, control_channel_rate/2, control_channel_rate/2*0.55, firdes.WIN_HAMMING)
 
 		#self.set_max_output_buffer(100000)
         	self.control_prefilter = gr.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
@@ -62,7 +63,16 @@ class edacs_control_receiver(gr.hier_block2):
 		self.control_unpacked_to_packed = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		self.control_msg_queue = gr.msg_queue(1024)
 		self.control_msg_sink = gr.message_sink(gr.sizeof_char, self.control_msg_queue,True)
-		#self.udp_sink = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", 9995, 1472, True)
+
+		#offset measurement
+                moving_sum = gr.moving_average_ff(10000, 1, 40000)
+                #subtract = blocks.sub_ff(1)
+                divide_const = blocks.multiply_const_vff((0.0001, ))
+                self.probe = gr.probe_signal_f()
+
+		#Local websocket output
+		self.websocket_sink = gr.udp_sink(gr.sizeof_char, "127.0.0.1", (10000+self.system['id']), 1472, True)
+		self.connect(self.control_unpacked_to_packed, self.websocket_sink)
 
 		#self.connect(self.control_freq_xlating_fir_filter, self.udp_sink)
 	
@@ -81,6 +91,8 @@ class edacs_control_receiver(gr.hier_block2):
                                 self.control_binary_slicer,
                                 self.control_unpacked_to_packed,
 				self.control_msg_sink)
+
+		self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
 		
 		self.connect((self.source,0), self.null_sink0)
                 self.connect((self.source,1), self.null_sink1)
@@ -106,29 +118,13 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.control_lcn = self.control_channel_key
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
-			
-		if(abs(self.control_channel-self.sources[self.control_source]['center_freq']) > (self.samp_rate/2)):
-			print 'Source change Required'
-                        for i in self.sources.keys():
-                                if(abs(self.control_channel-self.sources[i]['center_freq']) < (self.samp_rate/2)):
-
-                                        self.lock()
-                                        self.disconnect((self.source, self.control_source), self.control_prefilter)
-                                        print 'New source %s, Old source %s' % (i, self.control_source)
-                                        self.control_source = i
-                                        self.connect((self.source,i), self.control_prefilter)
-                                        self.unlock()
-                                        self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
-                                        print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
-                                        self.control_msg_queue.flush()
-                                        time.sleep(0.1)
-                                        return None
-                        raise Exception('Frequency out of range %s' % (self.control_channel))
-                else:
-                        self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
-                        print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
-                        self.control_msg_queue.flush()
-                        time.sleep(0.1)
+		
+		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
+	
+                self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
+                print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
+                self.control_msg_queue.flush()
+                time.sleep(0.1)
 
 
 
@@ -215,7 +211,7 @@ class edacs_control_receiver(gr.hier_block2):
                                 #if(r['channel'] in active_channels):
                                 channel_matched = False
                                 for v in self.tb.active_receivers:
-                                        if(v.cdr != {} and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel'] and v.in_use):
+                                        if(v.cdr != {} and v.in_use and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel']):
                                                 v.activity()
                                                 channel_matched = True
 
@@ -346,7 +342,10 @@ class edacs_control_receiver(gr.hier_block2):
                         last_bad = self.bad_messages
 
         def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
-                (receiver,center) = self.get_receiver(system, channel)
+		receiver = False
+		while receiver == False or receiver.get_lock() != self.thread_id:
+	                (receiver,center) = self.get_receiver(system, channel)
+			receiver.acquire_lock(self.thread_id)
                 #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
                 print 'Tuning new group call - %s %s' % ( system['channels'][channel], center)
                 receiver.tuneoffset(system['channels'][channel], center)
@@ -362,8 +361,12 @@ class edacs_control_receiver(gr.hier_block2):
 			'center_freq': center
 		}
 		receiver.open(cdr, self.audio_rate)
+		receiver.release_lock()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
-                (receiver,center) = self.get_receiver(system, channel)
+		reciever = False
+		while receiver == False or receiver.get_lock() != self.thread_id:
+	                (receiver,center) = self.get_receiver(system, channel)
+			receiver.acquire_lock(self.thread_id)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
                 receiver.tuneoffset(system['channels'][channel], self.center_freq)
                 receiver.set_codec_provoice(False)
@@ -378,7 +381,7 @@ class edacs_control_receiver(gr.hier_block2):
                         'center_freq': center
                 }
 		receiver.open(cdr, self.audio_rate)
-
+		receiver.release_lock()
         def get_receiver(self, system, channel):
                 free_al = []
                 for v in self.tb.active_receivers:
@@ -438,12 +441,13 @@ class edacs_control_receiver(gr.hier_block2):
                         self.failed_loops = self.failed_loops + 1
                         buf = buf[288:]
                         if(self.failed_loops > 100 and loop_start+2 < time.time()):
-                                print 'Failed loops: ' + str(self.failed_loops)
+                                #print 'Failed loops: ' + str(self.failed_loops)
 
                                 self.failed_loops = 0
                                 self.loop_start = time.time()
 
-                                print 'Cant get framesync lock, %s trying next control ' % (self.system['id'])
+                                print 'Cant get framesync lock, SYS: %s trying next control ' % (self.system['id'])
+				self.is_locked = False
                                 self.tune_next_control_channel()
                                 buf = ''
                         return (buf, False)
@@ -451,6 +455,8 @@ class edacs_control_receiver(gr.hier_block2):
                         print 'Buffer Underrun in Framer: ' + str(len(frame))
                 if(self.failed_loops > -100):
                         self.failed_loops = self.failed_loops - 1
+		else: # if their have been >100 non failed loops we should signify a signal lock for freq tuning
+			self.is_locked = True
                 loop_start = time.time()
                 return (buf, frame)
         def process_commands(self, m1, m2, bad_messages):
@@ -544,7 +550,7 @@ class edacs_control_receiver(gr.hier_block2):
 ############################################################################################################
 
 	def control_decode(self):
-		print 'control_decode() start'
+		print self.thread_id + ': control_decode() start'
 	        self.framesync = framesync = '010101010101010101010111000100100101010101010101'
 	        self.buf = buf = ''
 		self.total_messages = total_messages = 0
