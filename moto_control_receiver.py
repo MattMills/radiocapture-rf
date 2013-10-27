@@ -299,6 +299,7 @@ class moto_control_receiver(gr.hier_block2):
 							print '%s: %s %s %s - First-word of coded PC grant' % (time.time(), hex(cmd), ind_l, hex(lid))
 						elif              cmd == 0x308: #f
 							print '%s: %s %s %s - First-word normal' % (time.time(), hex(cmd), ind_l, hex(lid))
+							#pass
 						elif              cmd == 0x309: #f
 							print '%s: %s %s %s - First-word TY2 aliased to TY1' % (time.time(), hex(cmd), ind_l, hex(lid))
 						elif     dual and cmd == 0x30a: #d
@@ -366,9 +367,9 @@ class moto_control_receiver(gr.hier_block2):
 						elif     dual and cmd == 0x32e: #d
 							print '%s: %s %s %s - \033[93m Emergency PTT announcement \033[0m' % (time.time(), hex(cmd), ind_l, hex(lid))
 						elif     dual and cmd == 0x340: #d
-							pass #print '%s: %s %s %s - TY1 regrouping sizecode A' % (time.time(), hex(cmd), ind_l, hex(lid))
+							print '%s: %s %s %s - TY1 regrouping sizecode A' % (time.time(), hex(cmd), ind_l, hex(lid))
                                                 elif     dual and cmd == 0x341: #d
-                                                        pass #print '%s: %s %s %s - TY1 regrouping sizecode B' % (time.time(), hex(cmd), ind_l, hex(lid))
+                                                        print '%s: %s %s %s - TY1 regrouping sizecode B' % (time.time(), hex(cmd), ind_l, hex(lid))
                                                 elif     dual and cmd == 0x342: #d
                                                         print '%s: %s %s %s - TY1 regrouping sizecode C' % (time.time(), hex(cmd), ind_l, hex(lid))
                                                 elif     dual and cmd == 0x343: #d
@@ -423,58 +424,58 @@ class moto_control_receiver(gr.hier_block2):
 								r['j'] = (lid & 0x10) >> 4
 								r['k'] = (lid & 0x8) >> 3
 
-                                                        #print '%s: %s %s %s - System status - %s' % (time.time(), hex(cmd), ind_l, hex(lid), r)
+                                                        print '%s: %s %s %s - System status - %s' % (time.time(), hex(cmd), ind_l, hex(lid), r)
 
 						elif self.channels.has_key(cmd) and lid != self.system_id and tg != 0x1ff0:
 							if dual:
 								print '%s: Call  %s %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd), last_data)
-							#else:
-							#	print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
+							else:
+								print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
 							#print 'b/p: %s %s' % (packets, packets_bad)
-							allocated_receiver = False
-							self.tb.ar_lock.acquire()
-							for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
-								if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
-									if dual and receiver.cdr['system_user_local'] != last_data:
-										#existing call but user LID does not match!
-										receiver.close({}, True, True)
-										allocated_receiver = receiver
-										center = receiver.center_freq
-									else:
-										receiver.activity()
-										allocated_receiver = -1
-										break
-							
-							if allocated_receiver != -1:
-								for receiver in self.tb.active_receivers: #look for an empty channel
-									if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-										allocated_receiver = receiver
-										center = receiver.center_freq
-										break
-							
-								if allocated_receiver == False: #or create a new one if there arent any empty channels
-									allocated_receiver = logging_receiver(self.samp_rate)
-									center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
-									self.tb.active_receivers.append(allocated_receiver)
-								
-
-								allocated_receiver.tuneoffset(self.channels[cmd], center)
-								#if tg > 32000:
-								allocated_receiver.set_codec_p25(False)
-								#else:
-								#	allocated_receiver.set_codec_p25(False)
-								allocated_receiver.set_codec_provoice(False)
-								user_local = last_data if dual else 0
-								cdr = {
-									'system_id': self.system['id'], 
-									'system_group_local': tg, 
-									'system_user_local': user_local,
-									'system_channel_local': cmd, 
-									'type': 'group', 
-									'center_freq': center}
-								print 
-								allocated_receiver.open(cdr, 25000.0)
-							self.tb.ar_lock.release()
+							#allocated_receiver = False
+							#self.tb.ar_lock.acquire()
+							#for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
+							#	if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
+							#		if dual and receiver.cdr['system_user_local'] != last_data:
+							#			#existing call but user LID does not match!
+							#			receiver.close({}, True, True)
+							#			allocated_receiver = receiver
+							#			center = receiver.center_freq
+							#		else:
+							#			receiver.activity()
+							#			allocated_receiver = -1
+							#			break
+							#
+							#if allocated_receiver != -1:
+							#	for receiver in self.tb.active_receivers: #look for an empty channel
+							#		if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
+							#			allocated_receiver = receiver
+							#			center = receiver.center_freq
+							#			break
+							#
+							#	if allocated_receiver == False: #or create a new one if there arent any empty channels
+							#		allocated_receiver = logging_receiver(self.samp_rate)
+							#		center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
+							#		self.tb.active_receivers.append(allocated_receiver)
+							#	
+							#
+							#	allocated_receiver.tuneoffset(self.channels[cmd], center)
+							#	#if tg > 32000:
+							#	allocated_receiver.set_codec_p25(False)
+							#	#else:
+							#	#	allocated_receiver.set_codec_p25(False)
+							#	allocated_receiver.set_codec_provoice(False)
+							#	user_local = last_data if dual else 0
+							#	cdr = {
+							#		'system_id': self.system['id'], 
+							#		'system_group_local': tg, 
+							#		'system_user_local': user_local,
+							#		'system_channel_local': cmd, 
+							#		'type': 'group', 
+							#		'center_freq': center}
+							#	print 
+							#	allocated_receiver.open(cdr, 12500.0)
+							#self.tb.ar_lock.release()
 										
 							#elif cmd == 0x1c:
 							#	print '%s: Grant %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))

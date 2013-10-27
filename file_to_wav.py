@@ -126,10 +126,10 @@ class file_to_wav(gr.top_block):
 		#except InvalidTagError, msg:
 		#	print "Invalid ID3 tag:", msg
 		now = datetime.datetime.now()
-		try:
-		        os.remove(filename)
-		except:
-			print 'Error removing ' + filename
+		#try:
+		#        os.remove(filename)
+		#except:
+		#	print 'Error removing ' + filename
 	def close(self, upload=True, emergency=False):
 		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')
 		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
