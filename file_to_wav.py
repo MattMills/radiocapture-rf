@@ -13,13 +13,13 @@ import random
 import threading
 import uuid
 
-import gnuradio.extras as gr_extras
+#import gnuradio.extras as gr_extras
 #import dsd
 
 from optparse import OptionParser
 from gnuradio.eng_option import eng_option
 from math import pi
-from gnuradio import repeater, op25
+#from gnuradio import repeater, op25
 
 #from ID3 import *
 

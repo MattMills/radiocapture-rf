@@ -10,10 +10,11 @@ import os
 import threading
 import uuid
 
-try:
-	import grextras as gr_extras
-except ImportError:
-	import gnuradio.extras as gr_extras
+#try:
+#	import grextras as gr_extras
+#except ImportError:
+#	import gnuradio.extras as gr_extras
+#import gras
 
 
 class logging_receiver(gr.hier_block2):
@@ -110,7 +111,7 @@ class logging_receiver(gr.hier_block2):
 
 
 		try:
-		        #os.remove(filename[:-4] + '.dat')
+		        os.remove(filename[:-4] + '.dat')
 			pass
 		except:
 			print 'Error removing ' + filename[:-4] + '.dat'
@@ -149,7 +150,7 @@ class logging_receiver(gr.hier_block2):
 		self.in_use = True
                 self.cdr = cdr
 		if(audio_rate != self.audio_rate):
-			print 'System: Adjusting audio rate'
+			print 'System: Adjusting audio rate %s' % (audio_rate)
 			self.audio_rate = audio_rate
 			channel_rate = (audio_rate*1.4)*2
 			self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate), (self.audio_rate*0.6), firdes.WIN_HAMMING)
