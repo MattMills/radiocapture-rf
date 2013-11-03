@@ -6,17 +6,10 @@
 ##################################################
 
 from gnuradio import digital
-from gnuradio import eng_notation
-from gnuradio import filter
-from gnuradio import gr, blocks
-from gnuradio import uhd
-from gnuradio.eng_option import eng_option
+from gnuradio import gr
 from gnuradio.filter import firdes
 from gnuradio.gr import firdes
-from optparse import OptionParser
 
-import binascii
-#import baz
 import time
 import threading
 
@@ -45,17 +38,13 @@ class moto_control_receiver(gr.hier_block2):
 		self.is_locked = False
 
 		self.system = system
-		print system
+
 		self.system_id = system['id']
 		self.sources = sources
 		self.channels = system['channels']
 		self.channels_list = self.channels.keys()
 
 		self.thread_id = '%s-%s' % (self.system['type'], self.system_id)
-
-
-		print self.channels
-		print self.channels_list
 
 		self.control_channel_key = 0
 		self.control_channel = control_channel = self.channels[self.channels_list[0]]
@@ -86,13 +75,11 @@ class moto_control_receiver(gr.hier_block2):
 		control_sample_rate = 10000
 		channel_rate = control_sample_rate*3
 		self.f1d = f1d = int(samp_rate/channel_rate) #filter 1 decimation
-		#self.set_max_output_buffer(100000)
+
 		self.control_prefilter_taps = firdes.low_pass(5,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
 		self.control_prefilter = gr.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
 		self.control_quad_demod = gr.quadrature_demod_cf(0.1)
-		#(omega, gain_omega, mu, gain_mu, omega_relative_limit)
-		#(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
-		#(samp_rate/f1d/symbol_rate, 0.000025, 0.5, 0.01, 0.3)
+
 		moving_sum = gr.moving_average_ff(1000, 1, 4000)
 		#subtract = blocks.sub_ff(1)
 		divide_const = blocks.multiply_const_vff((0.001, ))
@@ -140,13 +127,7 @@ class moto_control_receiver(gr.hier_block2):
                 last_bad = 0
                 while True:
                         time.sleep(10); #only check messages once per 10second
-			#if self.packets_bad-last_bad >= 30: #Testing, if greater than 30 corrupt packets change to next cc
-				#print '!!!!!!!!!!!!! CC CORRUPTION !!!!!!!!!!!!!!!'
-				#self.tune_next_control()
-				#time.sleep(5)
-				#self.lock()
-				#time.sleep(2)
-				#self.unlock()
+
                         sid = self.system['id']
                         print 'System: ' + str(sid) + ' (' + str(self.packets-last_total) + '/' + str(self.packets_bad-last_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
                         last_total = self.packets
@@ -172,17 +153,12 @@ class moto_control_receiver(gr.hier_block2):
 	def receive_engine(self):
 		print self.thread_id + ': receive_engine() startup'
 		time.sleep(1)
-		import sys
-
-		
 
 		frame_len = 76 #bits
 		frame_sync = '10101100'
 		fs_len = 8 #frame sync length in bits
 
 		buf = ''
-		#packets = tb.packets
-		#packets_bad = tb.packets_bad
 		sync_loops = 0
 		locked = 0
 		last_cmd = 0x0
@@ -484,14 +460,6 @@ class moto_control_receiver(gr.hier_block2):
 							#	allocated_receiver.open(cdr, 12500.0)
 							#self.tb.ar_lock.release()
 										
-							#elif cmd == 0x1c:
-							#	print '%s: Grant %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
-							#elif cmd == 0x308:
-							#	print '%s: AFF1  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
-							#elif cmd == 0x310:
-							#	print '%s: AFF2  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
-							#else:
-							#	print '%s:       %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
 						else:
 							print '%s: %s %s %s - Unknown OSW' % (time.time(), hex(cmd), ind_l, hex(lid))
 						last_cmd = cmd
