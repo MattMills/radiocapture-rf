@@ -32,11 +32,11 @@ class receiver(gr.top_block):
 		gr.top_block.__init__(self, "RadioCapture.com receiver")
 
 		#Attempt to turn on real time scheduling, not available in GRAS
-		try{
+		try:
 			gr.enable_realtime_scheduling()
-		}except{
+		except:
 			pass
-		}
+		
 
 		##################################################
 		# Variables

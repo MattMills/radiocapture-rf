@@ -49,6 +49,10 @@ class moto_control_receiver(gr.hier_block2):
 		self.control_channel_key = 0
 		self.control_channel = control_channel = self.channels[self.channels_list[0]]
 
+		self.option_dc_offset = False
+		self.option_udp_sink = False
+		self.option_logging_receivers = False
+
 		##################################################
 		# Message Queues
 		##################################################
@@ -80,29 +84,35 @@ class moto_control_receiver(gr.hier_block2):
 		self.control_prefilter = gr.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
 		self.control_quad_demod = gr.quadrature_demod_cf(0.1)
 
-		moving_sum = gr.moving_average_ff(1000, 1, 4000)
-		#subtract = blocks.sub_ff(1)
-		divide_const = blocks.multiply_const_vff((0.001, ))
-		self.probe = gr.probe_signal_f()
+		if(self.option_dc_offset):
+			moving_sum = gr.moving_average_ff(1000, 1, 4000)
+			#subtract = blocks.sub_ff(1)
+			divide_const = blocks.multiply_const_vff((0.001, ))
+			self.probe = gr.probe_signal_f()
 
 
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_byte_pack = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		self.control_msg_sink = gr.message_sink(gr.sizeof_char*1, self.control_msg_sink_msgq, True)
-		self.udp = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", self.system_id, 1472, True)
+
+		if(self.option_udp_sink):
+			self.udp = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", self.system_id, 1472, True)
 	
 		##################################################
 		# Connections
 		##################################################
-		self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
 
-		self.connect(self.control_prefilter, self.control_quad_demod, self.control_clock_recovery)
-		self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
-		self.connect(self.control_prefilter, self.udp)
-		
 		self.connect(self.source, self.control_prefilter)
+		self.connect(self.control_prefilter, self.control_quad_demod, self.control_clock_recovery)
+                self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
 
+		if(self.option_dc_offset):
+			self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
+
+		if(self.option_udp_sink):
+			self.connect(self.control_prefilter, self.udp)
+		
 	def get_msgq(self):
 		return self.control_msg_sink_msgq.delete_head().to_string()
 	def tune_next_control(self):
@@ -415,50 +425,52 @@ class moto_control_receiver(gr.hier_block2):
 								print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
 								call_type = 'u'
 							#print 'b/p: %s %s' % (packets, packets_bad)
-							#allocated_receiver = False
-							#self.tb.ar_lock.acquire()
-							#for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
-							#	if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
-							#		if dual and receiver.cdr['system_user_local'] != last_data:
-							#			#existing call but user LID does not match!
-							#			receiver.close({}, True, True)
-							#			allocated_receiver = receiver
-							#			center = receiver.center_freq
-							#		else:
-							#			receiver.activity()
-							#			allocated_receiver = -1
-							#			break
-							#
-							#if allocated_receiver != -1:
-							#	for receiver in self.tb.active_receivers: #look for an empty channel
-							#		if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-							#			allocated_receiver = receiver
-							#			center = receiver.center_freq
-							#			break
-							#
-							#	if allocated_receiver == False: #or create a new one if there arent any empty channels
-							#		allocated_receiver = logging_receiver(self.samp_rate)
-							#		center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
-							#		self.tb.active_receivers.append(allocated_receiver)
-							#	
-							#
-							#	allocated_receiver.tuneoffset(self.channels[cmd], center)
-							#	#if tg > 32000:
-							#	allocated_receiver.set_codec_p25(False)
-							#	#else:
-							#	#	allocated_receiver.set_codec_p25(False)
-							#	allocated_receiver.set_codec_provoice(False)
-							#	user_local = last_data if dual else 0
-							#	cdr = {
-							#		'system_id': self.system['id'], 
-							#		'system_group_local': tg, 
-							#		'system_user_local': user_local,
-							#		'system_channel_local': cmd, 
-							#		'type': 'group', 
-							#		'center_freq': center}
-							#	print 
-							#	allocated_receiver.open(cdr, 12500.0)
-							#self.tb.ar_lock.release()
+							if(self.option_logging_receivers):
+								allocated_receiver = False
+								self.tb.ar_lock.acquire()
+								for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
+									if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
+										if dual and receiver.cdr['system_user_local'] != last_data:
+											#existing call but user LID does not match!
+											receiver.close({}, True, True)
+											allocated_receiver = receiver
+											center = receiver.center_freq
+										else:
+											receiver.activity()
+											allocated_receiver = -1
+											break
+								
+								if allocated_receiver != -1:
+									for receiver in self.tb.active_receivers: #look for an empty channel
+										if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
+											allocated_receiver = receiver
+											center = receiver.center_freq
+											break
+								
+									if allocated_receiver == False: #or create a new one if there arent any empty channels
+										allocated_receiver = logging_receiver(self.samp_rate)
+										center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
+										self.tb.active_receivers.append(allocated_receiver)
+									
+								
+									allocated_receiver.tuneoffset(self.channels[cmd], center)
+									#if tg > 32000:
+									allocated_receiver.set_codec_p25(False)
+									#else:
+									#	allocated_receiver.set_codec_p25(False)
+									allocated_receiver.set_codec_provoice(False)
+									user_local = last_data if dual else 0
+									cdr = {
+										'system_id': self.system['id'], 
+										'system_group_local': tg, 
+										'system_user_local': user_local,
+										'system_channel_local': cmd, 
+										'type': 'group', 
+										'center_freq': center
+									}
+
+									allocated_receiver.open(cdr, 12500.0)
+								self.tb.ar_lock.release()
 										
 						else:
 							print '%s: %s %s %s - Unknown OSW' % (time.time(), hex(cmd), ind_l, hex(lid))
