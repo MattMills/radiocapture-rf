@@ -482,5 +482,4 @@ class moto_control_receiver(gr.hier_block2):
 			
 			else:
 				sync_loops -= 1
-				#time.sleep(0.01)
 
