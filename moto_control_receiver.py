@@ -281,7 +281,7 @@ class moto_control_receiver(gr.hier_block2):
 						#310 == aff 2
 						#320 == Network info
 						#
-						if last_cmd == 0x304 or last_cmd == 0x308 or last_cmd == 0x309: 
+						if last_cmd == 0x304 or last_cmd == 0x308 or last_cmd == 0x309 or last_cmd == 0x321: 
 							dual = True
 						else:
 							dual = False
@@ -352,6 +352,8 @@ class moto_control_receiver(gr.hier_block2):
 							print '%s: %s %s %s - [AVL indiv low prior grant]' % (time.time(), hex(cmd), ind_l, hex(lid))
 						elif     dual and cmd == 0x31d:
 							print '%s: %s %s %s - [AVL group high prior grant]' % (time.time(), hex(cmd), ind_l, hex(lid))
+						elif		  cmd == 0x321:
+							print '%s: %s %s %s - Digital call word1 ' % (time.time(), hex(cmd), ind_l, hex(lid))
                                                 elif not dual and cmd == 0x324: #s
                                                         print '%s: %s %s %s - TY2 Interconnect reject' % (time.time(), hex(cmd), ind_l, hex(lid))
                                                 elif not dual and cmd == 0x325: #s
@@ -427,10 +429,15 @@ class moto_control_receiver(gr.hier_block2):
                                                         print '%s: %s %s %s - System status - %s' % (time.time(), hex(cmd), ind_l, hex(lid), r)
 
 						elif self.channels.has_key(cmd) and lid != self.system_id and tg != 0x1ff0:
-							if dual:
-								print '%s: Call  %s %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd), last_data)
+							if dual and last_cmd == 0x308:
+								print '%s: Analog Call  %s %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd), last_data)
+								call_type = 'a'
+							elif dual and last_cmd == 0x321:
+								print '%s: Digital Call  %s %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd), last_data)
+								call_type = 'd'
 							else:
 								print '%s: Call  %s %s %s %s %s' % (time.time(), hex(lid), tg, status, individual, hex(cmd))
+								call_type = 'u'
 							#print 'b/p: %s %s' % (packets, packets_bad)
 							#allocated_receiver = False
 							#self.tb.ar_lock.acquire()
