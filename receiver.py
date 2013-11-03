@@ -31,8 +31,13 @@ class receiver(gr.top_block):
 	def __init__(self):
 		gr.top_block.__init__(self, "RadioCapture.com receiver")
 
+		#Attempt to turn on real time scheduling, not available in GRAS
+		try{
+			gr.enable_realtime_scheduling()
+		}except{
+			pass
+		}
 
-		#gr.enable_realtime_scheduling()
 		##################################################
 		# Variables
 		##################################################
@@ -40,16 +45,11 @@ class receiver(gr.top_block):
 
 		self.packets = 0
 		self.packets_bad = 0
-		self.symbol_rate = symbol_rate = 3600.0
 		self.samp_rate = samp_rate = 8000000
 		self.control_source = 0
 		
 		self.offset = offset = 0
 
-		#self.sources[0]['center_freq'] = 857400000
-		#self.sources[1]['center_freq'] = 865000000
-
-		#self.systems = {0:{}}#, 1:{}, 2:{}, 3:{}, 4:{}}
 
                 #self.sources[0]['center_freq'] = 856150000
                 self.sources[0]['center_freq'] = 864700000
@@ -129,21 +129,12 @@ class receiver(gr.top_block):
 		self.uhd.set_gain(0)
 #		self.uhd.set_gain(0, 1)
 
-#		print self.uhd.max_output_buffer(0)
-#		print self.uhd.max_output_buffer(1)
-#		print self.uhd.min_output_buffer(0)
-#		print self.uhd.min_output_buffer(1)
-#		self.uhd.set_max_output_buffer(0, 32000000)
-#		self.uhd.set_max_output_buffer(1, 32000000)
-#		self.uhd.set_min_output_buffer(0, 4000000)
-#		self.uhd.set_min_output_buffer(0, 4000000)
-		print self.uhd.max_output_buffer(0)
-#		print self.uhd.max_output_buffer(1)
 		self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
 #		self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
 		self.connect((self.uhd, 0), self.null_sink0)
 #		self.connect((self.uhd, 1), self.null_sink1)
 		self.source = self.uhd
+
 		##################################################
 		# Connections
 		##################################################
@@ -188,8 +179,6 @@ class receiver(gr.top_block):
 if __name__ == '__main__':
 ####################################################################################################
 	
-	#parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
-	#(options, args) = parser.parse_args()
 	if gr.enable_realtime_scheduling() != gr.RT_OK:
 		print "Error: failed to enable realtime scheduling."
 	tb = receiver()
@@ -198,7 +187,6 @@ if __name__ == '__main__':
 
 	while 1:
 		for i,receiver in enumerate(tb.active_receivers):
-			#receiver = tb.active_receivers[i]
 			if receiver.in_use == True and time.time()-receiver.time_activity > 2.5 and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
 #			if receiver.in_use == False and time.time()-receiver.time_last_use > 120:
