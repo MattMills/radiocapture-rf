@@ -28,16 +28,18 @@ class file_to_wav(gr.top_block):
 		gr.top_block.__init__(self, "Top Block")
 		
 		self.input_rate = input_rate
+		self.channel_rate = channel_rate
 		
 		self.source = gr.file_source(gr.sizeof_gr_complex*1, infile, False)
-		self.lp1_decim = (input_rate/(channel_rate*1.6))
-		self.lp1 = gr.firdes.low_pass( self.lp1_decim, self.input_rate, (self.channel_rate/2), ((self.channel_rate/2)*0.6), firdes.WIN_HAMMING)
+		self.lp1_decim = int(input_rate/(channel_rate*1.6))
+		print self.lp1_decim
+		self.lp1 = gr.fir_filter_ccc(self.lp1_decim,gr.firdes.low_pass( 1.0, self.input_rate, (self.channel_rate/2), ((self.channel_rate/2)*0.6), firdes.WIN_HAMMING))
 
-		self.audiodemod =  gr.quadrature_demod_cf(1)
+		#self.audiodemod =  gr.quadrature_demod_cf(1)
 
-		audio_pass = input_rate*0.25
-		audio_stop = audio_pass+1000
-		#self.audiodemod = blks2.fm_demod_cf(channel_rate=input_rate, audio_decim=1, deviation=5000, audio_pass=audio_pass, audio_stop=audio_stop, gain=16, tau=75e-6)
+		audio_pass = (input_rate/self.lp1_decim)*0.25
+		audio_stop = audio_pass+2000
+		self.audiodemod = blks2.fm_demod_cf(channel_rate=(input_rate/self.lp1_decim), audio_decim=1, deviation=15000, audio_pass=audio_pass, audio_stop=audio_stop, gain=8, tau=75e-6)
 
 		self.signal_squelch = analog.pwr_squelch_cc(sslevel,0.01, 0, True)
 		self.vox_squelch = analog.pwr_squelch_ff(svlevel, 0.0005, 0, True)
@@ -46,10 +48,10 @@ class file_to_wav(gr.top_block):
 
 		if codec_provoice:
 			self.dsd = dsd.block_ff(dsd.dsd_FRAME_PROVOICE,dsd.dsd_MOD_AUTO_SELECT,1,0,False)
-			self.resampler_in = blks2.rational_resampler_fff(interpolation=48000, decimation=input_rate, taps=None, fractional_bw=None, )
+			self.resampler_in = blks2.rational_resampler_fff(interpolation=48000, decimation=channel_rate, taps=None, fractional_bw=None, )
 			output_rate = 8000
 			resampler = blks2.rational_resampler_fff(
-                                        interpolation=adio_rate,
+                                        interpolation=(input_rate/self.lp1_decim),
                                         decimation=output_rate,
                                         taps=None,
                                         fractional_bw=None,
@@ -57,7 +59,7 @@ class file_to_wav(gr.top_block):
 		elif codec_p25:
 			symbol_deviation = 600.0
 			symbol_rate = 4800
-			channel_rate = input_rate#12500
+			channel_rate = input_rate/self.lp1_decim
 			
 		        fm_demod_gain = channel_rate / (2.0 * pi * symbol_deviation)
 		        fm_demod = gr.quadrature_demod_cf(fm_demod_gain)
@@ -92,11 +94,11 @@ class file_to_wav(gr.top_block):
 		if not codec_provoice and not codec_p25:
 			#self.tone_squelch = gr.tone_squelch_ff(audiorate, 4800.0, 0.05, 300, 0, True)
 			#tone squelch is EDACS ONLY
-			self.high_pass = gr.fir_filter_fff(1, firdes.high_pass(1, self.input_rate/2, 300, 30, firdes.WIN_HAMMING, 6.76))
-			output_rate = input_rate/2
+			self.high_pass = gr.fir_filter_fff(1, firdes.high_pass(1, (input_rate/self.lp1_decim), 300, 30, firdes.WIN_HAMMING, 6.76))
+			#output_rate = channel_rate
 			resampler = blks2.rational_resampler_fff(
                                         interpolation=8000,
-                                        decimation=output_rate,
+                                        decimation=(input_rate/self.lp1_decim),
                                         taps=None,
                                         fractional_bw=None,
 			)
