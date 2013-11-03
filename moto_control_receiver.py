@@ -476,7 +476,7 @@ class moto_control_receiver(gr.hier_block2):
                                                         p['type'] = 'Unknown OSW'
 
 						if True:
-							print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['cmd'], p['type'])
+							print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
 						last_cmd = cmd
 						last_i = individual
 						last_data = lid
