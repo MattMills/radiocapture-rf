@@ -51,7 +51,7 @@ class moto_control_receiver(gr.hier_block2):
 
 		self.option_dc_offset = False
 		self.option_udp_sink = False
-		self.option_logging_receivers = False
+		self.option_logging_receivers = True
 
 		##################################################
 		# Message Queues
@@ -454,10 +454,10 @@ class moto_control_receiver(gr.hier_block2):
 									
 								
 									allocated_receiver.tuneoffset(self.channels[cmd], center)
-									#if tg > 32000:
-									allocated_receiver.set_codec_p25(False)
-									#else:
-									#	allocated_receiver.set_codec_p25(False)
+									if(call_type == 'd'):
+										allocated_receiver.set_codec_p25(True)
+									else:
+										allocated_receiver.set_codec_p25(False)
 									allocated_receiver.set_codec_provoice(False)
 									user_local = last_data if dual else 0
 									cdr = {
