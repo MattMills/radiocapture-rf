@@ -162,7 +162,7 @@ if __name__ == '__main__':
         parser.add_option("-i", "--input", dest="input_file", help="Input Filename [.dat]")
         parser.add_option("-o", "--output", dest="output_file", help="Output Filename [.wav]")
 	parser.add_option("-r", "--input_rate", dest="rate", help="Audio Rate (in samples/sec)")
-	parser.add_option("-cr", "--channel_rate", dest="channel_rate", help="Audio Rate (in samples/sec)")
+	parser.add_option("-c", "--channel_rate", dest="channel_rate", help="Audio Rate (in samples/sec)")
 	parser.add_option("-p", "--provoice", dest="codec_provoice", action="store_true", default=False, help="ProVoice decoding (DSD)")
 	parser.add_option("-5", "--p25", dest="codec_p25", action="store_true", default=False, help="P25 Codec decoding (DSD)")
 	parser.add_option("-s", "--signal_squelch", dest='sslevel', default=-50, help='Signal Squelch level (dB)')
