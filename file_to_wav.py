@@ -24,18 +24,21 @@ from gnuradio import repeater, op25
 #from ID3 import *
 
 class file_to_wav(gr.top_block):
-	def __init__(self,infile, outfile, input_rate, codec_provoice, codec_p25, sslevel, svlevel):
+	def __init__(self,infile, outfile, input_rate, channel_rate, codec_provoice, codec_p25, sslevel, svlevel):
 		gr.top_block.__init__(self, "Top Block")
 		
 		self.input_rate = input_rate
 		
 		self.source = gr.file_source(gr.sizeof_gr_complex*1, infile, False)
-		#self.filepath = filepath = "%s/%s/%s/%s/%s/%s/%s/" % ('audio', now.year, now.month, now.day, now.hour, self.system['id'], self.cdr['system_group_local'])
+		self.lp1_decim = (input_rate/(channel_rate*1.6))
+		self.lp1 = gr.firdes.low_pass( self.lp1_decim, self.input_rate, (self.channel_rate/2), ((self.channel_rate/2)*0.6), firdes.WIN_HAMMING)
 
 		self.audiodemod =  gr.quadrature_demod_cf(1)
+
 		audio_pass = input_rate*0.25
 		audio_stop = audio_pass+1000
 		#self.audiodemod = blks2.fm_demod_cf(channel_rate=input_rate, audio_decim=1, deviation=5000, audio_pass=audio_pass, audio_stop=audio_stop, gain=16, tau=75e-6)
+
 		self.signal_squelch = analog.pwr_squelch_cc(sslevel,0.01, 0, True)
 		self.vox_squelch = analog.pwr_squelch_ff(svlevel, 0.0005, 0, True)
 		
@@ -98,11 +101,11 @@ class file_to_wav(gr.top_block):
                                         fractional_bw=None,
 			)
 		if(codec_provoice):
-			self.connect(self.source, self.audiodemod, self.resampler_in, self.dsd, self.audiosink)
+			self.connect(self.source, self.lp1, self.audiodemod, self.resampler_in, self.dsd, self.audiosink)
 		elif(codec_p25):
-			self.connect(self.source, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, imbe, float_conversion, resampler, self.audiosink)
+			self.connect(self.source, self.lp1, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, imbe, float_conversion, resampler, self.audiosink)
 		else:
-			self.connect(self.source, self.signal_squelch, self.audiodemod, self.high_pass, self.vox_squelch, resampler, self.audiosink)
+			self.connect(self.source, self.lp1, self.signal_squelch, self.audiodemod, self.high_pass, self.vox_squelch, resampler, self.audiosink)
 
 		self.time_open = time.time()
 		self.time_tone = 0
@@ -158,7 +161,8 @@ if __name__ == '__main__':
 	parser = OptionParser(option_class=eng_option)
         parser.add_option("-i", "--input", dest="input_file", help="Input Filename [.dat]")
         parser.add_option("-o", "--output", dest="output_file", help="Output Filename [.wav]")
-	parser.add_option("-r", "--rate", dest="rate", help="Audio Rate (in samples/sec)")
+	parser.add_option("-r", "--input_rate", dest="rate", help="Audio Rate (in samples/sec)")
+	parser.add_option("-cr", "--channel_rate", dest="channel_rate", help="Audio Rate (in samples/sec)")
 	parser.add_option("-p", "--provoice", dest="codec_provoice", action="store_true", default=False, help="ProVoice decoding (DSD)")
 	parser.add_option("-5", "--p25", dest="codec_p25", action="store_true", default=False, help="P25 Codec decoding (DSD)")
 	parser.add_option("-s", "--signal_squelch", dest='sslevel', default=-50, help='Signal Squelch level (dB)')
@@ -175,12 +179,17 @@ if __name__ == '__main__':
 		else:
 			options.output_file = options.input_file + ".wav"
 	if options.rate == None:
-		options.rate = 12500
+		options.rate = 100000
 	else:
 		options.rate = int(options.rate)
+	if options.channel_rate == None:
+		options.channel_rate = 12500
+	else:
+		options.channel_rate = int(options.channel_rate)
+
 	options.sslevel = int(options.sslevel)
 	options.svlevel = int(options.svlevel)
-        tb = file_to_wav(options.input_file, options.output_file, options.rate, options.codec_provoice, options.codec_p25, options.sslevel, options.svlevel)
+        tb = file_to_wav(options.input_file, options.output_file, options.rate, options.channel_rate, options.codec_provoice, options.codec_p25, options.sslevel, options.svlevel)
         tb.start()
 	tb.wait()
 	tb.audiosink.close()
