@@ -126,7 +126,7 @@ class receiver(gr.top_block):
 		self.uhd.set_samp_rate(samp_rate)
 		self.uhd.set_center_freq(self.sources[0]['center_freq'])
 #		self.uhd.set_center_freq(self.sources[1]['center_freq'], 1)
-		self.uhd.set_gain(0)
+		self.uhd.set_gain(4)
 #		self.uhd.set_gain(0, 1)
 
 		self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
