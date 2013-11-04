@@ -105,7 +105,7 @@ class file_to_wav(gr.top_block):
 		if(codec_provoice):
 			self.connect(self.source, self.lp1, self.audiodemod, self.resampler_in, self.dsd, self.audiosink)
 		elif(codec_p25):
-			self.connect(self.source, self.lp1, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, imbe, float_conversion, resampler, self.audiosink)
+			self.connect(self.source, self.lp1, self.signal_squelch, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, imbe, float_conversion, resampler, self.audiosink)
 		else:
 			self.connect(self.source, self.lp1, self.signal_squelch, self.audiodemod, self.high_pass, self.vox_squelch, resampler, self.audiosink)
 
@@ -194,4 +194,5 @@ if __name__ == '__main__':
         tb = file_to_wav(options.input_file, options.output_file, options.rate, options.channel_rate, options.codec_provoice, options.codec_p25, options.sslevel, options.svlevel)
         tb.start()
 	tb.wait()
+	time.sleep(1)
 	tb.audiosink.close()

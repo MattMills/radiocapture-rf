@@ -187,7 +187,7 @@ if __name__ == '__main__':
 
 	while 1:
 		for i,receiver in enumerate(tb.active_receivers):
-			if receiver.in_use == True and time.time()-receiver.time_activity > 2.5 and receiver.time_activity != 0 and receiver.time_open != 0:
+			if receiver.in_use == True and time.time()-receiver.time_activity > 3.5 and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
 #			if receiver.in_use == False and time.time()-receiver.time_last_use > 120:
 #				tb.lock()
