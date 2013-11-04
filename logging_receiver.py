@@ -90,7 +90,7 @@ class logging_receiver(gr.hier_block2):
 
 
 		try:
-		        #os.remove(filename[:-4] + '.dat')
+		        os.remove(filename[:-4] + '.dat')
 			pass
 		except:
 			print 'Error removing ' + filename[:-4] + '.dat'
