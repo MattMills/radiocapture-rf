@@ -125,10 +125,10 @@ if __name__ == '__main__':
 		for i,receiver in enumerate(tb.active_receivers):
 			if receiver.in_use == True and time.time()-receiver.time_activity > 3.5 and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
-#			if receiver.in_use == False and time.time()-receiver.time_last_use > 120:
-#				tb.lock()
-#				tb.disconnect(tb.active_receivers[i])
-#				del tb.active_receivers[i]
-#				tb.unlock()
+			if receiver.in_use == False and time.time()-receiver.time_last_use > 120:
+				tb.lock()
+				tb.disconnect(tb.active_receivers[i])
+				del tb.active_receivers[i]
+				tb.unlock()
 		time.sleep(0.1)
 
