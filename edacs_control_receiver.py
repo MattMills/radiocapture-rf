@@ -361,7 +361,7 @@ class edacs_control_receiver(gr.hier_block2):
 			'center_freq': center
 		}
 		receiver.open(cdr, self.audio_rate)
-		receiver.release_lock()
+		#receiver.release_lock()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
 		reciever = False
 		while receiver == False:# or receiver.get_lock() != self.thread_id:
@@ -381,7 +381,7 @@ class edacs_control_receiver(gr.hier_block2):
                         'center_freq': center
                 }
 		receiver.open(cdr, self.audio_rate)
-		receiver.release_lock()
+		#receiver.release_lock()
         def get_receiver(self, system, channel):
                 free_al = []
                 for v in self.tb.active_receivers:
