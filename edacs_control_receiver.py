@@ -343,9 +343,9 @@ class edacs_control_receiver(gr.hier_block2):
 
         def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
 		receiver = False
-		while receiver == False or receiver.get_lock() != self.thread_id:
+		while receiver == False:# or receiver.get_lock() != self.thread_id:
 	                (receiver,center) = self.get_receiver(system, channel)
-			receiver.acquire_lock(self.thread_id)
+			#receiver.acquire_lock(self.thread_id)
                 #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
                 print 'Tuning new group call - %s %s' % ( system['channels'][channel], center)
                 receiver.tuneoffset(system['channels'][channel], center)
@@ -364,9 +364,9 @@ class edacs_control_receiver(gr.hier_block2):
 		receiver.release_lock()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
 		reciever = False
-		while receiver == False or receiver.get_lock() != self.thread_id:
+		while receiver == False:# or receiver.get_lock() != self.thread_id:
 	                (receiver,center) = self.get_receiver(system, channel)
-			receiver.acquire_lock(self.thread_id)
+			#receiver.acquire_lock(self.thread_id)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
                 receiver.tuneoffset(system['channels'][channel], self.center_freq)
                 receiver.set_codec_provoice(False)
