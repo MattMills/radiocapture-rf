@@ -27,7 +27,6 @@ class rc_config:
 				'rf_gain': 3
 			}
 		}
-		#del self.sources[1]
 
 		self.systems = {
 			0:{#San Bernadino County 06/7
@@ -160,4 +159,3 @@ class rc_config:
 			}
 		}
 
-		del self.systems[4]
