@@ -90,18 +90,14 @@ class receiver(gr.top_block):
                                 this_dev.set_gain(self.sources[source]['rf_gain'], 0)
 				this_dev.set_gain(self.sources[source+1]['rf_gain'], 1)
 			
-				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect((this_dev,0), null_sink)
-			
-				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect((this_dev,1), null_sink)
-
 				multiply = blocks.multiply_const_vcc((1, ))
-				self.connect((this_dev,0), multiply)
+				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+				self.connect((this_dev,0), multiply, null_sink)
                                 self.sources[source]['block'] = multiply
 
 				multiply = blocks.multiply_const_vcc((1, ))
-                                self.connect((this_dev,1), multiply)
+				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+                                self.connect((this_dev,1), multiply, null_sink)
                                 self.sources[source]['block'] = multiply
 
 	
