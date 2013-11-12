@@ -453,8 +453,8 @@ class edacs_control_receiver(gr.hier_block2):
                         return (buf, False)
                 if(len(frame) < 240):
                         print 'Buffer Underrun in Framer: ' + str(len(frame))
-                if(self.failed_loops > -100):
-                        self.failed_loops = self.failed_loops - 1
+                if(self.failed_loops > -1000):
+                        self.failed_loops = self.failed_loops - 10
 		else: # if their have been >100 non failed loops we should signify a signal lock for freq tuning
 			self.is_locked = True
                 loop_start = time.time()
