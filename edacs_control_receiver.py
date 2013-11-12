@@ -336,7 +336,7 @@ class edacs_control_receiver(gr.hier_block2):
                 while True:
                         time.sleep(10); #only check messages once per 10second
                         sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.total_messages-last_total) + '/' + str(self.bad_messages-last_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ')'
+                        print 'System: ' + str(sid) + ' (' + str(self.total_messages-last_total) + '/' + str(self.bad_messages-last_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
                         #dbc.query('insert into signal_record (total, bad, timestamp, system) values (%s, %s, CURRENT_TIMESTAMP, %s)' % ((total_messages[sid]-last_total[sid]), (bad_messages[sid]-last_bad[sid]), sid))
                         last_total = self.total_messages
                         last_bad = self.bad_messages
@@ -453,8 +453,8 @@ class edacs_control_receiver(gr.hier_block2):
                         return (buf, False)
                 if(len(frame) < 240):
                         print 'Buffer Underrun in Framer: ' + str(len(frame))
-                if(self.failed_loops > -100):
-                        self.failed_loops = self.failed_loops - 1
+                if(self.failed_loops > -1000):
+                        self.failed_loops = self.failed_loops - 10
 		else: # if their have been >100 non failed loops we should signify a signal lock for freq tuning
 			self.is_locked = True
                 loop_start = time.time()
