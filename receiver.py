@@ -15,6 +15,7 @@
 
 from gnuradio import gr
 from gnuradio import uhd
+from gnuradio import blocks
 
 import time
 import threading
@@ -66,10 +67,43 @@ class receiver(gr.top_block):
 				this_dev.set_center_freq(self.sources[source]['center_freq'])
 				this_dev.set_gain(self.sources[source]['rf_gain'])
 	
-			null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-			self.connect(this_dev, null_sink)
+				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+				self.connect(this_dev, null_sink)
 	
-			self.sources[source]['block'] = this_dev
+				self.sources[source]['block'] = this_dev
+			if self.sources[source]['type'] == 'usrp2x':
+				this_dev = uhd.usrp_source(
+                                        device_addr=self.sources[source]['device_addr'],
+                                        stream_args=uhd.stream_args(
+                                                cpu_format="fc32",
+                                                otw_format=self.sources[source]['otw_format'],
+                                                args=self.sources[source]['args'],
+						channels=range(2),
+                                        ),
+                                )
+				
+				this_dev.set_subdev_spec('A:RX1 A:RX2', 0)
+                                this_dev.set_samp_rate(self.sources[source]['samp_rate'])
+
+                                this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
+				this_dev.set_center_freq(self.sources[source+1]['center_freq'], 1)
+                                this_dev.set_gain(self.sources[source]['rf_gain'], 0)
+				this_dev.set_gain(self.sources[source+1]['rf_gain'], 1)
+			
+				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+                                self.connect((this_dev,0), null_sink)
+			
+				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+                                self.connect((this_dev,1), null_sink)
+
+				multiply = blocks.multiply_const_vcc((1, ))
+				self.connect((this_dev,0), multiply)
+                                self.sources[source]['block'] = multiply
+
+				multiply = blocks.multiply_const_vcc((1, ))
+                                self.connect((this_dev,1), multiply)
+                                self.sources[source]['block'] = multiply
+
 	
 		##################################################
 		# Connections
