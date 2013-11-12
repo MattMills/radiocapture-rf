@@ -13,14 +13,15 @@ class rc_config:
                                 #'device_addr': "recv_frame_size=49152,num_recv_frames=512,serial=E2R10Z3B1",
 				'device_addr': "serial=E2R10Z3B1,fpga=/usr/local/share/uhd/images/usrp_b100_fpga_2rx.bin",
                                 'otw_format': 'sc8',
-                                'args': '',
-                                'center_freq': 856175000,
-                                'samp_rate': 10666666,
+                                'args': 'peak=0.1',
+                                'center_freq': 854175000,
+                                'samp_rate': 8000000,
                                 'rf_gain': 3
                         },
 			1:{
 				'type': 'usrp2xb',
 				'center_freq': 858000000,
+				'samp_rate': 8000000,
 				'rf_gain': 3
 			}
 		}

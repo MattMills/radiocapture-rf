@@ -98,7 +98,7 @@ class receiver(gr.top_block):
 				multiply = blocks.multiply_const_vcc((1, ))
 				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
                                 self.connect((this_dev,1), multiply, null_sink)
-                                self.sources[source]['block'] = multiply
+                                self.sources[source+1]['block'] = multiply
 
 	
 		##################################################
