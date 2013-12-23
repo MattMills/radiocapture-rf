@@ -1,6 +1,6 @@
 #!/usr/env/python
 
-from gnuradio import gr, blocks, analog
+from gnuradio import gr, blocks, analog, filter
 try:
 	from gnuradio.gr import firdes
 except:
@@ -30,7 +30,7 @@ class logging_receiver(gr.hier_block2):
 		self.thread_id = 'logr-' + str(uuid.uuid4())
 		self.audiotaps = firdes.low_pass( 1.0, self.samp_rate, (self.filter_rate/2), ((self.filter_rate/2)*0.6), firdes.WIN_HAMMING)
 		self.prefilter_decim = int(self.samp_rate/((self.filter_rate*1.6)))
-		self.prefilter = gr.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
+		self.prefilter = filter.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
 
 		#self.valve = gr_extras.stream_selector(gr.io_signature(1, 1, gr.sizeof_gr_complex), gr.io_signature(2, 2, gr.sizeof_gr_complex), )
 		#self.null = gr.null_sink(gr.sizeof_gr_complex)
@@ -38,7 +38,7 @@ class logging_receiver(gr.hier_block2):
 		self.filename = "/dev/null"
 		self.filepath = "/dev/null"
 
-		self.sink = gr.file_sink(gr.sizeof_gr_complex*1, self.filename)
+		self.sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
 
 		self.connect(self, self.prefilter, self.sink)
 
