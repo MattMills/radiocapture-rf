@@ -7,18 +7,18 @@
 class rc_config:
 	def __init__(self):
 
-		self.samp_rate = 8000000
-		self.gain = 0
-		self.if_gain = 0
-
 		self.sources = {
-			0:{'serial': 0}
-		}
-		self.center_freq = {
-			0: 864700000
-		}
+                        0:{
+                                'type': 'usrp',
+                                'device_addr': "recv_frame_size=49152,num_recv_frames=512,serial=EDR11Y7B1",
+                                'otw_format': 'sc16',
+                                'args': '',
+                                'center_freq': 864700000,
+                                'samp_rate': 8000000,
+                                'rf_gain': 3
+                        }
+                }
 
-	
 		self.systems = {
 			0:{#San Diego - South Zone (1)
                                 'type': 'moto',
