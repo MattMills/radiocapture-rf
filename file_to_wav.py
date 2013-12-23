@@ -1,9 +1,11 @@
 #!/usr/bin/python
 
-from gnuradio import blks2, gr, analog
-from gnuradio.gr import firdes
-from grc_gnuradio import blks2 as grc_blks2
-#import gnuradio.blocks as gr_blocks
+from gnuradio import gr, analog, filter, blocks
+try:
+        from gnuradio.gr import firdes
+except:
+        from gnuradio.filter import firdes
+
 
 import string
 import sys
@@ -19,7 +21,8 @@ import uuid
 from optparse import OptionParser
 from gnuradio.eng_option import eng_option
 from math import pi
-from gnuradio import repeater, op25
+#from gnuradio import repeater, op25
+import op25
 
 #from ID3 import *
 
@@ -30,27 +33,27 @@ class file_to_wav(gr.top_block):
 		self.input_rate = input_rate
 		self.channel_rate = channel_rate
 		
-		self.source = gr.file_source(gr.sizeof_gr_complex*1, infile, False)
+		self.source = blocks.file_source(gr.sizeof_gr_complex*1, infile, False)
 		self.lp1_decim = int(input_rate/(channel_rate*1.6))
 		print self.lp1_decim
-		self.lp1 = gr.fir_filter_ccc(self.lp1_decim,gr.firdes.low_pass( 1.0, self.input_rate, (self.channel_rate/2), ((self.channel_rate/2)*0.6), firdes.WIN_HAMMING))
+		self.lp1 = filter.fir_filter_ccc(self.lp1_decim,firdes.low_pass( 1.0, self.input_rate, (self.channel_rate/2), ((self.channel_rate/2)*0.6), firdes.WIN_HAMMING))
 
 		#self.audiodemod =  gr.quadrature_demod_cf(1)
 
 		audio_pass = (input_rate/self.lp1_decim)*0.25
 		audio_stop = audio_pass+2000
-		self.audiodemod = blks2.fm_demod_cf(channel_rate=(input_rate/self.lp1_decim), audio_decim=1, deviation=15000, audio_pass=audio_pass, audio_stop=audio_stop, gain=8, tau=75e-6)
+		self.audiodemod = analog.fm_demod_cf(channel_rate=(input_rate/self.lp1_decim), audio_decim=1, deviation=15000, audio_pass=audio_pass, audio_stop=audio_stop, gain=8, tau=75e-6)
 
 		self.signal_squelch = analog.pwr_squelch_cc(sslevel,0.01, 0, True)
 		self.vox_squelch = analog.pwr_squelch_ff(svlevel, 0.0005, 0, True)
 		
-		self.audiosink = gr.wavfile_sink(outfile, 1, 8000)
+		self.audiosink = blocks.wavfile_sink(outfile, 1, 8000)
 
 		if codec_provoice:
 			self.dsd = dsd.block_ff(dsd.dsd_FRAME_PROVOICE,dsd.dsd_MOD_AUTO_SELECT,1,0,False)
-			self.resampler_in = blks2.rational_resampler_fff(interpolation=48000, decimation=channel_rate, taps=None, fractional_bw=None, )
+			self.resampler_in = filter.rational_resampler_fff(interpolation=48000, decimation=channel_rate, taps=None, fractional_bw=None, )
 			output_rate = 8000
-			resampler = blks2.rational_resampler_fff(
+			resampler = filter.rational_resampler_fff(
                                         interpolation=(input_rate/self.lp1_decim),
                                         decimation=output_rate,
                                         taps=None,
@@ -67,7 +70,7 @@ class file_to_wav(gr.top_block):
 		        symbol_decim = 1
 		        samples_per_symbol = channel_rate // symbol_rate
 		        symbol_coeffs = (1.0/samples_per_symbol,) * samples_per_symbol
-		        symbol_filter = gr.fir_filter_fff(symbol_decim, symbol_coeffs)
+		        symbol_filter = filter.fir_filter_fff(symbol_decim, symbol_coeffs)
 
 		        autotuneq = gr.msg_queue(2)
 		        demod_fsk4 = op25.fsk4_demod_ff(autotuneq, channel_rate, symbol_rate)
@@ -81,8 +84,8 @@ class file_to_wav(gr.top_block):
 			self.decodequeue = decodequeue = gr.msg_queue(10000)
 			decoder = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue)
 	
-		        float_conversion = gr.short_to_float(1, 8192)
-		        resampler = blks2.rational_resampler_fff(
+		        float_conversion = blocks.short_to_float(1, 8192)
+		        resampler = filter.rational_resampler_fff(
 		                        interpolation=8000,
 		                        decimation=8000,
 		                        taps=None,
@@ -96,7 +99,7 @@ class file_to_wav(gr.top_block):
 			#tone squelch is EDACS ONLY
 			self.high_pass = gr.fir_filter_fff(1, firdes.high_pass(1, (input_rate/self.lp1_decim), 300, 30, firdes.WIN_HAMMING, 6.76))
 			#output_rate = channel_rate
-			resampler = blks2.rational_resampler_fff(
+			resampler = filter.rational_resampler_fff(
                                         interpolation=8000,
                                         decimation=(input_rate/self.lp1_decim),
                                         taps=None,
