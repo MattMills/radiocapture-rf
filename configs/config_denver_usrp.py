@@ -119,5 +119,5 @@ class rc_config:
 				}
 			}
 		}
-		del self.systems[3]
-		del self.systems[2]
+		#del self.systems[3]
+		#del self.systems[2]
