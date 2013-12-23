@@ -67,7 +67,10 @@ class receiver(gr.top_block):
 				this_dev.set_center_freq(self.sources[source]['center_freq'])
 				this_dev.set_gain(self.sources[source]['rf_gain'])
 	
-				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+				try:
+					null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+				except:
+					null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
 				self.connect(this_dev, null_sink)
 	
 				self.sources[source]['block'] = this_dev
@@ -91,12 +94,18 @@ class receiver(gr.top_block):
 				this_dev.set_gain(self.sources[source+1]['rf_gain'], 1)
 			
 				multiply = blocks.multiply_const_vcc((1, ))
-				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+				try:
+                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+                                except:
+                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
 				self.connect((this_dev,0), multiply, null_sink)
                                 self.sources[source]['block'] = multiply
 
 				multiply = blocks.multiply_const_vcc((1, ))
-				null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+				try:
+                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+                                except:
+                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
                                 self.connect((this_dev,1), multiply, null_sink)
                                 self.sources[source+1]['block'] = multiply
 

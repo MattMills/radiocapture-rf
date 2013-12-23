@@ -7,8 +7,10 @@
 
 from gnuradio import digital
 from gnuradio import gr
-from gnuradio.filter import firdes
-from gnuradio.gr import firdes
+try:
+        from gnuradio.gr import firdes
+except:
+        from gnuradio.filter import firdes
 
 import time
 import threading
@@ -81,7 +83,7 @@ class moto_control_receiver(gr.hier_block2):
 		self.f1d = f1d = int(samp_rate/channel_rate) #filter 1 decimation
 
 		self.control_prefilter_taps = firdes.low_pass(5,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
-		self.control_prefilter = gr.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
+		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
 		self.control_quad_demod = gr.quadrature_demod_cf(0.1)
 
 		if(self.option_dc_offset):

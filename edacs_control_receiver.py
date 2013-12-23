@@ -1,8 +1,11 @@
 #!/usr/env/python
 
-from gnuradio import blks2, gr, digital, blocks
-from gnuradio.gr import firdes
-from grc_gnuradio import blks2 as grc_blks2
+from gnuradio import gr, digital, blocks, filter, analog
+try:
+        from gnuradio.gr import firdes
+except:
+        from gnuradio.filter import firdes
+
 
 import string
 import time
@@ -14,7 +17,7 @@ from logging_receiver import logging_receiver
 class edacs_control_receiver(gr.hier_block2):
 	def __init__(self, system, samp_rate, sources, top_block, block_id):
 		gr.hier_block2.__init__(self, "edacs_control_receiver",
-                                gr.io_signature(2, 2, gr.sizeof_gr_complex), # Input signature
+                                gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
 	
 		self.tb = top_block
@@ -56,28 +59,37 @@ class edacs_control_receiver(gr.hier_block2):
 		self.taps = taps = firdes.low_pass(5, samp_rate, control_channel_rate/2, control_channel_rate/2*0.55, firdes.WIN_HAMMING)
 
 		#self.set_max_output_buffer(100000)
-        	self.control_prefilter = gr.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
-		self.control_quad_demod = gr.quadrature_demod_cf(5)
+        	self.control_prefilter = filter.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
+		try:
+			self.control_quad_demod = gr.quadrature_demod_cf(5)
+		except:
+			self.control_quad_demod = analog.quadrature_demod_cf(5)
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/decimation_s1/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
                 self.control_binary_slicer = digital.binary_slicer_fb()
-		self.control_unpacked_to_packed = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
+		try:
+			self.control_unpacked_to_packed = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
+		except:
+			self.control_unpacked_to_packed = blocks.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		self.control_msg_queue = gr.msg_queue(1024)
-		self.control_msg_sink = gr.message_sink(gr.sizeof_char, self.control_msg_queue,True)
+		try:
+			self.control_msg_sink = gr.message_sink(gr.sizeof_char, self.control_msg_queue,True)
+		except:
+			self.control_msg_sink = blocks.message_sink(gr.sizeof_char, self.control_msg_queue,True)
 
 		#offset measurement
-                moving_sum = gr.moving_average_ff(10000, 1, 40000)
+                #moving_sum = gr.moving_average_ff(10000, 1, 40000)
                 #subtract = blocks.sub_ff(1)
-                divide_const = blocks.multiply_const_vff((0.0001, ))
-                self.probe = gr.probe_signal_f()
+                #divide_const = blocks.multiply_const_vff((0.0001, ))
+                #self.probe = gr.probe_signal_f()
 
 		#Local websocket output
-		self.websocket_sink = gr.udp_sink(gr.sizeof_char, "127.0.0.1", (10000+self.system['id']), 1472, True)
-		self.connect(self.control_unpacked_to_packed, self.websocket_sink)
+		#self.websocket_sink = gr.udp_sink(gr.sizeof_char, "127.0.0.1", (10000+self.system['id']), 1472, True)
+		#self.connect(self.control_unpacked_to_packed, self.websocket_sink)
 
 		#self.connect(self.control_freq_xlating_fir_filter, self.udp_sink)
 	
-		self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
-                self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
+		#self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
+                #self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
 
 		self.source = self
 		################################################
@@ -92,10 +104,10 @@ class edacs_control_receiver(gr.hier_block2):
                                 self.control_unpacked_to_packed,
 				self.control_msg_sink)
 
-		self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
+		#self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
 		
-		self.connect((self.source,0), self.null_sink0)
-                self.connect((self.source,1), self.null_sink1)
+		#self.connect((self.source,0), self.null_sink0)
+                #self.connect((self.source,1), self.null_sink1)
 
 		###############################################
 		self.patches = {}
@@ -121,7 +133,7 @@ class edacs_control_receiver(gr.hier_block2):
 		
 		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
 	
-                self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
+                self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
                 print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
                 self.control_msg_queue.flush()
                 time.sleep(0.1)
