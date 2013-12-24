@@ -10,8 +10,8 @@ class rc_config:
 		self.sources = {
 			0:{
                                 'type': 'usrp',
-                                #'device_addr': "recv_frame_size=49152,num_recv_frames=512,serial=E2R10Z3B1",
-				'device_addr': "serial=E2R10Z3B1",
+                                'device_addr': "recv_frame_size=24576,num_recv_frames=512,serial=E2R10Z3B1",
+				#'device_addr': "serial=E2R10Z3B1",
                                 'otw_format': 'sc16',
                                 'args': '',
                                 'center_freq': 856175000,

@@ -152,6 +152,7 @@ if __name__ == '__main__':
 	print 'Entering top_block loop'
 
 	while 1:
+		self.tb.ar_lock.acquire()
 		for i,receiver in enumerate(tb.active_receivers):
 			if receiver.in_use == True and time.time()-receiver.time_activity > 3.5 and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
@@ -160,5 +161,6 @@ if __name__ == '__main__':
 		#		tb.disconnect(tb.active_receivers[i])
 		#		del tb.active_receivers[i]
 		#		tb.unlock()
+		self.tb.ar_lock.release()
 		time.sleep(0.1)
 
