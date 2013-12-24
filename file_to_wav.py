@@ -65,7 +65,7 @@ class file_to_wav(gr.top_block):
 			channel_rate = input_rate/self.lp1_decim
 			
 		        fm_demod_gain = channel_rate / (2.0 * pi * symbol_deviation)
-		        fm_demod = gr.quadrature_demod_cf(fm_demod_gain)
+		        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 
 		        symbol_decim = 1
 		        samples_per_symbol = channel_rate // symbol_rate
@@ -97,7 +97,7 @@ class file_to_wav(gr.top_block):
 		if not codec_provoice and not codec_p25:
 			#self.tone_squelch = gr.tone_squelch_ff(audiorate, 4800.0, 0.05, 300, 0, True)
 			#tone squelch is EDACS ONLY
-			self.high_pass = gr.fir_filter_fff(1, firdes.high_pass(1, (input_rate/self.lp1_decim), 300, 30, firdes.WIN_HAMMING, 6.76))
+			self.high_pass = filter.fir_filter_fff(1, firdes.high_pass(1, (input_rate/self.lp1_decim), 300, 30, firdes.WIN_HAMMING, 6.76))
 			#output_rate = channel_rate
 			resampler = filter.rational_resampler_fff(
                                         interpolation=8000,

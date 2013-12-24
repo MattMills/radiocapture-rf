@@ -177,8 +177,8 @@ class logging_receiver(gr.hier_block2):
 		self.time_open = cdr['timestamp'] =  time.time()
 		self.activity()
 	def tuneoffset(self, target_freq, rffreq):
-		print "Tuning to %s, center %s, offset %s" % (target_freq, rffreq, (rffreq-target_freq))
-		self.prefilter.set_center_freq(rffreq-target_freq)
+		print "Tuning to %s, center %s, offset %s" % (target_freq, rffreq, (target_freq-rffreq))
+		self.prefilter.set_center_freq(target_freq-rffreq)
 		self.freq = target_freq
 		self.center_freq = rffreq
 	def set_codec_provoice(self,input):
