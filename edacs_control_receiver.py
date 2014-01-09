@@ -50,7 +50,7 @@ class edacs_control_receiver(gr.hier_block2):
 	
 
 		control_samp_rate = 12500
-		control_channel_rate = control_samp_rate*3 #Channel rate must be higher for clock recovery
+		control_channel_rate = control_samp_rate #Channel rate must be higher for clock recovery
 		decimation_s1 = int(samp_rate/control_channel_rate)
 		post_decimation_samp_rate = int(samp_rate/decimation_s1)
 
