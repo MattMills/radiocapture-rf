@@ -43,6 +43,8 @@ class file_to_wav(gr.top_block):
 		audio_pass = (input_rate/self.lp1_decim)*0.25
 		audio_stop = audio_pass+2000
 		self.audiodemod = analog.fm_demod_cf(channel_rate=(input_rate/self.lp1_decim), audio_decim=1, deviation=15000, audio_pass=audio_pass, audio_stop=audio_stop, gain=8, tau=75e-6)
+		
+		self.throttle = blocks.throttle(gr.sizeof_gr_complex*1, self.input_rate,True)
 
 		self.signal_squelch = analog.pwr_squelch_cc(sslevel,0.01, 0, True)
 		self.vox_squelch = analog.pwr_squelch_ff(svlevel, 0.0005, 0, True)
@@ -106,11 +108,11 @@ class file_to_wav(gr.top_block):
                                         fractional_bw=None,
 			)
 		if(codec_provoice):
-			self.connect(self.source, self.lp1, self.audiodemod, self.resampler_in, self.dsd, self.audiosink)
+			self.connect(self.source, self.throttle, self.lp1, self.audiodemod, self.resampler_in, self.dsd, self.audiosink)
 		elif(codec_p25):
-			self.connect(self.source, self.lp1, self.signal_squelch, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, imbe, float_conversion, resampler, self.audiosink)
+			self.connect(self.source, self.throttle, self.lp1, self.signal_squelch, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, imbe, float_conversion, resampler, self.audiosink)
 		else:
-			self.connect(self.source, self.lp1, self.signal_squelch, self.audiodemod, self.high_pass, self.vox_squelch, resampler, self.audiosink)
+			self.connect(self.source, self.throttle, self.lp1, self.signal_squelch, self.audiodemod, self.high_pass, self.vox_squelch, resampler, self.audiosink)
 
 		self.time_open = time.time()
 		self.time_tone = 0
