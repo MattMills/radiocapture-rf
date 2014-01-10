@@ -15,6 +15,10 @@
 
 from gnuradio import gr
 from gnuradio import uhd
+try:
+	import osmosdr
+except:
+	pass
 from gnuradio import blocks
 
 import time
@@ -108,7 +112,28 @@ class receiver(gr.top_block):
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
                                 self.connect((this_dev,1), multiply, null_sink)
                                 self.sources[source+1]['block'] = multiply
+			if self.sources[source]['type'] == 'bladerf':
+				this_dev = osmosdr.source( args="numchan=" + str(1) + " " + "bladerf,fpga=/home/mmills/build/hostedx115.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536" )
+			        this_dev.set_sample_rate(self.sources[source]['samp_rate'])
+			        this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
+			        this_dev.set_freq_corr(0, 0)
+			        this_dev.set_dc_offset_mode(0, 0)
+			        this_dev.set_iq_balance_mode(0, 0)
+			        this_dev.set_gain_mode(0, 0)
+			        this_dev.set_gain(self.sources[source]['rf_gain'], 0)
+			        this_dev.set_if_gain(20, 0)
+			        this_dev.set_bb_gain(self.sources[source]['bb_gain'], 0)
+			        this_dev.set_antenna("", 0)
+			        this_dev.set_bandwidth(0, 0)
+				
 
+				try:
+                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+                                except:
+                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+                                self.connect(this_dev, null_sink)
+
+                                self.sources[source]['block'] = this_dev
 	
 		##################################################
 		# Connections
