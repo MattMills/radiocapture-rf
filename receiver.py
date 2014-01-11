@@ -28,6 +28,7 @@ import threading
 # import custom modules
 from moto_control_receiver import moto_control_receiver
 from edacs_control_receiver import edacs_control_receiver
+from p25_control_receiver import p25_control_receiver
 
 from logging_receiver import logging_receiver
 from config import rc_config
@@ -143,6 +144,8 @@ class receiver(gr.top_block):
 				self.systems[system]['block'] = moto_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
 			elif self.systems[system]['type'] == 'edacs':
 				self.systems[system]['block'] = edacs_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
+			elif self.systems[system]['type'] == 'p25':
+                                self.systems[system]['block'] = p25_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
 			else:
 				raise Exception('Invalid system type %s' % (self.systems[system]['type']))
 			this_block = self.systems[system]['block']

@@ -1,26 +1,5 @@
 #!/usr/bin/env python
 
-# -*- mode: Python -*-
-
-# Copyright 2011 Steve Glass
-# 
-# This file is part of OP25.
-# 
-# OP25 is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3, or (at your option)
-# any later version.
-# 
-# OP25 is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
-# License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with OP25; see the file COPYING. If not, write to the Free
-# Software Foundation, Inc., 51 Franklin Street, Boston, MA
-# 02110-1301, USA.
-
 import math
 import os
 import sys
@@ -29,10 +8,11 @@ import binascii
 import uuid
 import datetime
 
-from gnuradio import audio, gr, gru, op25, uhd, blks2
-from gnuradio.eng_option import eng_option
+from gnuradio import gr, uhd, filter, analog,blocks
+from gnuradio.filter import firdes
 from math import pi
-from gnuradio import repeater
+import op25_repeater as repeater
+import op25
 from time import sleep,time
 
 from p25_cai import p25_cai
@@ -42,7 +22,8 @@ from logging_receiver import logging_receiver
 # The P25 receiver
 #
 class p25_control_receiver (gr.hier_block2):
-	def __init__(self, system, samp_rate, sources, top_block):
+	def __init__(self, system, samp_rate, sources, top_block, block_id):
+	#p25_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
 
 		gr.hier_block2.__init__(self, "p25_control_receiver",
 	        	gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
@@ -52,8 +33,14 @@ class p25_control_receiver (gr.hier_block2):
 		#set globals
 		self.tb = top_block
 		self.system = system
+		self.block_id = block_id
 		self.sources = sources
 		self.samp_rate = samp_rate
+
+		self.control_channel = system['channels'][system['default_control_channel']]
+		self.control_channel_i = 0
+		self.control_source = 0
+
 		self.call_table = {}
 		self.channel_identifier_table = {}
 
@@ -65,14 +52,12 @@ class p25_control_receiver (gr.hier_block2):
 	
 	      
 	        # channel filter
-	        self.channel_offset = system['control_offset']
 	        channel_decim = samp_rate // channel_rate
 	        channel_rate = samp_rate // channel_decim
 	        trans_width = 12.5e3 / 2;
 	        trans_centre = trans_width + (trans_width / 2)
-	        coeffs = gr.firdes.low_pass(1.0, samp_rate, trans_centre, trans_width, gr.firdes.WIN_HANN)
-	        self.channel_filter = gr.freq_xlating_fir_filter_ccf(channel_decim, coeffs, self.channel_offset, samp_rate)
-	        self.connect((self, system['control_source']), self.channel_filter)
+	        coeffs = firdes.low_pass(1.0, samp_rate, trans_centre, trans_width, firdes.WIN_HANN)
+	        self.control_prefilter = filter.freq_xlating_fir_filter_ccf(channel_decim, coeffs, self.control_channel, samp_rate)
 	
 	        # power squelch
 	        #power_squelch = gr.pwr_squelch_cc(squelch, 1e-3, 0, True)
@@ -81,13 +66,13 @@ class p25_control_receiver (gr.hier_block2):
 	        # FM demodulator
 	        self.symbol_deviation = 600.0
 	        fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
-	        fm_demod = gr.quadrature_demod_cf(fm_demod_gain)
+	        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 	
 	        # symbol filter        
 	        symbol_decim = 1
 	        samples_per_symbol = channel_rate // symbol_rate
 	        symbol_coeffs = (1.0/samples_per_symbol,) * samples_per_symbol
-	        symbol_filter = gr.fir_filter_fff(symbol_decim, symbol_coeffs)
+	        symbol_filter = filter.fir_filter_fff(symbol_decim, symbol_coeffs)
 	
 	        # C4FM demodulator
 	        autotuneq = gr.msg_queue(2)
@@ -100,16 +85,11 @@ class p25_control_receiver (gr.hier_block2):
 	
 	        # frame decoder
 		self.decodequeue = decodequeue = gr.msg_queue(1000)
-		qsink = gr.message_sink(gr.sizeof_char, self.decodequeue, False)
+		qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
 		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq)
 	
-		#self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
-		#self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
 
-		#self.connect((self,0), self.null_sink0)
-		#self.connect((self,1), self.null_sink1)
-
-	        self.connect(self.channel_filter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
+	        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
 	
                 ##################################################
                 # Threads
@@ -126,8 +106,20 @@ class p25_control_receiver (gr.hier_block2):
 	        delta_hz *= self.symbol_deviation      
 	        delta_hz = max(delta_hz, -max_delta_hz)
 	        delta_hz = min(delta_hz, max_delta_hz)
-	        self.channel_filter.set_center_freq(self.channel_offset - delta_hz)
+	        self.control_prefilter.set_center_freq(self.control_channel - delta_hz)
+        def tune_next_control_channel(self):
+                self.control_channel_i += 1
+                if(self.control_channel_i >= len(self.system['channels'])):
+                        self.control_channel_i = 0
 
+                self.control_channel = self.system['channels'][self.control_channel_i]
+
+                self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
+
+                self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
+                print '%s: CC Change - %s - %s - %s' % (self.thread_id, self.control_channel, self.sources[self.control_source]['center_freq'], self.control_channel-self.sources[self.control_source]['center_freq'])
+                self.decodequeue.flush()
+                sleep(0.1)
 	def procHDU(self, frame):
 		r = {'short':'HDU', 'long':'Header Data Unit'}
 		bitframe = self.bin_to_bit(frame)
@@ -443,7 +435,7 @@ class p25_control_receiver (gr.hier_block2):
 			base_freq = self.channel_identifier_table[chan_ident]['Base Frequency']
 			chan_spacing = self.channel_identifier_table[chan_ident]['Channel Spacing']/1000
 		except KeyError:
-			print "GRP_V_CH_GRANT on Channel plan that is undefined"
+			print "%s: GRP_V_CH_GRANT on Channel plan that is undefined" % self.thread_id
 			return False
 
 		chan_freq = (chan_number*chan_spacing)
@@ -491,7 +483,7 @@ class p25_control_receiver (gr.hier_block2):
 		self.call_table[channel]['block'].close({})
 		del self.call_table[channel]
 	def receive_engine(self):
-		print 'Entering loop'
+		print '%s: Receive_engine() start' %self.thread_id
 		buf = ''
 		data_unit_ids = {
 				0x0: 'Header Data Unit',
@@ -505,39 +497,69 @@ class p25_control_receiver (gr.hier_block2):
 
 		channel_timeout = 0.5
 		last_chan_status = 0
+
+		loop_start = time()
+		loops_locked = 0
+		wrong_duid_count = 0
+
 		while True:
 			#sleep(0.05)
+			if loops_locked < -100 and time()-loop_start > 2:
+				self.tune_next_control_channel()
+
+				loops_locked = 0
+				loop_start = time()
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
-				sleep(0.01)
-				buf += pkt
+                                buf += pkt
+			sleep(0.001)
+
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
 			fsnext   = buf.find(binascii.unhexlify('5575f5ff77ff'), fsoffset+6)
 			if(fsoffset != -1 and fsnext != -1):
+				if(loops_locked < 100):
+					loops_locked = loops_locked + 100
+
 				frame = buf[fsoffset:fsnext]
 				buf = buf[fsnext:]
+				if len(frame) < 10: continue
 				frame_sync = binascii.hexlify(frame[0:6])
 				duid = int(ord(frame[7:8])&0xf)
 				nac = int(ord(frame[6:7]) +ord(frame[7:8])&0xf0)
 				#duid = ''
 				#print 'FSO:%s FSN:%s BS:%s FL:%s - %s - %s' % (fsoffset, fsnext, len(buf), (fsnext-fsoffset), frame_sync, data_unit_ids[duid])
-				if duid == 0x0:
-					r = self.procHDU(frame)
-				elif duid == 0x3:
-					r = self.procTnoLC(frame)
-				elif duid == 0x5:
-					r = self.procLDU1(frame)
-				elif duid == 0x7:
-					r = self.procTSDU(frame)
-				elif duid == 0xA:
-					r = self.procLDU2(frame)
-				elif duid == 0xC:
-					r = self.procPDU(frame)
-				elif duid == 0xF: 
-					r = self.procTLC(frame)
-				else:
-					print "ERROR: Unknown DUID %s" % (duid)
+				if duid != 0x7:
+					wrong_duid_count = wrong_duid_count +1
+					if wrong_duid_count > 50:
+						self.tune_next_control_channel()
 
+						loop_start = time()
+				                loops_locked = 0
+				                wrong_duid_count = 0
+						
+				try:
+					if duid == 0x0:
+						r = self.procHDU(frame)
+					elif duid == 0x3:
+						r = self.procTnoLC(frame)
+					elif duid == 0x5:
+						r = self.procLDU1(frame)
+					elif duid == 0x7:
+						r = self.procTSDU(frame)
+					elif duid == 0xA:
+						r = self.procLDU2(frame)
+					elif duid == 0xC:
+						r = self.procPDU(frame)
+					elif duid == 0xF: 
+						r = self.procTLC(frame)
+					else:
+						print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
+				except:
+					r = {}
+				try:
+					r['tsbk']
+				except:
+					r['tsbk'] = []
 				for i in range(0, len(r['tsbk'])):
 					t = r['tsbk'][i]
 					try:
@@ -569,11 +591,11 @@ class p25_control_receiver (gr.hier_block2):
 							'Transmit Offset': t['Transmit Offset']
 							}
 					elif t['name'] == 'IDEN_UP_VU':
-						print t
+						print '%s: %s' (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
 						if t['Channel'] in self.call_table.keys() and self.call_table[t['Channel']]['group'] != t['Group Address']:
 							#Missed channel timeout, Quick close call
-							print 'Close - %s' % self.call_table[t['Channel']]
+							print '%s: Close - %s' % (self.thread_id, self.call_table[t['Channel']])
 							#Close voice channel
 							self.end_call(t['channel'])
 						if t['Channel'] not in self.call_table.keys():
@@ -589,7 +611,7 @@ class p25_control_receiver (gr.hier_block2):
 							if(self.call_table[t['Channel']]['block'] == False):
 								del self.call_table[t['Channel']]
 							else:
-								print 'Open - %s' % self.call_table[t['Channel']]
+								print '%s: Open - %s' % (self.thread_id, self.call_table[t['Channel']])
 						#print t
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						if t['Channel 0'] in self.call_table.keys():
@@ -603,9 +625,9 @@ class p25_control_receiver (gr.hier_block2):
 								'block': self.new_call(t['Channel 0'], t['Group Address 0'], 0)
 								}
 							if(self.call_table[t['Channel 0']]['block'] == False):
-                                                                del self.call_table[t['Channe 0l']]
+                                                                del self.call_table[t['Channel 0']]
 							else:
-								print 'Open (LATE) - %s' % self.call_table[t['Channel 0']]
+								print '%s: Open (LATE) - %s' % (self.thread_id,self.call_table[t['Channel 0']])
 						
 						if t['Channel 1'] in self.call_table.keys():
 							self.progress_call(t['Channel 1'])
@@ -621,30 +643,32 @@ class p25_control_receiver (gr.hier_block2):
 							if(self.call_table[t['Channel 1']]['block'] == False):
                                                                 del self.call_table[t['Channel 1']]
 							else:
-                                                        	print 'Open (LATE) - %s' % self.call_table[t['Channel 1']]
+                                                        	print '%s: Open (LATE) - %s' % (self.thread_id, self.call_table[t['Channel 1']])
 						#print t
 					elif t['name'] == 'UU_V_CH_GRANT':
-						print t
+						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'UU_ANS_REQ':
-						print t
+						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT_EXP':
-						print t
+						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_AFF_RSP':
-						print t
+						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'U_REG_RSP':
-						print t
-					print t
+						print '%s: %s' % (self.thread_id, t)
+					print '%s: %s' % (self.thread_id, t)
 
 				for channel in self.call_table.keys():
 					#print channel
 					#print call_table
 					if time()-self.call_table[channel]['last_time'] > channel_timeout:
-						print 'Timeout - %s - %s' % (time(), self.call_table[channel])
+						print '%s: Timeout - %s - %s' % (self.thread_id, time(), self.call_table[channel])
 						#code for voice channel shutdown
 						self.end_call(channel)
 				if time()-last_chan_status >= 1:
-					print 'Active - %s' % self.call_table
+					print '%s: Active - %s' % (self.thread_id, self.call_table)
 					last_chan_status = time()
+			else:
+				loops_locked = loops_locked - 1
 # Demodulator frequency tracker
 #
 class demod_watcher(threading.Thread):
@@ -655,7 +679,7 @@ class demod_watcher(threading.Thread):
         self.msgq = msgq
         self.callback = callback
         self.keep_running = True
-        self.start()
+        #self.start()
 
     def run(self):
         while(self.keep_running):

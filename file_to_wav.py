@@ -23,6 +23,7 @@ from gnuradio.eng_option import eng_option
 from math import pi
 #from gnuradio import repeater, op25
 import op25
+import op25_repeater as repeater
 
 #from ID3 import *
 
