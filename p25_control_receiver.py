@@ -38,7 +38,7 @@ class p25_control_receiver (gr.hier_block2):
 		self.samp_rate = samp_rate
 
 		self.control_channel = system['channels'][system['default_control_channel']]
-		self.control_channel_i = 0
+		self.control_channel_i = system['default_control_channel']
 		self.control_source = 0
 
 		self.call_table = {}
@@ -47,8 +47,11 @@ class p25_control_receiver (gr.hier_block2):
 		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
 
 	        # Setup receiver attributes
-	        channel_rate = 125000
+	        channel_rate = 25000 #125000
 	        symbol_rate = 4800
+
+		self.bad_messages = 0
+		self.total_messages = 0
 	
 	      
 	        # channel filter
@@ -99,6 +102,9 @@ class p25_control_receiver (gr.hier_block2):
                 receive_engine.daemon = True
                 receive_engine.start()
 
+                quality_check_0 = threading.Thread(target=self.quality_check)
+                quality_check_0.daemon = True
+                quality_check_0.start()
 	    # Adjust the channel offset
 	    #
 	def adjust_channel_offset(self, delta_hz):
@@ -441,7 +447,8 @@ class p25_control_receiver (gr.hier_block2):
 		chan_freq = (chan_number*chan_spacing)
 		channel_frequency = (base_freq + chan_freq)*1000000
 		channel_bandwidth = self.channel_identifier_table[chan_ident]['BW']*1000
-
+		
+		self.tb.ar_lock.acquire()
 		allocated_receiver = False
 
 		for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
@@ -458,7 +465,10 @@ class p25_control_receiver (gr.hier_block2):
 
 			if allocated_receiver == False: #or create a new one if there arent any empty channels
 				allocated_receiver = logging_receiver(self.samp_rate)
-				center = self.tb.connect_channel(channel_frequency, allocated_receiver)
+				try:
+					center = self.tb.connect_channel(channel_frequency, allocated_receiver)
+				except:
+					return false
 				self.tb.active_receivers.append(allocated_receiver)
 			
 			allocated_receiver.tuneoffset(channel_frequency, center)
@@ -472,16 +482,15 @@ class p25_control_receiver (gr.hier_block2):
 				'system_channel_local': channel,
 				'type': 'group',
 				'center_freq': center
-				}
+			}
 
-			allocated_receiver.open(cdr, (channel_bandwidth*1.0))
+			allocated_receiver.open(cdr, int(channel_bandwidth*0.5))
+		self.tb.ar_lock.release()
 		return allocated_receiver
 	def progress_call(self, channel):
-		self.call_table[channel]['block'].activity()
-		self.call_table[channel]['last_time'] = time()
-	def end_call(self, channel):
-		self.call_table[channel]['block'].close({})
-		del self.call_table[channel]
+                for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
+                        if receiver.cdr != {} and receiver.cdr['system_channel_local'] == channel and receiver.cdr['system_id'] == self.system['id']:
+                                receiver.activity()
 	def receive_engine(self):
 		print '%s: Receive_engine() start' %self.thread_id
 		buf = ''
@@ -503,7 +512,6 @@ class p25_control_receiver (gr.hier_block2):
 		wrong_duid_count = 0
 
 		while True:
-			#sleep(0.05)
 			if loops_locked < -100 and time()-loop_start > 2:
 				self.tune_next_control_channel()
 
@@ -526,7 +534,7 @@ class p25_control_receiver (gr.hier_block2):
 				frame_sync = binascii.hexlify(frame[0:6])
 				duid = int(ord(frame[7:8])&0xf)
 				nac = int(ord(frame[6:7]) +ord(frame[7:8])&0xf0)
-				#duid = ''
+				self.total_messages = self.total_messages + 1
 				#print 'FSO:%s FSN:%s BS:%s FL:%s - %s - %s' % (fsoffset, fsnext, len(buf), (fsnext-fsoffset), frame_sync, data_unit_ids[duid])
 				if duid != 0x7:
 					wrong_duid_count = wrong_duid_count +1
@@ -566,13 +574,6 @@ class p25_control_receiver (gr.hier_block2):
 						t['name']
 					except:
 						t['name'] = 'INVALID'
-					#try:
-					#	del t['lb']
-					#	del t['mfid']
-					#	del t['crc']
-					#	del t['opcode']
-					#except:
-					#	pass
 
 					if t['name'] == 'IDEN_UP':
 						t['Base Frequency'] = t['Base Frequency']*0.000005
@@ -593,58 +594,10 @@ class p25_control_receiver (gr.hier_block2):
 					elif t['name'] == 'IDEN_UP_VU':
 						print '%s: %s' (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
-						if t['Channel'] in self.call_table.keys() and self.call_table[t['Channel']]['group'] != t['Group Address']:
-							#Missed channel timeout, Quick close call
-							print '%s: Close - %s' % (self.thread_id, self.call_table[t['Channel']])
-							#Close voice channel
-							self.end_call(t['channel'])
-						if t['Channel'] not in self.call_table.keys():
-
-							#def new_call(self, channel, group, user):
-
-							self.call_table[t['Channel']] = { 
-								'last_time': time(),
-								'group': t['Group Address'],
-								'source': t['Source Address'],
-								'block': self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
-								}
-							if(self.call_table[t['Channel']]['block'] == False):
-								del self.call_table[t['Channel']]
-							else:
-								print '%s: Open - %s' % (self.thread_id, self.call_table[t['Channel']])
-						#print t
+						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
-						if t['Channel 0'] in self.call_table.keys():
-							self.progress_call(t['Channel 0'])
-						else:
-							#LATE JOIN!
-							self.call_table[t['Channel 0']] = {        
-								'last_time': time(),
-								'group': t['Group Address 0'],
-								'source': 0,
-								'block': self.new_call(t['Channel 0'], t['Group Address 0'], 0)
-								}
-							if(self.call_table[t['Channel 0']]['block'] == False):
-                                                                del self.call_table[t['Channel 0']]
-							else:
-								print '%s: Open (LATE) - %s' % (self.thread_id,self.call_table[t['Channel 0']])
-						
-						if t['Channel 1'] in self.call_table.keys():
-							self.progress_call(t['Channel 1'])
-							
-						else:
-							#LATE JOIN!
-                                                        self.call_table[t['Channel 1']] = {        
-                                                                'last_time': time(),
-                                                                'group': t['Group Address 1'],
-                                                                'source': 0,
-								'block': self.new_call(t['Channel 1'], t['Group Address 1'], 0)
-							}
-							if(self.call_table[t['Channel 1']]['block'] == False):
-                                                                del self.call_table[t['Channel 1']]
-							else:
-                                                        	print '%s: Open (LATE) - %s' % (self.thread_id, self.call_table[t['Channel 1']])
-						#print t
+						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
+						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
 					elif t['name'] == 'UU_V_CH_GRANT':
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'UU_ANS_REQ':
@@ -655,20 +608,21 @@ class p25_control_receiver (gr.hier_block2):
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'U_REG_RSP':
 						print '%s: %s' % (self.thread_id, t)
-					print '%s: %s' % (self.thread_id, t)
-
-				for channel in self.call_table.keys():
-					#print channel
-					#print call_table
-					if time()-self.call_table[channel]['last_time'] > channel_timeout:
-						print '%s: Timeout - %s - %s' % (self.thread_id, time(), self.call_table[channel])
-						#code for voice channel shutdown
-						self.end_call(channel)
-				if time()-last_chan_status >= 1:
-					print '%s: Active - %s' % (self.thread_id, self.call_table)
-					last_chan_status = time()
+					#print '%s: %s' % (self.thread_id, t)
 			else:
 				loops_locked = loops_locked - 1
+        def quality_check(self):
+                bad_messages = self.bad_messages
+                total_messages = self.total_messages
+                last_total = 0
+                last_bad = 0
+                while True:
+                        sleep(10); #only check messages once per 10second
+                        sid = self.system['id']
+                        print 'System: ' + str(sid) + ' (' + str(self.total_messages-last_total) + '/' + str(self.bad_messages-last_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+                        last_total = self.total_messages
+                        last_bad = self.bad_messages
+
 # Demodulator frequency tracker
 #
 class demod_watcher(threading.Thread):
