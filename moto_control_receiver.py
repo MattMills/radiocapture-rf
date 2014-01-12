@@ -5,12 +5,9 @@
 # Generated: Thu Oct  4 23:49:39 2012
 ##################################################
 
-from gnuradio import digital
+from gnuradio import digital, blocks, analog, filter
+from gnuradio.filter import firdes
 from gnuradio import gr
-try:
-        from gnuradio.gr import firdes
-except:
-        from gnuradio.filter import firdes
 
 import time
 import threading
@@ -84,22 +81,21 @@ class moto_control_receiver(gr.hier_block2):
 
 		self.control_prefilter_taps = firdes.low_pass(5,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
 		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
-		self.control_quad_demod = gr.quadrature_demod_cf(0.1)
+		self.control_quad_demod = analog.quadrature_demod_cf(0.1)
 
 		if(self.option_dc_offset):
-			moving_sum = gr.moving_average_ff(1000, 1, 4000)
-			#subtract = blocks.sub_ff(1)
+			moving_sum = blocks.moving_average_ff(1000, 1, 4000)
 			divide_const = blocks.multiply_const_vff((0.001, ))
-			self.probe = gr.probe_signal_f()
+			self.probe = blocks.probe_signal_f()
 
 
 		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		self.control_binary_slicer = digital.binary_slicer_fb()
-		self.control_byte_pack = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
-		self.control_msg_sink = gr.message_sink(gr.sizeof_char*1, self.control_msg_sink_msgq, True)
+		self.control_byte_pack = blocks.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
+		self.control_msg_sink = blocks.message_sink(gr.sizeof_char*1, self.control_msg_sink_msgq, True)
 
 		if(self.option_udp_sink):
-			self.udp = gr.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", self.system_id, 1472, True)
+			self.udp = blocks.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", self.system_id, 1472, True)
 	
 		##################################################
 		# Connections
@@ -124,7 +120,7 @@ class moto_control_receiver(gr.hier_block2):
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 
 		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
-		self.control_prefilter.set_center_freq(self.sources[self.control_source]['center_freq']-self.control_channel)
+		self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
 
 		print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
 		self.control_msg_sink_msgq.flush()
