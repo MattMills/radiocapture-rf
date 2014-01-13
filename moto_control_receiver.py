@@ -424,6 +424,8 @@ class moto_control_receiver(gr.hier_block2):
 	                                                        p['type'] = 'Call Continuation'
 								call_type = 'u'
 							if(self.option_logging_receivers):
+								if self.channels[cmd] == self.control_channel:
+									continue
 								allocated_receiver = False
 								self.tb.ar_lock.acquire()
 								for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
