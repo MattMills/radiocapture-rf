@@ -14,7 +14,7 @@ import random
 import threading
 from logging_receiver import logging_receiver
 
-class edacs_control_receiver(gr.hier_block2):
+class ltr_control_receiver(gr.hier_block2):
 	def __init__(self, system, samp_rate, sources, top_block, block_id):
 		gr.hier_block2.__init__(self, "ltr_control_receiver",
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
@@ -49,17 +49,22 @@ class edacs_control_receiver(gr.hier_block2):
 
 		control_samp_rate = 12500
 		control_channel_rate = control_samp_rate #Channel rate must be higher for clock recovery
-		decimation_s1 = int(samp_rate/control_channel_rate)
+		decimation_s1 = int(samp_rate/(control_samp_rate*1.5))
 		post_decimation_samp_rate = int(samp_rate/decimation_s1)
 
 		print 'Decimation: %s' % (decimation_s1)
 
-		self.taps = taps = firdes.low_pass(5, samp_rate, control_channel_rate/2, control_channel_rate/2*0.55, firdes.WIN_HAMMING)
+		self.taps = taps = firdes.low_pass(1, samp_rate, control_channel_rate/2, (control_channel_rate/2)*0.25, firdes.WIN_HAMMING,6.76)
 
-        	self.control_prefilter = filter.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
-		self.control_quad_demod = analog.quadrature_demod_cf(5)
-		self.control_low_pass = filter.fir_filter_fff(1, firdes.low_pass(1, samp_rate/decimation_s1, 250, 30, firdes.WIN_HAMMING, 6.76))
-		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/decimation_s1/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
+        	self.control_prefilter = filter.freq_xlating_fir_filter_ccc(decimation_s1, (taps), self.control_channel-self.sources[self.control_source]['center_freq'], samp_rate)
+		self.control_squelch = analog.simple_squelch_cc(-63, 1)
+
+		self.control_quad_demod = analog.quadrature_demod_cf(3)
+		new_samp_rate = samp_rate/decimation_s1
+
+		self.control_low_pass = filter.fir_filter_fff(1, firdes.low_pass(1, new_samp_rate, 425, 425*0.1, firdes.WIN_HAMMING, 6.76))
+		self.control_add_const = blocks.add_const_vff((-0.25, ))
+		self.control_clock_recovery = digital.clock_recovery_mm_ff(new_samp_rate/symbol_rate, 0.25*0.175*0.175, 0.5, 0.175, 0.005)
                 self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_unpacked_to_packed = blocks.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		self.control_msg_queue = gr.msg_queue(1024)
@@ -71,10 +76,12 @@ class edacs_control_receiver(gr.hier_block2):
 		# Connections
 		################################################
 	
-		self.connect(   (self.source, self.control_source),
+		self.connect(   self.source,
                                 self.control_prefilter,
+				#self.control_squelch,
                                 self.control_quad_demod,
 				self.control_low_pass,
+				self.control_add_const, #This is super hacky, I hate myself :(
                                 self.control_clock_recovery,
                                 self.control_binary_slicer,
                                 self.control_unpacked_to_packed,
@@ -136,12 +143,7 @@ class edacs_control_receiver(gr.hier_block2):
                 while True:
                         time.sleep(10); #only check messages once per 10second
                         sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.total_messages-last_total) + 
-							'/' + str(self.bad_messages-last_bad) + ')' + 
-							' (' +str(self.total_messages) + 
-							'/'+ str(self.bad_messages) + 
-							') CC: ' + str(self.control_channel) + 
-							' AR: ' + str(len(self.tb.active_receivers))
+                        print 'System: %s (%s / %s) (%s / %s) CC: %s AR: %s' %(sid, (self.total_messages-last_total),(self.bad_messages-last_bad),self.total_messages,self.bad_messages,self.control_channel,len(self.tb.active_receivers))
                         last_total = self.total_messages
                         last_bad = self.bad_messages
 
@@ -183,7 +185,63 @@ class edacs_control_receiver(gr.hier_block2):
 
 		(receiver, center) = self.build_audio_channel(channel)
                 return (receiver,center)
+	def get_checksum(self, area, goto, home, group, free):
+		checksum = 0
+		
+		if area == 1:
+			checksum = checksum ^ 0x38
 
+		if (goto & 0b10000) >> 4:
+			checksum = checksum ^ 0x1c
+		if (goto & 0b01000) >> 3:
+                        checksum = checksum ^ 0x0e
+		if (goto & 0b00100) >> 2:
+                        checksum = checksum ^ 0x46
+		if (goto & 0b00010) >> 1:
+                        checksum = checksum ^ 0x23
+		if (goto & 0b00001):
+                        checksum = checksum ^ 0x51
+
+		if (home & 0b10000) >> 4:
+                        checksum = checksum ^ 0x68
+                if (home & 0b01000) >> 3:
+                        checksum = checksum ^ 0x75
+                if (home & 0b00100) >> 2:
+                        checksum = checksum ^ 0x7a
+                if (home & 0b00010) >> 1:
+                        checksum = checksum ^ 0x3d
+                if (home & 0b00001):
+                        checksum = checksum ^ 0x1f
+
+		if (group & 0b10000000) >> 7:
+                        checksum = checksum ^ 0x4f
+		if (group & 0b01000000) >> 6:
+                        checksum = checksum ^ 0x26
+		if (group & 0b00100000) >> 5:
+                        checksum = checksum ^ 0x52
+		if (group & 0b00010000) >> 4:
+                        checksum = checksum ^ 0x29
+                if (group & 0b00001000) >> 3:
+                        checksum = checksum ^ 0x15
+                if (group & 0b00000100) >> 2:
+                        checksum = checksum ^ 0x0b
+                if (group & 0b00000010) >> 1:
+                        checksum = checksum ^ 0x45
+                if (group & 0b00000001):
+                        checksum = checksum ^ 0x62
+
+		if (free & 0b10000) >> 4:
+                        checksum = checksum ^ 0x31
+                if (free & 0b01000) >> 3:
+                        checksum = checksum ^ 0x19
+                if (free & 0b00100) >> 2:
+                        checksum = checksum ^ 0x0d
+                if (free & 0b00010) >> 1:
+                        checksum = checksum ^ 0x07
+                if (free & 0b00001):
+                        checksum = checksum ^ 0x43
+		
+		return checksum
 
 	def control_decode(self):
 		print self.thread_id + ': control_decode() start'
@@ -195,13 +253,51 @@ class edacs_control_receiver(gr.hier_block2):
 	        self.loop_start = loop_start = time.time()
 		system = self.system
 
+		fs = '101011000'
+
 	        while(1):
 
                         pkt = self.recv_pkt()
                         for b in pkt:
                                 buf = buf + str("{0:08b}" . format(ord(b)))
-                        #if(len(buf) > 288*4):
-                        #        print 'Buffer Overflow ' + str(len(buf))
-                        while(len(buf) > 288*3): #frame+framesync len in binary is 288; buffer 4 frames
-				print buf
-				buf = ''
+                        if(len(buf) > 40*4):
+                                print 'Buffer Overflow ' + str(len(buf))
+                        while(len(buf) > 40): #frame+framesync len in binary is 40
+				find_fs = buf.find(fs)
+				if find_fs == -1:
+					buf = ''
+				else:
+					frame = buf[find_fs:find_fs+40]
+					if len(frame) < 40: 
+						break
+					r = {}
+					r['fs'] = int(frame[:9],2)
+					r['area'] = int(frame[9:10],2)
+					r['goto'] = int(frame[10:15],2)
+					r['home'] = int(frame[15:20],2)
+					r['group'] = int(frame[20:28],2)
+					r['free'] = int(frame[28:33],2)
+					r['crc'] = int(frame[33:40],2)
+					
+					buf = buf[find_fs+40:]
+
+					checksum = self.get_checksum(r['area'], r['goto'], r['home'], r['group'], r['free'])
+
+					GREEN = '\033[92m'
+					RED = '\033[91m'
+					ENDC = '\033[0m'
+
+					if checksum == r['crc']:
+						color = '%sPASS%s ' % (GREEN, ENDC)
+					else:
+						color = '%sFAIL%s ' % (RED, ENDC)
+
+					if(r['group'] == 255):
+						print 'OSW: %s %s %s %s %s %s %s - IDLE LCN=%s' % (color, r['area'], r['goto'], r['home'], r['group'], r['free'], hex(r['crc']), r['goto'])
+					elif r['goto'] == 31:
+						print 'OSW: %s %s %s %s %s %s %s - END LCN=%s' % (color, r['area'], r['goto'], r['home'], r['group'], r['free'], hex(r['crc']), r['goto'])
+					else:
+						print 'OSW: %s %s %s %s %s %s %s - ACTV GROUP=%s-%s-%s FREE=%s LCN=%s' % (color, r['area'], r['goto'], r['home'], r['group'], r['free'], hex(r['crc']), r['area'], r['home'], r['group'], r['free'], r['goto'])
+				#print '%s' % fram
+			
+			
