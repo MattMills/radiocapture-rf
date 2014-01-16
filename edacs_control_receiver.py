@@ -222,11 +222,12 @@ class edacs_control_receiver(gr.hier_block2):
 
                                 #if(r['channel'] in active_channels):
                                 channel_matched = False
+				self.tb.ar_lock.acquire()
                                 for v in self.tb.active_receivers:
                                         if(v.cdr != {} and v.in_use and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel']):
                                                 v.activity()
                                                 channel_matched = True
-
+				self.tb.ar_lock.release()
                                 if(not channel_matched and r['mtc'] != 1 and r['mtc'] != 0):
                                         if( r['channel'] in system['channels'].keys() and r['channel'] != self.control_lcn):
                                                 if(r['individual'] == 0):

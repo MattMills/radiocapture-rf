@@ -394,8 +394,8 @@ class p25_control_receiver (gr.hier_block2):
 						break
 			output.append(state)
 		# Even if we have a terrible string of errors, we return our best guess and report the error count.
-		if error_count > 0:
-			sys.stderr.write("Trellis decoding error count: %.2f\n" % error_count)
+		#if error_count > 0:
+		#	sys.stderr.write("Trellis decoding error count: %.2f\n" % error_count)
 		return output[:48]
 
 	def data_deinterleave(self, input):
@@ -579,6 +579,7 @@ class p25_control_receiver (gr.hier_block2):
 						t['Base Frequency'] = t['Base Frequency']*0.000005
 						t['BW'] = t['BW']*0.125
 						t['Channel Spacing'] = t['Channel Spacing']*0.125
+						t['Transmit Offset'] = int(t['Transmit Offset'])
 						sign = (t['Transmit Offset']&0x100>>8)
 						if sign == 0: sign = -1
 		
@@ -592,12 +593,14 @@ class p25_control_receiver (gr.hier_block2):
 							'Transmit Offset': t['Transmit Offset']
 							}
 					elif t['name'] == 'IDEN_UP_VU':
-						print '%s: %s' (self.thread_id, t)
+						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
-						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
+						#self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
+						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
-						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
-						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
+						#self.new_call(t['Channel 0'], t['Group Address 0'], 0)
+						#self.new_call(t['Channel 1'], t['Group Address 1'], 0)
+						pass
 					elif t['name'] == 'UU_V_CH_GRANT':
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'UU_ANS_REQ':
