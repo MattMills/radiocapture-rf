@@ -579,6 +579,7 @@ class p25_control_receiver (gr.hier_block2):
 						t['Base Frequency'] = t['Base Frequency']*0.000005
 						t['BW'] = t['BW']*0.125
 						t['Channel Spacing'] = t['Channel Spacing']*0.125
+						t['Transmit Offset'] = int(t['Transmit Offset'])
 						sign = (t['Transmit Offset']&0x100>>8)
 						if sign == 0: sign = -1
 		
