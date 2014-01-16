@@ -595,11 +595,11 @@ class p25_control_receiver (gr.hier_block2):
 					elif t['name'] == 'IDEN_UP_VU':
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
-						#self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
+						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
 						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
-						#self.new_call(t['Channel 0'], t['Group Address 0'], 0)
-						#self.new_call(t['Channel 1'], t['Group Address 1'], 0)
+						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
+						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
 						pass
 					elif t['name'] == 'UU_V_CH_GRANT':
 						print '%s: %s' % (self.thread_id, t)
