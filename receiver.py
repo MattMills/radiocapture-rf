@@ -193,7 +193,7 @@ if __name__ == '__main__':
 		for i,receiver in enumerate(tb.active_receivers):
 			if receiver.in_use == True and time.time()-receiver.time_activity > 3.5 and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
-			if receiver.in_use == True and receiver.time_open != 0 and time.time()-time_open > 120:
+			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr
 				audio_rate = receiver.audio_rate
 				receiver.close({})
