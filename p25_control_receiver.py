@@ -468,6 +468,7 @@ class p25_control_receiver (gr.hier_block2):
 				try:
 					center = self.tb.connect_channel(channel_frequency, allocated_receiver)
 				except:
+					self.tb.ar_lock.release()
 					return False
 				self.tb.active_receivers.append(allocated_receiver)
 			
