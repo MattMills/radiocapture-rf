@@ -19,7 +19,7 @@ class rc_config:
                                 'type': 'usrp',
                                 'device_addr': "recv_frame_size=24576,num_recv_frames=512,serial=E2R10Z3B1",
                                 #'device_addr': "serial=E2R10Z3B1",
-                                'otw_format': 'sc16',
+                                'otw_format': 'sc8',
                                 'args': '',
                                 'center_freq': 771500000,
                                 'samp_rate': 10666666,
