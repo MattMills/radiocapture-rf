@@ -59,7 +59,7 @@ class p25_control_receiver (gr.hier_block2):
 	        channel_rate = samp_rate // channel_decim
 	        trans_width = 12.5e3 / 2;
 	        trans_centre = trans_width + (trans_width / 2)
-	        coeffs = firdes.low_pass(1.0, samp_rate, trans_centre, trans_width, firdes.WIN_HANN)
+	        coeffs = firdes.low_pass(1.0, samp_rate, channel_rate/2, channel_rate/2*0.55, firdes.WIN_HANN)
 	        self.control_prefilter = filter.freq_xlating_fir_filter_ccf(channel_decim, coeffs, self.control_channel, samp_rate)
 	
 	        # power squelch
@@ -485,7 +485,7 @@ class p25_control_receiver (gr.hier_block2):
 				'center_freq': center
 			}
 
-			allocated_receiver.open(cdr, int(channel_bandwidth*0.5))
+			allocated_receiver.open(cdr, int(channel_bandwidth))
 		self.tb.ar_lock.release()
 		return allocated_receiver
 	def progress_call(self, channel):
@@ -521,7 +521,8 @@ class p25_control_receiver (gr.hier_block2):
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
-			sleep(0.001)
+			else:
+				sleep(0.010) #avg time between packets is 0.007s
 
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
 			fsnext   = buf.find(binascii.unhexlify('5575f5ff77ff'), fsoffset+6)
@@ -564,11 +565,11 @@ class p25_control_receiver (gr.hier_block2):
 					else:
 						print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
 				except:
-					r = {}
+					r = {'tsbk': []}
 				try:
 					r['tsbk']
 				except:
-					r['tsbk'] = []
+					r = {'tsbk': []}
 				for i in range(0, len(r['tsbk'])):
 					t = r['tsbk'][i]
 					try:

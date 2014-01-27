@@ -10,7 +10,7 @@ class rc_config:
 		self.sources = {
 			0:{
                                 'type': 'bladerf',
-                                'center_freq': 855500000,
+                                'center_freq': 771500000,#855500000,
                                 'samp_rate': 10666666,
                                 'rf_gain': 2,
 				'bb_gain': 18
@@ -21,7 +21,7 @@ class rc_config:
                                 #'device_addr': "serial=E2R10Z3B1",
                                 'otw_format': 'sc8',
                                 'args': '',
-                                'center_freq': 771500000,
+                                'center_freq': 855500000,#771500000,
                                 'samp_rate': 10666666,
                                 'rf_gain': 3
 			}
@@ -207,13 +207,13 @@ class rc_config:
                         },
 
 		}
-		
-                del self.systems[1]
-                del self.systems[2]
-                del self.systems[4]
-                del self.systems[6]
-                del self.systems[7]
-                del self.systems[8]
+		#del self.systems[0]
+                #del self.systems[1]
+                #del self.systems[2]
+                #del self.systems[4]
+                #del self.systems[6]
+                #del self.systems[7]
+                #del self.systems[8]
 
 		del self.systems[3]
-		del self.systems[5]
+		#del self.systems[5]
