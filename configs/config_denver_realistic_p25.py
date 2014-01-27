@@ -208,7 +208,7 @@ class rc_config:
 
 		}
 		#del self.systems[0]
-                #del self.systems[1]
+                del self.systems[1]
                 #del self.systems[2]
                 #del self.systems[4]
                 #del self.systems[6]

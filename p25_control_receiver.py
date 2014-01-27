@@ -228,9 +228,15 @@ class p25_control_receiver (gr.hier_block2):
 		#print dibits
 		trellis_dibits = self.trellis_1_2_decode(dibits)
 		bitframe = self.dibits_to_bit(trellis_dibits)
+		#print bitframe
+		#print hex(int(bitframe,2))
 		if len(bitframe) < 96:
 			r['ERR'] = 'PACKET_LENGTH_SHORT'
 			return r
+		if self.crc16(int(bitframe,2), 12) == 0:
+                        r['crc'] = 0 # bitframe[:16]
+                else:
+                        r['crc'] = 1
 		#sys.stderr.write('Bitframe: %i' % (len(bitframe)))
 		r['lb'] = bitframe[:1] #Last block
                 r['p'] = bitframe[1:2] #protected
@@ -248,8 +254,6 @@ class p25_control_receiver (gr.hier_block2):
 		for i in range(0, len(p.tsbk_osp_single[r['opcode']]['fields'])):
 			r[p.tsbk_osp_single[r['opcode']]['fields'][i]['name']] = int(bitframe[:p.tsbk_osp_single[r['opcode']]['fields'][i]['length']],2)
 			bitframe = bitframe[p.tsbk_osp_single[r['opcode']]['fields'][i]['length']:]
-		
-		r['crc'] = bitframe[:16]
 		return r
 	def subprocLC(self, bitframe):
 		bitframe = self.rs_24_12_13_decode(bitframe)
@@ -275,6 +279,18 @@ class p25_control_receiver (gr.hier_block2):
 				break
 
 		return [returnframe, r]
+	def crc16(self, dat,len):     # slow version
+	        poly = (1<<12) + (1<<5) + (1<<0)
+	        crc = 0
+	        for i in range(len):
+	                bits = (dat >> (((len-1)-i)*8)) & 0xff
+	                for j in range(8):
+	                        bit = (bits >> (7-j)) & 1
+	                        crc = ((crc << 1) | bit) & 0x1ffff
+	                        if crc & 0x10000:
+	                                crc = (crc & 0xffff) ^ poly
+	        crc = crc ^ 0xffff
+	        return crc
 
 	# fake (18,6,8) shortened Golay decoder, no error correction
 	# TODO: make less fake
@@ -564,18 +580,30 @@ class p25_control_receiver (gr.hier_block2):
 						r = self.procTLC(frame)
 					else:
 						print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
-				except:
-					r = {'tsbk': []}
+				except Exception as e:
+					self.bad_messages = self.bad_messages + 3
+					continue
 				try:
 					r['tsbk']
 				except:
-					r = {'tsbk': []}
+					self.bad_messages = self.bad_messages + 3
+                                        continue
 				for i in range(0, len(r['tsbk'])):
 					t = r['tsbk'][i]
 					try:
 						t['name']
 					except:
 						t['name'] = 'INVALID'
+
+					try:
+						t['crc']
+					except:
+						self.bad_messages = self.bad_messages + 1
+						continue
+
+					if t['crc'] == 1:
+						self.bad_messages = self.bad_messages + 1
+						continue
 
 					if t['name'] == 'IDEN_UP':
 						t['Base Frequency'] = t['Base Frequency']*0.000005
@@ -598,10 +626,12 @@ class p25_control_receiver (gr.hier_block2):
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
 						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
+						print '[%s]%s: %s' % (time(), self.thread_id, t)
 						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
 						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
+						print '[%s]%s: %s' % (time(), self.thread_id, t)
 						pass
 					elif t['name'] == 'UU_V_CH_GRANT':
 						print '%s: %s' % (self.thread_id, t)
@@ -613,7 +643,8 @@ class p25_control_receiver (gr.hier_block2):
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'U_REG_RSP':
 						print '%s: %s' % (self.thread_id, t)
-					#print '%s: %s' % (self.thread_id, t)
+					#else:
+						#print '%s: %s' % (self.thread_id, t)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
