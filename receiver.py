@@ -50,6 +50,7 @@ class receiver(gr.top_block):
 		##################################################
 		config = rc_config()
 		self.sources = config.sources
+		self.blacklists = config.blacklists
 		self.control_source = 0
                 self.systems = config.systems
 
