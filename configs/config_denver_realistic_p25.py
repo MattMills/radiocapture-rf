@@ -16,15 +16,12 @@ class rc_config:
 				'bb_gain': 18
                         },
 			1:{
-                                'type': 'usrp',
-                                'device_addr': "recv_frame_size=24576,num_recv_frames=512,serial=E2R10Z3B1",
-                                #'device_addr': "serial=E2R10Z3B1",
-                                'otw_format': 'sc8',
-                                'args': '',
-                                'center_freq': 855500000,#771500000,
+				'type': 'bladerf',
+                                'center_freq': 855500000,
                                 'samp_rate': 10666666,
-                                'rf_gain': 3
-			}
+                                'rf_gain': 2,
+                                'bb_gain': 18
+                        }
 		}
                 self.systems = {
                         0: { #Adams County Simulcast (Denver Metro)	3	22
