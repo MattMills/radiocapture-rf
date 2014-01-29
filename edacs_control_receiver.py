@@ -226,6 +226,11 @@ class edacs_control_receiver(gr.hier_block2):
                                 for v in self.tb.active_receivers:
                                         if(v.cdr != {} and v.in_use and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel']):
                                                 v.activity()
+						if(r['mtc'] == 3):
+							v.set_codec_provoice(True)
+						else:
+							v.set_codec_provoice(False
+)
                                                 channel_matched = True
 				self.tb.ar_lock.release()
                                 if(not channel_matched and r['mtc'] != 1 and r['mtc'] != 0):
