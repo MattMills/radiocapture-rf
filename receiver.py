@@ -114,7 +114,7 @@ class receiver(gr.top_block):
                                 self.connect((this_dev,1), multiply, null_sink)
                                 self.sources[source+1]['block'] = multiply
 			if self.sources[source]['type'] == 'bladerf':
-				this_dev = osmosdr.source( args="numchan=" + str(1) + " " + "bladerf,fpga=/home/mmills/build/hostedx115.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536" )
+				this_dev = osmosdr.source( args=self.sources[source]['args'] )
 			        this_dev.set_sample_rate(self.sources[source]['samp_rate'])
 			        this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
 			        this_dev.set_freq_corr(0, 0)
