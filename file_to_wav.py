@@ -16,7 +16,7 @@ import threading
 import uuid
 
 #import gnuradio.extras as gr_extras
-#import dsd
+import dsd
 
 from optparse import OptionParser
 from gnuradio.eng_option import eng_option
@@ -54,6 +54,7 @@ class file_to_wav(gr.top_block):
 
 		if codec_provoice:
 			self.dsd = dsd.block_ff(dsd.dsd_FRAME_PROVOICE,dsd.dsd_MOD_AUTO_SELECT,1,0,False)
+			channel_rate = input_rate/self.lp1_decim
 			self.resampler_in = filter.rational_resampler_fff(interpolation=48000, decimation=channel_rate, taps=None, fractional_bw=None, )
 			output_rate = 8000
 			resampler = filter.rational_resampler_fff(

@@ -58,7 +58,6 @@ class receiver(gr.top_block):
 		##################################################
 		# Blocks
 		##################################################
-
 		for source in self.sources:
 			if self.sources[source]['type'] == 'usrp':
 				this_dev = uhd.usrp_source(
