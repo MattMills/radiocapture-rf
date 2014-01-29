@@ -14,7 +14,7 @@ class rc_config:
 				'center_freq': 862500000,
 				'samp_rate': 16000000,
 				'rf_gain': 2,
-				'bb_gain': 18
+				'bb_gain': 7
 			}
 		}
 
@@ -148,4 +148,5 @@ class rc_config:
 				}
 			}
 		}
+		self.blacklists = {}
 
