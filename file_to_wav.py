@@ -16,7 +16,10 @@ import threading
 import uuid
 
 #import gnuradio.extras as gr_extras
-import dsd
+try:
+	import dsd
+except:
+	pass
 
 from optparse import OptionParser
 from gnuradio.eng_option import eng_option
