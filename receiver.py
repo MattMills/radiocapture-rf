@@ -191,7 +191,11 @@ if __name__ == '__main__':
 	while 1:
 		tb.ar_lock.acquire()
 		for i,receiver in enumerate(tb.active_receivers):
-			if receiver.in_use == True and time.time()-receiver.time_activity > 3.5 and receiver.time_activity != 0 and receiver.time_open != 0:
+			if 'hang_time' in receiver.cdr:
+				hang_time = receiver.cdr['hang_time']
+			else:
+				hang_time = 3.5
+			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
 			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr

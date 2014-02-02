@@ -29,7 +29,8 @@ class p25_control_receiver (gr.hier_block2):
 	        	gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
 	                gr.io_signature(0, 0, 0)) # Output signature
 	
-	
+		self.hang_time = 0.3 #300 ms hang time	
+
 		#set globals
 		self.tb = top_block
 		self.system = system
@@ -489,7 +490,8 @@ class p25_control_receiver (gr.hier_block2):
 		                                'system_user_local': user,
 		                                'system_channel_local': channel,
 		                                'type': 'group',
-		                                'center_freq': old_cdr['center_freq']
+		                                'center_freq': old_cdr['center_freq'],
+						'hang_time': self.hang_time
 		                        }
 
 		                        receiver.open(cdr, int(channel_bandwidth))
@@ -525,7 +527,8 @@ class p25_control_receiver (gr.hier_block2):
 				'system_user_local': user,
 				'system_channel_local': channel,
 				'type': 'group',
-				'center_freq': center
+				'center_freq': center,
+				'hang_time': self.hang_time
 			}
 
 			allocated_receiver.open(cdr, int(channel_bandwidth))
