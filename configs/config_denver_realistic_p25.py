@@ -13,22 +13,22 @@ class rc_config:
 				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
                                 'center_freq': 771500000,#855500000,
                                 'samp_rate': 10666666,
-                                'rf_gain': 2,
-				'bb_gain': 18
+                                'rf_gain': 4,
+				'bb_gain': 9
                         },
 			1:{
 				'type': 'bladerf',
 				'args': 'numchan=1 bladerf=1,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
                                 'center_freq': 855500000,
                                 'samp_rate': 10666666,
-                                'rf_gain': 2,
-                                'bb_gain': 18
+                                'rf_gain': 4,
+                                'bb_gain': 9
                         }
 		}
                 self.systems = {
                         0: { #Adams County Simulcast (Denver Metro)	3	22
                                 'type': 'p25',
-                                'id': 0xbee07,#3022,
+                                'id': 3022,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 770106250,
@@ -47,7 +47,7 @@ class rc_config:
                         },
                         1: { #Arapahoe Admin (Denver Metro)	1	1
                                 'type': 'p25',
-                                'id': 0xbee07,#1001,
+                                'id': 1001,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851225000,
@@ -66,7 +66,7 @@ class rc_config:
                         },
                         2: { #Auraria Campus (Denver Metro)	1	70
                                 'type': 'p25',
-                                'id': 0xbee07,#1070,
+                                'id': 1070,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 769156250,
@@ -86,7 +86,7 @@ class rc_config:
                         },
                         3: { #Chevron Plaza Tower (Denver Metro)	1	64
                                 'type': 'p25',
-                                'id': 0xbee07,#1064,
+                                'id': 1064,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 769256250,
@@ -110,7 +110,7 @@ class rc_config:
                         },
                         4: { #Denver TX (Denver Metro)	1	20
                                 'type': 'p25',
-                                'id': 0xbee07,#1020,
+                                'id': 1020,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 770281250,
@@ -130,7 +130,7 @@ class rc_config:
                         },
                         5: { #DRDC CF	1	9
                                 'type': 'p25',
-                                'id': 0xbee07,#1009,
+                                'id': 1009,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851150000,
@@ -144,7 +144,7 @@ class rc_config:
                         },
                         6: { #Fort Lupton	3	55
                                 'type': 'p25',
-                                'id': 0xbee07,#3055,
+                                'id': 3055,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 770256250,
@@ -161,7 +161,7 @@ class rc_config:
                         },
                         7: { #Lookout Mountain (Denver Metro)	1	8
                                 'type': 'p25',
-                                'id': 0xbee07,#1008,
+                                'id': 1008,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851112500,
@@ -187,7 +187,7 @@ class rc_config:
                         },
                         8: { #State Capitol (Denver Metro)	1	71
                                 'type': 'p25',
-                                'id': 0xbee07,#1071,
+                                'id': 1071,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 769306250,
@@ -291,6 +291,16 @@ class rc_config:
 12028
 			]
 		}
+		self.blacklists[3022] = self.blacklists[0xbee07]
+		self.blacklists[1001] = self.blacklists[0xbee07]
+		self.blacklists[1070] = self.blacklists[0xbee07]
+		self.blacklists[1064] = self.blacklists[0xbee07]
+		self.blacklists[1020] = self.blacklists[0xbee07]
+		self.blacklists[1009] = self.blacklists[0xbee07]
+		self.blacklists[3055] = self.blacklists[0xbee07]
+		self.blacklists[1008] = self.blacklists[0xbee07]
+		self.blacklists[1071] = self.blacklists[0xbee07]
+
 		#del self.systems[0]
                 del self.systems[1]
                 #del self.systems[2]
