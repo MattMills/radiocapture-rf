@@ -471,9 +471,33 @@ class p25_control_receiver (gr.hier_block2):
 		allocated_receiver = False
 
 		for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
+			#If we're on the same channel with a different group, close and reopen
+			#If we're on the same group and channel mark as activity
+			#If we're on the same group and different channel, ignore
+
 			if receiver.cdr != {} and receiver.cdr['system_channel_local'] == channel and receiver.cdr['system_id'] == self.system['id']:
-				receiver.activity()
-                                allocated_receiver = receiver
+				if receiver.cdr['system_group_local'] != group or (receiver.cdr['system_user_local'] != user and user != 0):
+					#Quick close, new user/group.
+					old_cdr = receiver.cdr
+					receiver.close({})
+					receiver.set_codec_p25(True)
+		                        receiver.set_codec_provoice(False)
+		
+		                        cdr = {
+		                                'system_id': self.system['id'],
+		                                'system_group_local': group,
+		                                'system_user_local': user,
+		                                'system_channel_local': channel,
+		                                'type': 'group',
+		                                'center_freq': old_cdr['center_freq']
+		                        }
+
+		                        receiver.open(cdr, int(channel_bandwidth))
+					allocated_receiver = receiver
+				else:
+			
+					receiver.activity()
+	                                allocated_receiver = receiver
                                 break
 		if allocated_receiver == False: #If not an existing call
 			for receiver in self.tb.active_receivers: #look for an empty channel
