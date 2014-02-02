@@ -48,7 +48,7 @@ class file_to_wav(gr.top_block):
 		audio_stop = audio_pass+2000
 		self.audiodemod = analog.fm_demod_cf(channel_rate=(input_rate/self.lp1_decim), audio_decim=1, deviation=15000, audio_pass=audio_pass, audio_stop=audio_stop, gain=8, tau=75e-6)
 		
-		self.throttle = blocks.throttle(gr.sizeof_gr_complex*1, self.input_rate,True)
+		self.throttle = blocks.throttle(gr.sizeof_gr_complex*1, self.input_rate)
 
 		self.signal_squelch = analog.pwr_squelch_cc(sslevel,0.01, 0, True)
 		self.vox_squelch = analog.pwr_squelch_ff(svlevel, 0.0005, 0, True)

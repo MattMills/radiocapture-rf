@@ -20,6 +20,8 @@ class edacs_control_receiver(gr.hier_block2):
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
 	
+		self.hang_time = 0.5
+
 		self.tb = top_block
 		self.sources = sources
 		self.system = system
@@ -376,7 +378,8 @@ class edacs_control_receiver(gr.hier_block2):
 			'system_user_local': logical_id,
 			'system_channel_local': channel,
 			'type': 'group',
-			'center_freq': center
+			'center_freq': center,
+			'hang_time': self.hang_time
 		}
 		receiver.open(cdr, self.audio_rate)
 		self.tb.ar_lock.release()
@@ -396,7 +399,8 @@ class edacs_control_receiver(gr.hier_block2):
                         'system_caller_local': caller_logical_id,
                         'system_channel_local': channel,
                         'type': 'individual',
-                        'center_freq': center
+                        'center_freq': center,
+			'hang_time': self.hang_time
                 }
 		receiver.open(cdr, self.audio_rate)
 		self.tb.ar_lock.release()

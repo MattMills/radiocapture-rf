@@ -26,6 +26,9 @@ class scanning_receiver(gr.hier_block2):
 		##################################################
 		# Variables
 		##################################################
+
+		self.hang_time = 0.1
+
 		self.tb = top_block
 		self.samp_rate = samp_rate
 		self.block_id = block_id
@@ -105,7 +108,8 @@ class scanning_receiver(gr.hier_block2):
 			'system_user_local': 0,
 			'system_channel_local': freq,
 			'type': 'group',
-			'center_freq': self.center_freq
+			'center_freq': self.center_freq,
+			'hang_time': self.hang_time
 		}
 
 		allocated_receiver.open(cdr, self.audio_rate)
@@ -121,8 +125,8 @@ class scanning_receiver(gr.hier_block2):
 				self.prefilter.set_center_freq(freq-self.center_freq)
 				#print 'tune %s' % (self.center_freq-freq)
 				time.sleep(0.010)
-				#if self.probe.level() > 3.0e-6:
-				#	self.call_progress(freq)
+				if self.probe.level() > 3.0e-6:
+					self.call_progress(freq)
 				#	print '*Freq: %s Level: %s' % (freq, self.probe.level())
 				#elif self.probe.level() > 9.0e-7:
 				#	print ' Freq: %s Level: %s' % (freq, self.probe.level())
