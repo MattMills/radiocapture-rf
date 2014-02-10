@@ -5,7 +5,7 @@ from gnuradio import blocks
 import time
 import threading
 
-from channel import channel
+import channel
 from config import rc_config
 
 class receiver(gr.top_block):
@@ -108,9 +108,9 @@ class receiver(gr.top_block):
                                 self.sources[source]['block'] = this_dev
 
 	
-		self.channels = {}
-		for i in self.sources.keys():
-			self.channels[i] = []
+		self.channels = []
+		#for i in self.sources.keys():
+		#	self.channels[i] = []
 
 		self.access_lock.release()
 	def connect_channel(self, channel_rate, freq, dest, port):
@@ -123,7 +123,7 @@ class receiver(gr.top_block):
 				break
 
 		if source_id == None:
-			return False
+			return -1
 
 		source_center_freq = self.sources[source_id]['center_freq']
 		source_samp_rate = self.sources[source_id]['samp_rate']
@@ -136,15 +136,17 @@ class receiver(gr.top_block):
 
 		block = None	
 
-		for channel in self.channels[source_id]:
-			if channel.in_use == False:
-				block = channel
-				block_id = block_id
+		for c in self.channels:
+			if c.source_id == source_id and c.in_use == False:
+				block = c
+				block_id = c.block_id
+				#TODO: move UDP output
 				break
 
 		if block == None:
-			block = channel(dest, port, channel_rate, source_samp_rate, offset)
-			
+			block = channel.channel(dest, port, channel_rate, source_samp_rate, offset)
+			block.source_id = source_id
+
 			self.channels.append(block)
 			block_id = len(self.channels)-1
 			block.block_id = block_id
@@ -158,6 +160,18 @@ class receiver(gr.top_block):
 		self.access_lock.release()
 
 		return block.block_id
+	def release_channel(self, block_id):
+		self.access_lock.acquire()
+		try:
+			self.channels[block_id].in_use = False
+		except:
+			self.access_lock.release()
+			return -1
+
+		#TODO: move UDP output
+
+		self.access_lock.release()
+		return True
 
 if __name__ == '__main__':
 	tb = receiver()
@@ -182,19 +196,25 @@ if __name__ == '__main__':
 				
 				result = tb.connect_channel(channel_rate, freq, dest, port)
 
-				if result == False:
+				if result == -1:
 					#Channel failed to create, probably freq out of range
-					client.send('na %s\n' % freq)
+					client.send('na,%s\n' % freq)
+					print 'failed to create channel %s' % freq
 				else:
-		                        client.send('create %s\n' % result)
+		                        client.send('create,%s\n' % result) #success
+	                        	print 'Created channel ar: %s' % (len(tb.channels))
 
-	                        print 'Created channel ar: %s' % (len(tb.channels))
 			elif data[0] == 'release':
 				block_id = int(data[1])
-				freq = int(data[2])
 
-				tb.release_channel(freq, block_id)
-				print 'Released channel'
+				result = tb.release_channel(block_id)
+				if result == -1:
+                                        #Channel failed to release
+                                        client.send('na,%s\n' % block_id)
+					print 'failed to release %s' % block_id
+                                else:
+                                        client.send('release,%s\n' % block_id) #success
+					print 'Released channel'
 			elif data[0] == 'quit':
 				client.close()
 				break
