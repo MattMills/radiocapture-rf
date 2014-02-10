@@ -23,6 +23,7 @@ class channel ( gr.hier_block2):
 		self.port = port
 		self.offset = offset
 		self.in_use = False
+		self.source_id = None
 
 		decim = int(samp_rate/(channel_rate*1.5))
 		taps = firdes.low_pass(1,self.samp_rate,self.channel_rate,self.channel_rate/4)

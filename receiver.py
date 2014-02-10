@@ -33,6 +33,7 @@ from p25_control_receiver import p25_control_receiver
 
 from logging_receiver import logging_receiver
 from config import rc_config
+from frontend_connector import frontend_connector
 
 class receiver(gr.top_block):
 
@@ -56,86 +57,6 @@ class receiver(gr.top_block):
                 self.systems = config.systems
 
 
-		##################################################
-		# Blocks
-		##################################################
-		for source in self.sources:
-			if self.sources[source]['type'] == 'usrp':
-				this_dev = uhd.usrp_source(
-					device_addr=self.sources[source]['device_addr'],
-					stream_args=uhd.stream_args(
-						cpu_format="fc32",
-						otw_format=self.sources[source]['otw_format'],
-						args=self.sources[source]['args'],
-					),
-				)
-				this_dev.set_samp_rate(self.sources[source]['samp_rate'])
-				this_dev.set_center_freq(self.sources[source]['center_freq'])
-				this_dev.set_gain(self.sources[source]['rf_gain'])
-	
-				try:
-					null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-				except:
-					null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-				self.connect(this_dev, null_sink)
-	
-				self.sources[source]['block'] = this_dev
-			if self.sources[source]['type'] == 'usrp2x':
-				this_dev = uhd.usrp_source(
-                                        device_addr=self.sources[source]['device_addr'],
-                                        stream_args=uhd.stream_args(
-                                                cpu_format="fc32",
-                                                otw_format=self.sources[source]['otw_format'],
-                                                args=self.sources[source]['args'],
-						channels=range(2),
-                                        ),
-                                )
-				
-				this_dev.set_subdev_spec('A:RX1 A:RX2', 0)
-                                this_dev.set_samp_rate(self.sources[source]['samp_rate'])
-
-                                this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
-				this_dev.set_center_freq(self.sources[source+1]['center_freq'], 1)
-                                this_dev.set_gain(self.sources[source]['rf_gain'], 0)
-				this_dev.set_gain(self.sources[source+1]['rf_gain'], 1)
-			
-				multiply = blocks.multiply_const_vcc((1, ))
-				try:
-                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-                                except:
-                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-				self.connect((this_dev,0), multiply, null_sink)
-                                self.sources[source]['block'] = multiply
-
-				multiply = blocks.multiply_const_vcc((1, ))
-				try:
-                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-                                except:
-                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect((this_dev,1), multiply, null_sink)
-                                self.sources[source+1]['block'] = multiply
-			if self.sources[source]['type'] == 'bladerf':
-				this_dev = osmosdr.source( args=self.sources[source]['args'] )
-			        this_dev.set_sample_rate(self.sources[source]['samp_rate'])
-			        this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
-			        this_dev.set_freq_corr(0, 0)
-			        this_dev.set_dc_offset_mode(0, 0)
-			        this_dev.set_iq_balance_mode(0, 0)
-			        this_dev.set_gain_mode(0, 0)
-			        this_dev.set_gain(self.sources[source]['rf_gain'], 0)
-			        this_dev.set_if_gain(20, 0)
-			        this_dev.set_bb_gain(self.sources[source]['bb_gain'], 0)
-			        this_dev.set_antenna("", 0)
-			        this_dev.set_bandwidth(0, 0)
-				
-
-				try:
-                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-                                except:
-                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect(this_dev, null_sink)
-
-                                self.sources[source]['block'] = this_dev
 	
 		##################################################
 		# Connections
@@ -157,6 +78,7 @@ class receiver(gr.top_block):
 		
 		self.active_receivers = []
 		self.ar_lock = threading.RLock()
+		self.connector = frontend_connector()
 
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']
