@@ -23,6 +23,7 @@ from gnuradio import blocks
 
 import time
 import threading
+import random
 
 
 # import custom modules
@@ -57,6 +58,7 @@ class receiver(gr.top_block):
                 self.systems = config.systems
 
 
+		self.connector = frontend_connector()
 	
 		##################################################
 		# Connections
@@ -73,36 +75,61 @@ class receiver(gr.top_block):
 			else:
 				raise Exception('Invalid system type %s' % (self.systems[system]['type']))
 			this_block = self.systems[system]['block']
-			self.systems[system]['source'] = 0
-			self.connect(self.sources[0]['block'], this_block)
+			self.systems[system]['channel_id'] = None
+
+			udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (1000+system), 1472, True)
+			self.connect(udp_source, this_block)
+			self.systems[system]['source'] = udp_source
+			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
 		self.active_receivers = []
 		self.ar_lock = threading.RLock()
-		self.connector = frontend_connector()
 
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']
-		for i in self.sources.keys():
-			if(abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2):
-				if i == self.systems[system]['source']:
-					return i
-				else:
-					self.lock()
-					self.disconnect(self.sources[self.systems[system]['source']]['block'], channel)
-					self.connect(self.sources[i]['block'], channel)
-					self.systems[system]['source'] = i
-					self.unlock()
-					return i
-		raise Exception('Control Frequency out of range %s' % (freq))
+		source = self.systems[system]['source']
 
-	def connect_channel(self, freq, channel):
-		for i in self.sources.keys():
-			if(abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2):
-				self.lock()
-				self.connect((self.sources[i]['block']), channel)
-				self.unlock()
-				return self.sources[i]['center_freq']
-		raise Exception('Frequency out of range %s' % (freq))
+		if(self.systems[system]['channel_id'] != None):
+			self.connector.release_channel(self.systems[system]['channel_id'])
+		channel_id = self.connector.create_channel(channel.channel_rate, freq)
+		if channel_id == False:
+			raise Exception('Unable to tune CC %s' % (freq))	
+	
+		self.systems[system]['channel_id'] = channel_id
+		self.lock()
+		source.disconnect()
+		self.disconnect(source,channel)
+		del source
+		source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", self.connector.channel_id_to_port[channel_id], 1472, True)
+		self.connect(source,channel)
+		self.systems[system]['source'] = source
+		#source.connect('127.0.0.1', self.connector.channel_id_to_port[channel_id])
+		print 'connected %s %s %s %s' % (system, freq, channel.channel_rate, self.connector.channel_id_to_port[channel_id])
+		self.unlock()
+
+
+	def connect_channel(self, freq, channel, channel_rate):
+		source = channel.source
+
+		self.lock()
+		if(source != None):
+                        self.connector.release_channel(channel.channel_id)
+			source.disconnect()
+	                self.disconnect(source,channel)
+	                del source
+                channel_id = self.connector.create_channel(channel_rate, freq)
+                if channel_id == False:
+			self.unlock()
+                        raise Exception('Unable to tune audio channel %s' % (freq))
+
+                channel.channel_id = channel_id
+
+                source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", self.connector.channel_id_to_port[channel_id], 1472, True)
+                self.connect(source, channel)
+                channel.source = source
+                #source.connect('127.0.0.1', self.connector.channel_id_to_port[channel_id])
+                print 'connected %s %s %s' % (freq, channel_rate, self.connector.channel_id_to_port[channel_id])
+                self.unlock()
 
 if __name__ == '__main__':
 ####################################################################################################
@@ -122,6 +149,7 @@ if __name__ == '__main__':
 				hang_time = 3.5
 			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
 				receiver.close({})
+				tb.connector.release_channel(receiver.channel_id)
 			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr
 				audio_rate = receiver.audio_rate

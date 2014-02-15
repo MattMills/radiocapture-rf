@@ -452,6 +452,7 @@ class p25_control_receiver (gr.hier_block2):
                         output.append(int(input[i:i+2],2))
 		return output
 	def new_call(self, channel, group, user):
+		return False
 		if(self.system['id'] in self.tb.blacklists.keys() and group in self.tb.blacklists[self.system['id']]):
 			return False
 			#Ignore blacklisted groups

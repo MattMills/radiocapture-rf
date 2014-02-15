@@ -20,17 +20,15 @@ class logging_receiver(gr.hier_block2):
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
 
-
+		self.channel_id = None
+		self.source = None
 		self.lock = threading.RLock()
 
 		self.samp_rate = samp_rate
 		self.audio_rate = 12500
-		self.filter_rate = 100000
+		self.filter_rate = 12500
 		
 		self.thread_id = 'logr-' + str(uuid.uuid4())
-		self.audiotaps = firdes.low_pass( 1.0, self.samp_rate, (self.filter_rate/2), ((self.filter_rate/2)*0.6), firdes.WIN_HAMMING)
-		self.prefilter_decim = int(self.samp_rate/((self.filter_rate*1.6)))
-		self.prefilter = filter.freq_xlating_fir_filter_ccc(self.prefilter_decim, self.audiotaps, 0, self.samp_rate)
 
 		#self.valve = gr_extras.stream_selector(gr.io_signature(1, 1, gr.sizeof_gr_complex), gr.io_signature(2, 2, gr.sizeof_gr_complex), )
 		#self.null = gr.null_sink(gr.sizeof_gr_complex)
@@ -40,7 +38,7 @@ class logging_receiver(gr.hier_block2):
 
 		self.sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
 
-		self.connect(self, self.prefilter, self.sink)
+		self.connect(self, self.sink)
 
 		self.cdr = {}
 		self.time_open = 0
@@ -63,11 +61,11 @@ class logging_receiver(gr.hier_block2):
 		
 		time.sleep(2)
 		if codec_provoice:
-			os.system('nice -n 19 ./file_to_wav.py -i %s -p -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, (self.samp_rate/self.prefilter_decim), self.audio_rate))
+			os.system('nice -n 19 ./file_to_wav.py -i %s -p -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.audio_rate*2, self.audio_rate))
 		elif codec_p25:
-			os.system('nice -n 19 ./file_to_wav.py -i %s -5 -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, (self.samp_rate/self.prefilter_decim), self.audio_rate))
+			os.system('nice -n 19 ./file_to_wav.py -i %s -5 -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.audio_rate*2, self.audio_rate))
 		else:
-			os.system('nice -n 19 ./file_to_wav.py -i %s -r %s -c %s -s -70 -v -100 2>&1 >/dev/null' % (filename, (self.samp_rate/self.prefilter_decim), self.audio_rate))
+			os.system('nice -n 19 ./file_to_wav.py -i %s -r %s -c %s -s -70 -v -100 2>&1 >/dev/null' % (filename, self.audio_rate*2, self.audio_rate))
                 os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '.wav' + ' 2>&1 >/dev/null')
 		try:
                 	os.makedirs('/nfs/%s' % (filepath, ))
@@ -177,11 +175,6 @@ class logging_receiver(gr.hier_block2):
 
 		self.time_open = cdr['timestamp'] =  time.time()
 		self.activity()
-	def tuneoffset(self, target_freq, rffreq):
-		print "Tuning to %s, center %s, offset %s" % (target_freq, rffreq, (target_freq-rffreq))
-		self.prefilter.set_center_freq(target_freq-rffreq)
-		self.freq = target_freq
-		self.center_freq = rffreq
 	def set_codec_provoice(self,input):
 		self.codec_provoice = input
 	def set_codec_p25(self, input):
