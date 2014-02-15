@@ -2,8 +2,10 @@
 
 from gnuradio import gr
 from gnuradio import blocks
+from gnuradio.filter import pfb
 import time
 import threading
+import math
 
 import channel
 from config import rc_config
@@ -25,6 +27,23 @@ class receiver(gr.top_block):
 		self.channel_rate = 12500
 
                 for source in self.sources:
+			target_size = 1000000
+			if(self.sources[source]['samp_rate']%target_size):
+				raise Exception('samp_rate not round enough')
+
+			num_channels = int(math.ceil(self.sources[source]['samp_rate']/target_size))
+			self.sources[source]['pfb'] = pfb.channelizer_ccf(
+	                  num_channels,
+	                  (),
+	                  1.0,
+	                  100
+			)
+			self.sources[source]['pfb'].set_channel_map(([]))
+			for x in range(0,num_channels):
+				null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+				self.connect((self.sources[source]['pfb'], x), null_sink)
+
+
                         if self.sources[source]['type'] == 'usrp':
 				from gnuradio import uhd
 
@@ -44,7 +63,7 @@ class receiver(gr.top_block):
                                         null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
                                 except:
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect(this_dev, null_sink)
+                                #self.connect(this_dev, null_sink)
 
                                 self.sources[source]['block'] = this_dev
                         if self.sources[source]['type'] == 'usrp2x':
@@ -73,7 +92,7 @@ class receiver(gr.top_block):
                                         null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
                                 except:
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect((this_dev,0), multiply, null_sink)
+                                #self.connect((this_dev,0), multiply, null_sink)
                                 self.sources[source]['block'] = multiply
 
                                 multiply = blocks.multiply_const_vcc((1, ))
@@ -81,7 +100,7 @@ class receiver(gr.top_block):
                                         null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
                                 except:
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect((this_dev,1), multiply, null_sink)
+                                #self.connect((this_dev,1), multiply, null_sink)
                                 self.sources[source+1]['block'] = multiply
                         if self.sources[source]['type'] == 'bladerf':
 				import osmosdr
@@ -104,10 +123,11 @@ class receiver(gr.top_block):
                                         null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
                                 except:
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect(this_dev, null_sink)
+                                #self.connect(this_dev, null_sink)
 
                                 self.sources[source]['block'] = this_dev
 
+			self.connect(self.sources[source]['block'], self.sources[source]['pfb'])
 	
 		self.channels = []
 		#for i in self.sources.keys():
@@ -130,7 +150,16 @@ class receiver(gr.top_block):
 		source_samp_rate = self.sources[source_id]['samp_rate']
 		source = self.sources[source_id]['block']
 
-		offset = freq-source_center_freq 
+		offset = freq-source_center_freq
+
+		pfb = self.sources[source_id]['pfb']
+		pfb_samp_rate = 1000000
+		num_channels = source_samp_rate/pfb_samp_rate
+		pfb_id = (freq-source_center_freq) / pfb_samp_rate
+		if pfb_id < 0: 
+			pfb_id = pfb_id + num_channels
+		pfb_offset = ((freq-source_center_freq) % pfb_samp_rate)-(pfb_samp_rate/2)
+
 
 		#We have all our parameters, lets see if we can re-use an idling channel
 		self.access_lock.acquire()
@@ -138,23 +167,24 @@ class receiver(gr.top_block):
 		block = None	
 
 		for c in self.channels:
-			if c.source_id == source_id and c.in_use == False:
+			if c.source_id == source_id and c.pfb_id == pfb_id and c.in_use == False:
 				block = c
 				block_id = c.block_id
-				block.set_offset(offset)
+				block.set_offset(pfb_offset)
 				#TODO: move UDP output
 				break
 
 		if block == None:
-			block = channel.channel(dest, port, channel_rate, source_samp_rate, offset)
+			block = channel.channel(dest, port, channel_rate, pfb_samp_rate, pfb_offset)
 			block.source_id = source_id
+			block.pfb_id = pfb_id
 
 			self.channels.append(block)
 			block_id = len(self.channels)-1
 			block.block_id = block_id
 
 			self.lock()
-			self.connect(source, block)
+			self.connect((pfb,pfb_id), block)
 			self.unlock()
 
 		block.in_use = True
