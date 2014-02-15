@@ -47,6 +47,7 @@ class receiver(gr.top_block):
 		except:
 			pass
 		
+		self.ar_lock = threading.RLock()
 
 		##################################################
 		# Variables
@@ -83,7 +84,6 @@ class receiver(gr.top_block):
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
 		self.active_receivers = []
-		self.ar_lock = threading.RLock()
 
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']
