@@ -28,6 +28,7 @@ class frontend_connector():
 				break
 
 		self.s.send('create,%s,%s,%s,%s' % (self.dest, port, channel_rate, freq))
+
 		data = self.s.recv(1024)
 		data = data.strip().split(',')
 

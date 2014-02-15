@@ -12,33 +12,27 @@ import threading
 import uuid
 
 
-class logging_receiver(gr.hier_block2):
-	def __init__(self, samp_rate):
+class logging_receiver(gr.top_block):
+	def __init__(self, port):
 		self.audio_capture = True;
 
-		gr.hier_block2.__init__(self, "logging_receiver",
-                                gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
-                                gr.io_signature(0, 0, 0)) # Output signature
+		gr.top_block.__init__(self, "logging_receiver")
 
 		self.channel_id = None
-		self.source = None
-		self.lock = threading.RLock()
+		self.rlock = threading.RLock()
 
-		self.samp_rate = samp_rate
 		self.audio_rate = 12500
 		self.filter_rate = 12500
 		
 		self.thread_id = 'logr-' + str(uuid.uuid4())
 
-		#self.valve = gr_extras.stream_selector(gr.io_signature(1, 1, gr.sizeof_gr_complex), gr.io_signature(2, 2, gr.sizeof_gr_complex), )
-		#self.null = gr.null_sink(gr.sizeof_gr_complex)
-
 		self.filename = "/dev/null"
 		self.filepath = "/dev/null"
 
+		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", port, 1472, True)
 		self.sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
 
-		self.connect(self, self.sink)
+		self.connect(self.source, self.sink)
 
 		self.cdr = {}
 		self.time_open = 0
@@ -106,6 +100,7 @@ class logging_receiver(gr.hier_block2):
 		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 		self.cdr['time_open'] = self.time_open
 		self.cdr['time_close'] = time.time()
+		self.source.disconnect()
 
 		if(self.audio_capture):
 			self.sink.close()
@@ -120,7 +115,6 @@ class logging_receiver(gr.hier_block2):
 					pass
 				except:
 					print 'Error removing ' +self.filename
-
 		self.time_open = 0
 		self.time_last_use = time.time()
 		self.uuid =''
@@ -191,3 +185,15 @@ class logging_receiver(gr.hier_block2):
 			return True
 		else:
 			return False
+
+if __name__ == '__main__':
+	tb = logging_receiver(49999)
+	cdr = {
+		'type': 'group',
+		'system_group_local': 0,
+		'system_id': 0
+		}
+	tb.open(cdr, 12500)
+	time.sleep(5)
+	tb.wait()
+	tb.close({})

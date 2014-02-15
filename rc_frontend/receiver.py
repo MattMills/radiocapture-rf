@@ -188,6 +188,7 @@ if __name__ == '__main__':
 		my_channels = []
 		while 1:
 			data = client.recv(size)
+			print data
 			if not data: 
 				client.close()
 				for x in my_channels:
