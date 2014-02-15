@@ -5,7 +5,7 @@ import random
 
 
 class frontend_connector():
-	def __init__(self, dest='127.0.0.1', host='127.0.0.1', port=50000):
+	def __init__(self, dest='127.0.0.1', host='10.5.0.22', port=50000):
 	
 		self.dest = dest
 
