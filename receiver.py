@@ -88,11 +88,14 @@ class receiver(gr.top_block):
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']
 		source = self.systems[system]['source']
+	
+		self.ar_lock.acquire()
 
 		if(self.systems[system]['channel_id'] != None):
 			self.connector.release_channel(self.systems[system]['channel_id'])
 		channel_id = self.connector.create_channel(channel.channel_rate, freq)
 		if channel_id == False:
+			self.ar_lock.release()
 			raise Exception('Unable to tune CC %s' % (freq))	
 	
 		self.systems[system]['channel_id'] = channel_id
@@ -107,10 +110,12 @@ class receiver(gr.top_block):
 		print 'connected %s %s %s %s' % (system, freq, channel.channel_rate, self.connector.channel_id_to_port[channel_id])
 		self.unlock()
 
-
+		self.ar_lock.release()
 	def connect_channel(self, freq, channel_rate):
+		self.ar_lock.acquire()
                 channel_id = self.connector.create_channel(channel_rate, freq)
                 if channel_id == False:
+			self.ar_lock.release()
                         raise Exception('Unable to tune audio channel %s' % (freq))
 
 		port = self.connector.channel_id_to_port[channel_id]
@@ -121,6 +126,7 @@ class receiver(gr.top_block):
 		self.active_receivers.append(channel)
 		
                 print 'connected %s %s %s' % (freq, channel_rate, self.connector.channel_id_to_port[channel_id])
+		self.ar_lock.release()
 		return channel
 if __name__ == '__main__':
 ####################################################################################################
