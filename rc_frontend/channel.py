@@ -25,8 +25,8 @@ class channel ( gr.hier_block2):
 		self.in_use = False
 		self.source_id = None
 
-		decim = int(samp_rate/(channel_rate*1.5))
-		taps = firdes.low_pass(1,self.samp_rate,self.channel_rate,self.channel_rate/4)
+		decim = int(samp_rate/(channel_rate*2))
+		taps = firdes.low_pass(1,self.samp_rate,self.channel_rate,self.channel_rate/2)
 
 		self.prefilter = filter.freq_xlating_fir_filter_ccc(decim, (taps), offset, samp_rate)
 		self.udp = blocks.udp_sink(gr.sizeof_gr_complex*1, dest, port, 1472, True)

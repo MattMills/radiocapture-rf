@@ -22,7 +22,8 @@ class receiver(gr.top_block):
 	
 		config = rc_config()
                 self.sources = config.sources
-		self.channel_rate = 25000
+		self.channel_rate = 12500
+
                 for source in self.sources:
                         if self.sources[source]['type'] == 'usrp':
 				from gnuradio import uhd
@@ -129,7 +130,7 @@ class receiver(gr.top_block):
 		source_samp_rate = self.sources[source_id]['samp_rate']
 		source = self.sources[source_id]['block']
 
-		offset = source_center_freq - freq
+		offset = freq-source_center_freq 
 
 		#We have all our parameters, lets see if we can re-use an idling channel
 		self.access_lock.acquire()
@@ -140,6 +141,7 @@ class receiver(gr.top_block):
 			if c.source_id == source_id and c.in_use == False:
 				block = c
 				block_id = c.block_id
+				block.set_offset(offset)
 				#TODO: move UDP output
 				break
 
@@ -156,6 +158,7 @@ class receiver(gr.top_block):
 			self.unlock()
 
 		block.in_use = True
+		block.udp.connect(dest, port)
 
 		self.access_lock.release()
 
@@ -182,10 +185,13 @@ if __name__ == '__main__':
 	import thread
 
 	def handler(client, addr, tb):
+		my_channels = []
 		while 1:
 			data = client.recv(size)
 			if not data: 
 				client.close()
+				for x in my_channels:
+                                        tb.release_channel(x)
 				break
 			data = data.strip().split(',')
 	                if data[0] == 'create':
@@ -202,7 +208,8 @@ if __name__ == '__main__':
 					print 'failed to create channel %s' % freq
 				else:
 		                        client.send('create,%s\n' % result) #success
-	                        	print 'Created channel ar: %s' % (len(tb.channels))
+	                        	print 'Created channel ar: %s %s %s %s %s' % (len(tb.channels), channel_rate, freq, dest, port)
+					my_channels.append(result)
 
 			elif data[0] == 'release':
 				block_id = int(data[1])
@@ -215,8 +222,11 @@ if __name__ == '__main__':
                                 else:
                                         client.send('release,%s\n' % block_id) #success
 					print 'Released channel'
+					my_channels.remove(block_id)
 			elif data[0] == 'quit':
 				client.close()
+				for x in my_channels:
+					tb.release_channel(x)
 				break
 
 	host = ''
