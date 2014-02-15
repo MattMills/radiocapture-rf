@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import socket
+import zmq
 import random
 
 
@@ -9,15 +9,26 @@ class frontend_connector():
 	
 		self.dest = dest
 
-		self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.s.connect((host,port))
+		#self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		#self.s.connect((host,port))
+		context = zmq.Context()
+		self.socket = context.socket(zmq.REQ)
+		self.socket.connect("tcp://%s:%s" % (host, port))
+		self.my_client_id = None
 
 		self.used_ports = []
 		self.channel_id_to_port = {}
+		self.socket.send('connect')
+		data = self.socket.recv()
+
+		data = data.split(',')
+		self.my_client_id = int(data[1])
+		
 	def __exit__(self):
 		try:
-			self.s.send('quit')
-			self.s.close()
+			#self.s.send('quit')
+			#self.s.close()
+			self.socket.send('quit,%s' % self.my_client_id)
 		except:
 			pass
 
@@ -27,9 +38,8 @@ class frontend_connector():
 			if port not in self.used_ports:
 				break
 
-		self.s.send('create,%s,%s,%s,%s' % (self.dest, port, channel_rate, freq))
-
-		data = self.s.recv(1024)
+		self.socket.send('create,%s,%s,%s,%s,%s' % (self.my_client_id, self.dest, port, channel_rate, freq))
+		data = self.socket.recv()
 		data = data.strip().split(',')
 
 		if data[0] == 'na': #failed
@@ -44,8 +54,8 @@ class frontend_connector():
 			return False
                         
 	def release_channel(self, channel_id):
-		self.s.send('release,%s' % (channel_id))
-                data = self.s.recv(1024)
+		self.socket.send('release,%s,%s' % (self.my_client_id,channel_id))
+                data = self.socket.recv(1024)
                 data = data.strip().split(',')
 		
 		

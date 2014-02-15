@@ -39,6 +39,8 @@ class receiver(gr.top_block):
 	                  100
 			)
 			self.sources[source]['pfb'].set_channel_map(([]))
+			#null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+			#self.connect((self.sources[source]['pfb'], 0), null_sink)
 			for x in range(0,num_channels):
 				null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
 				self.connect((self.sources[source]['pfb'], x), null_sink)
@@ -211,63 +213,71 @@ if __name__ == '__main__':
 	tb.start()
 	#print len(tb.channels)
 	#tb.wait()
-	import socket
+	import zmq
 	import thread
+	import time
+	clients = []
+	client_hb = []
 
-	def handler(client, addr, tb):
-		my_channels = []
-		while 1:
-			data = client.recv(size)
-			print data
-			if not data: 
-				client.close()
-				for x in my_channels:
-                                        tb.release_channel(x)
-				break
-			data = data.strip().split(',')
-	                if data[0] == 'create':
-				dest = data[1]
-				port = int(data[2])
-				channel_rate = int(data[3])
-				freq = int(data[4])
-				
-				result = tb.connect_channel(channel_rate, freq, dest, port)
+	def handler(msg, tb):
+		global clients
+		global client_hb
+		#if not data: 
+		#	for x in my_channels:
+                #       	tb.release_channel(x)
+		#	break
+		data = msg.strip().split(',')
+	        if data[0] == 'create':
+			c = int(data[1])
+			dest = data[2]
+			port = int(data[3])
+			channel_rate = int(data[4])
+			freq = int(data[5])
+			
+			result = tb.connect_channel(channel_rate, freq, dest, port)
 
-				if result == -1:
-					#Channel failed to create, probably freq out of range
-					client.send('na,%s\n' % freq)
-					print 'failed to create channel %s' % freq
-				else:
-		                        client.send('create,%s\n' % result) #success
-	                        	print 'Created channel ar: %s %s %s %s %s' % (len(tb.channels), channel_rate, freq, dest, port)
-					my_channels.append(result)
+			if result == -1:
+				#Channel failed to create, probably freq out of range
+				print 'failed to create channel %s' % freq
+				return 'na,%s' % freq
+			else:
+	                       	print 'Created channel ar: %s %s %s %s %s' % (len(tb.channels), channel_rate, freq, dest, port)
+				clients[c].append(result)
+				return 'create,%s' % result
+		elif data[0] == 'release':
+			c = int(data[1])
+			block_id = int(data[2])
 
-			elif data[0] == 'release':
-				block_id = int(data[1])
-
-				result = tb.release_channel(block_id)
-				if result == -1:
-                                        #Channel failed to release
-                                        client.send('na,%s\n' % block_id)
-					print 'failed to release %s' % block_id
-                                else:
-                                        client.send('release,%s\n' % block_id) #success
-					print 'Released channel'
-					my_channels.remove(block_id)
-			elif data[0] == 'quit':
-				client.close()
-				for x in my_channels:
-					tb.release_channel(x)
-				break
-
-	host = ''
-	port = 50000
-	backlog = 5
-	size = 1024
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.bind((host,port))
-	s.listen(backlog)
+			result = tb.release_channel(block_id)
+			if result == -1:
+                                #Channel failed to release
+				print 'failed to release %s' % block_id
+				return 'na,%s\n' % block_id
+                        else:
+				print 'Released channel'
+				clients[c].remove(block_id)
+				return 'release,%s\n' % block_id
+		elif data[0] == 'quit':
+			c = data[1]
+			for x in clients[c]:
+				tb.release_channel(x)
+			return 'quit,%s' % c
+		elif data[0] == 'connect':
+			c = len(clients)
+			clients.append([])
+			return 'connect,%s' % c
+		elif data[0] == 'hb':
+			c = int(data[1])
+			client_hb[c] = time.time()
+			return 'hb,%s' % c
+			
+	context = zmq.Context()
+	socket = context.socket(zmq.REP)
+	socket.bind("tcp://0.0.0.0:50000")
+	
 	while 1:
-		client, address = s.accept()
-		thread.start_new_thread(handler, (client, address, tb))
-
+		msg = socket.recv()
+		print msg
+		resp = handler(msg, tb)
+		print resp
+		socket.send(resp)
