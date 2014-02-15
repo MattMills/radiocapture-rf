@@ -37,6 +37,7 @@ class p25_control_receiver (gr.hier_block2):
 		self.block_id = block_id
 		self.sources = sources
 		self.samp_rate = samp_rate
+		self.channel_rate = 12500
 
 		self.control_channel = system['channels'][system['default_control_channel']]
 		self.control_channel_i = system['default_control_channel']
@@ -56,12 +57,9 @@ class p25_control_receiver (gr.hier_block2):
 	
 	      
 	        # channel filter
-	        channel_decim = samp_rate // channel_rate
-	        channel_rate = samp_rate // channel_decim
+	        channel_rate = self.channel_rate
 	        trans_width = 12.5e3 / 2;
 	        trans_centre = trans_width + (trans_width / 2)
-	        coeffs = firdes.low_pass(1.0, samp_rate, channel_rate/2, channel_rate/2*0.55, firdes.WIN_HANN)
-	        self.control_prefilter = filter.freq_xlating_fir_filter_ccf(channel_decim, coeffs, self.control_channel, samp_rate)
 	
 	        # power squelch
 	        #power_squelch = gr.pwr_squelch_cc(squelch, 1e-3, 0, True)
@@ -93,7 +91,7 @@ class p25_control_receiver (gr.hier_block2):
 		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq)
 	
 
-	        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
+	        self.connect(self, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
 	
                 ##################################################
                 # Threads
