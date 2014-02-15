@@ -12,7 +12,7 @@ class rc_config:
                                 'type': 'bladerf',
 				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
                                 'center_freq': 771500000,#855500000,
-                                'samp_rate': 10666666,
+                                'samp_rate': 12000000,
                                 'rf_gain': 4,
 				'bb_gain': 9
                         },
@@ -20,7 +20,7 @@ class rc_config:
 				'type': 'bladerf',
 				'args': 'numchan=1 bladerf=1,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
                                 'center_freq': 855500000,
-                                'samp_rate': 10666666,
+                                'samp_rate': 12000000,
                                 'rf_gain': 4,
                                 'bb_gain': 9
                         }
