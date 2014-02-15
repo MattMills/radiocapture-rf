@@ -3,6 +3,8 @@
 from gnuradio import gr
 from gnuradio import blocks
 from gnuradio.filter import pfb
+import gnuradio.filter.optfir as optfir
+
 import time
 import threading
 import math
@@ -27,7 +29,7 @@ class receiver(gr.top_block):
 		self.channel_rate = 12500
 
                 for source in self.sources:
-			target_size = 1000000
+			self.target_size = target_size = 100000
 			if(self.sources[source]['samp_rate']%target_size):
 				raise Exception('samp_rate not round enough')
 
@@ -155,7 +157,7 @@ class receiver(gr.top_block):
 		offset = freq-source_center_freq
 
 		pfb = self.sources[source_id]['pfb']
-		pfb_samp_rate = 1000000
+		pfb_samp_rate = self.target_size #1000000
 		num_channels = source_samp_rate/pfb_samp_rate
 		pfb_id = (freq-source_center_freq) / pfb_samp_rate
 		if pfb_id < 0: 
@@ -177,7 +179,7 @@ class receiver(gr.top_block):
 				break
 
 		if block == None:
-			block = channel.channel(dest, port, channel_rate, pfb_samp_rate, pfb_offset)
+			block = channel.channel(dest, port, channel_rate,(pfb_samp_rate), pfb_offset)
 			block.source_id = source_id
 			block.pfb_id = pfb_id
 
