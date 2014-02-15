@@ -100,7 +100,7 @@ class receiver(gr.top_block):
 		source.disconnect()
 		self.disconnect(source,channel)
 		del source
-		source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", self.connector.channel_id_to_port[channel_id], 1472, True)
+		source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", self.connector.channel_id_to_port[channel_id], 1472, True)
 		self.connect(source,channel)
 		self.systems[system]['source'] = source
 		#source.connect('127.0.0.1', self.connector.channel_id_to_port[channel_id])
