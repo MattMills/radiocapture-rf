@@ -39,6 +39,8 @@ class frontend_connector():
 			self.channel_id_to_port[channel_id] = port
 
 			return channel_id
+		else:
+			return False
                         
 	def release_channel(self, channel_id):
 		self.s.send('release,%s' % (channel_id))
@@ -57,6 +59,8 @@ class frontend_connector():
                         self.used_ports.remove(port)
 
                         return channel_id
+		else:
+			return False
 
 if __name__ == '__main__':
 	test = frontend_connector()
