@@ -14,7 +14,7 @@ class rc_config:
 				#'device_addr': "serial=E2R10Z3B1",
                                 'otw_format': 'sc8',
                                 'args': '',
-                                'center_freq': 856175000,
+                                'center_freq': 855775000,
                                 'samp_rate': 10666666,
                                 'rf_gain': 3
                         }
