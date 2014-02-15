@@ -38,7 +38,7 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
 
-		#self.control_lcn = control_lcn = 1
+		self.control_lcn = control_lcn = 1
 		self.bad_messages = 0
 		self.total_messages = 0
 
@@ -136,13 +136,6 @@ class edacs_control_receiver(gr.hier_block2):
 
         def recv_pkt(self):
                 return self.control_msg_queue.delete_head().to_string()
-        def build_audio_channel(self, c):
-		allocated_receiver = logging_receiver(self.samp_rate)
-		self.tb.connect_channel(self.channels[c], allocated_receiver, self.audio_rate)
-		self.tb.active_receivers.append(allocated_receiver)
-		
-		return allocated_receiver
-		
 
         def binary_invert(self, s):
                 r = ''
@@ -354,7 +347,7 @@ class edacs_control_receiver(gr.hier_block2):
         def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
 		self.tb.ar_lock.acquire()
 
-	        receiver = self.get_receiver(system, channel)
+		receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
                 print 'Tuning new group call - %s' % ( system['channels'][channel])
                 receiver.set_codec_provoice(provoice)
@@ -372,9 +365,8 @@ class edacs_control_receiver(gr.hier_block2):
 		self.tb.ar_lock.release()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
 		self.tb.ar_lock.acquire()
-	        receiver = self.get_receiver(system, channel)
+	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
-                receiver.tuneoffset(system['channels'][channel])
                 receiver.set_codec_provoice(False)
 		receiver.set_codec_p25(False)
                 cdr = {
@@ -388,10 +380,6 @@ class edacs_control_receiver(gr.hier_block2):
                 }
 		receiver.open(cdr, self.audio_rate)
 		self.tb.ar_lock.release()
-        def get_receiver(self, system, channel):
-
-		receiver = self.build_audio_channel(channel)
-                return receiver
 
         def packet_framer(self, system, frame, bad_messages, total_messages):
                 m1_1 = frame[0:40]

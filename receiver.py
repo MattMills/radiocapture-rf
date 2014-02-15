@@ -108,29 +108,20 @@ class receiver(gr.top_block):
 		self.unlock()
 
 
-	def connect_channel(self, freq, channel, channel_rate):
-		source = channel.source
-
-		self.lock()
-		if(source != None):
-                        self.connector.release_channel(channel.channel_id)
-			source.disconnect()
-	                self.disconnect(source,channel)
-	                del source
+	def connect_channel(self, freq, channel_rate):
                 channel_id = self.connector.create_channel(channel_rate, freq)
                 if channel_id == False:
-			self.unlock()
                         raise Exception('Unable to tune audio channel %s' % (freq))
 
-                channel.channel_id = channel_id
+		port = self.connector.channel_id_to_port[channel_id]
+		channel = logging_receiver(port)
+		channel.start()
 
-                source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", self.connector.channel_id_to_port[channel_id], 1472, True)
-                self.connect(source, channel)
-                channel.source = source
-                #source.connect('127.0.0.1', self.connector.channel_id_to_port[channel_id])
+		channel.channel_id = channel_id
+		self.active_receivers.append(channel)
+		
                 print 'connected %s %s %s' % (freq, channel_rate, self.connector.channel_id_to_port[channel_id])
-                self.unlock()
-
+		return channel
 if __name__ == '__main__':
 ####################################################################################################
 	
@@ -139,7 +130,6 @@ if __name__ == '__main__':
 	tb = receiver()
 	tb.start()
 	print 'Entering top_block loop'
-
 	while 1:
 		tb.ar_lock.acquire()
 		for i,receiver in enumerate(tb.active_receivers):
@@ -148,8 +138,10 @@ if __name__ == '__main__':
 			else:
 				hang_time = 3.5
 			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
-				receiver.close({})
 				tb.connector.release_channel(receiver.channel_id)
+				receiver.close({})
+				
+				del tb.active_receivers[i]
 			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr
 				audio_rate = receiver.audio_rate
