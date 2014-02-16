@@ -575,7 +575,7 @@ class p25_control_receiver (gr.hier_block2):
 		wrong_duid_count = 0
 
 		while True:
-			if loops_locked < -100 and time()-loop_start > 2:
+			if loops_locked < -1000 and time()-loop_start > 2:
 				self.tune_next_control_channel()
 
 				loops_locked = 0
@@ -589,7 +589,7 @@ class p25_control_receiver (gr.hier_block2):
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
 			fsnext   = buf.find(binascii.unhexlify('5575f5ff77ff'), fsoffset+6)
 			if(fsoffset != -1 and fsnext != -1):
-				if(loops_locked < 100):
+				if(loops_locked < 1000):
 					loops_locked = loops_locked + 100
 
 				frame = buf[fsoffset:fsnext]
