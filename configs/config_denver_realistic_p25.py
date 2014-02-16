@@ -11,7 +11,7 @@ class rc_config:
 			0:{
                                 'type': 'bladerf',
 				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
-                                'center_freq': 771500000,#855500000,
+                                'center_freq': 771644444,#855500000,
                                 'samp_rate': 10666666,
                                 'rf_gain': 4,
 				'bb_gain': 9
@@ -204,7 +204,66 @@ class rc_config:
 					11: 774906250
                                 }
                         },
+			10: {
+				'type': 'p25',
+                                'id': 10,
+                                'default_control_channel': 0,
+				'channels': {
+					0: 851250000,
+					1: 851712500,
+					2: 851912500,
+					3: 852225000,
+					4: 852687500,
+					5: 852912500,
+					6: 853300000,
+					7: 853537500
+				}
+			},
+			11: {
+                                'type': 'p25',
+                                'id': 11,
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851087500,
+					1: 851337500,
+					2: 852437500,
+					3: 852750000,
+					4: 853212500,
+					5: 854637500,
+					6: 855412500,
+					7: 856612500
+				}
+			},
+			12: {
+                                'type': 'p25',
+                                'id': 12,
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851562500,
+					1: 852375000,
+					2: 852775000,
+					3: 853150000,
+					4: 853275000,
+					5: 853425000,
+					6: 853725000,
+					7: 853862500
+				}
+			},
+			13: {
 
+                                'type': 'p25',
+                                'id': 13,
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851062500,
+					1: 851762500,
+					2: 852162500,
+					3: 852887500,
+					4: 853350000,
+					5: 856037500,
+					6: 859387500
+                                }
+                        }
 		}
 		self.blacklists = {
 			0xbee07: [
@@ -302,12 +361,23 @@ class rc_config:
 		self.blacklists[1071] = self.blacklists[0xbee07]
 
 		#del self.systems[0]
-                del self.systems[1]
-                #del self.systems[2]
-                #del self.systems[4]
-                #del self.systems[6]
-                #del self.systems[7]
-                #del self.systems[8]
+                
+
+		del self.systems[1]
+                
+
+		del self.systems[2]
+                del self.systems[4]
+                del self.systems[6]
+                del self.systems[7]
+                del self.systems[8]
 
 		del self.systems[3]
-		#del self.systems[5]
+		
+
+		del self.systems[5]
+		del self.systems[10]
+		del self.systems[11]
+		del self.systems[12]
+		del self.systems[13]
+	
