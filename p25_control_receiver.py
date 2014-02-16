@@ -29,7 +29,7 @@ class p25_control_receiver (gr.hier_block2):
 	        	gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
 	                gr.io_signature(0, 0, 0)) # Output signature
 	
-		self.hang_time = 0.3 #300 ms hang time	
+		self.hang_time = 0.5 #500 ms hang time	
 
 		#set globals
 		self.tb = top_block
@@ -46,6 +46,16 @@ class p25_control_receiver (gr.hier_block2):
 		self.channel_identifier_table = {}
 
 		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
+
+		self.P25 = {}
+		self.P25['WACN ID'] = None
+		self.P25['System ID'] = None
+		self.P25['Control Channel'] = None
+		self.P25['System Service Class'] = None
+		self.P25['Site ID'] = None
+		self.P25['RF Sub-system ID'] = None
+		self.P25['RFSS Network Connection'] = None
+
 
 	        # Setup receiver attributes
 	        channel_rate = 25000 #125000
@@ -451,23 +461,31 @@ class p25_control_receiver (gr.hier_block2):
                 for i in range(0, len(input), 2):
                         output.append(int(input[i:i+2],2))
 		return output
+	def get_channel_detail(self, channel):
+		chan_ident = (channel & 0xf000)>>12
+                chan_number = channel & 0x0fff
+		try:
+                        base_freq = self.channel_identifier_table[chan_ident]['Base Frequency']
+                        chan_spacing = self.channel_identifier_table[chan_ident]['Channel Spacing']/1000
+                except KeyError:
+                        return False, False
+		chan_freq = (chan_number*chan_spacing)
+                channel_frequency = (base_freq + chan_freq)*1000000
+                channel_bandwidth = self.channel_identifier_table[chan_ident]['BW']*1000
+
+		return channel_frequency, channel_bandwidth
+
 	def new_call(self, channel, group, user):
+		return False
 		if(self.system['id'] in self.tb.blacklists.keys() and group in self.tb.blacklists[self.system['id']]):
 			return False
 			#Ignore blacklisted groups
-		chan_ident = (channel & 0xf000)>>12
-		chan_number = channel & 0x0fff
-		try:
-			base_freq = self.channel_identifier_table[chan_ident]['Base Frequency']
-			chan_spacing = self.channel_identifier_table[chan_ident]['Channel Spacing']/1000
-		except KeyError:
-			print "%s: GRP_V_CH_GRANT on Channel plan that is undefined" % self.thread_id
+		
+
+		channel_frequency, channel_bandwidth = self.get_channel_detail(channel)
+		if(channel_frequency == False):
 			return False
 
-		chan_freq = (chan_number*chan_spacing)
-		channel_frequency = (base_freq + chan_freq)*1000000
-		channel_bandwidth = self.channel_identifier_table[chan_ident]['BW']*1000
-		
 		self.tb.ar_lock.acquire()
 		allocated_receiver = False
 
@@ -611,12 +629,12 @@ class p25_control_receiver (gr.hier_block2):
 					else:
 						print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
 				except Exception as e:
-					self.bad_messages = self.bad_messages + 3
+					self.bad_messages = self.bad_messages + 1
 					continue
 				try:
 					r['tsbk']
 				except:
-					self.bad_messages = self.bad_messages + 3
+					self.bad_messages = self.bad_messages + 1
                                         continue
 				for i in range(0, len(r['tsbk'])):
 					t = r['tsbk'][i]
@@ -656,12 +674,12 @@ class p25_control_receiver (gr.hier_block2):
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
 						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
-						print '[%s]%s: %s' % (time(), self.thread_id, t)
+						#print '[%s]%s: %s' % (time(), self.thread_id, t)
 						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
 						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
-						print '[%s]%s: %s' % (time(), self.thread_id, t)
+						#print '[%s]%s: %s' % (time(), self.thread_id, t)
 						pass
 					elif t['name'] == 'UU_V_CH_GRANT':
 						print '%s: %s' % (self.thread_id, t)
@@ -673,8 +691,24 @@ class p25_control_receiver (gr.hier_block2):
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'U_REG_RSP':
 						print '%s: %s' % (self.thread_id, t)
-					#else:
-						#print '%s: %s' % (self.thread_id, t)
+					elif t['name'] == 'NET_STS_BCST':
+						self.P25['WACN ID'] = hex(int(t['WACN ID']))
+						self.P25['System ID'] = hex(int(t['System ID']))
+						self.P25['System Service Class'] = t['System Service Class']
+						self.P25['Control Channel'] = t['Channel']
+					elif t['name'] == 'RFSS_STS_BCST':
+						self.P25['Site ID'] = t['Site ID']
+						self.P25['RF Sub-system ID'] = t['RF Sub-system ID']
+						self.P25['RFSS Network Connection'] = t['A']
+					elif t['name'] == 'ADJ_STS_BCST':
+						t['Channel'] = self.get_channel_detail(t['Channel'])
+						del t['lb']
+						del t['crc']
+						del t['mfid']
+						del t['opcode']
+						print '%s: %s' % (self.thread_id, t)
+					else:
+						print '%s: %s' % (self.thread_id, t)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
@@ -684,8 +718,8 @@ class p25_control_receiver (gr.hier_block2):
                 last_bad = 0
                 while True:
                         sleep(10); #only check messages once per 10second
-                        sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.total_messages-last_total) + '/' + str(self.bad_messages-last_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+                        sid = '%s %s-%s %s-%s' % (self.system['id'], self.P25['System ID'], self.P25['WACN ID'], self.P25['RF Sub-system ID'], self.P25['Site ID'])
+                        print 'System: %s (%s/%s) (%s/%s) CC: %s AR: %s' % (sid, self.total_messages-last_total, self.bad_messages-last_bad, self.total_messages, self.bad_messages, self.control_channel, len(self.tb.active_receivers))
                         last_total = self.total_messages
                         last_bad = self.bad_messages
 
