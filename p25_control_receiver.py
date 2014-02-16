@@ -67,7 +67,7 @@ class p25_control_receiver (gr.hier_block2):
 	
 	      
 	        # channel filter
-	        channel_rate = self.channel_rate
+	        channel_rate = self.channel_rate*2
 	        trans_width = 12.5e3 / 2;
 	        trans_centre = trans_width + (trans_width / 2)
 	
@@ -705,8 +705,8 @@ class p25_control_receiver (gr.hier_block2):
 						del t['mfid']
 						del t['opcode']
 						print '%s: %s' % (self.thread_id, t)
-					else:
-						print '%s: %s' % (self.thread_id, t)
+					#else:
+						#print '%s: %s' % (self.thread_id, t)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):

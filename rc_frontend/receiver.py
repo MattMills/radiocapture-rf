@@ -26,7 +26,6 @@ class receiver(gr.top_block):
 	
 		config = rc_config()
                 self.sources = config.sources
-		self.channel_rate = 12500
 
                 for source in self.sources:
 			self.target_size = target_size = 100000
