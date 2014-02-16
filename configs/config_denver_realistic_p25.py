@@ -11,7 +11,7 @@ class rc_config:
 			0:{
                                 'type': 'bladerf',
 				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
-                                'center_freq': 771500000,#855500000,
+                                'center_freq': 771000000,#855500000,
                                 'samp_rate': 12000000,
                                 'rf_gain': 4,
 				'bb_gain': 9
