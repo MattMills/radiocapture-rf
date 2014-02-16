@@ -36,7 +36,7 @@ class receiver(gr.top_block):
 			num_channels = int(math.ceil(self.sources[source]['samp_rate']/target_size))
 			self.sources[source]['pfb'] = pfb.channelizer_ccf(
 	                  num_channels,
-	                  (),
+	                  (optfir.low_pass(1,num_channels,0.5, 0.5+0.2, 0.1, 80)),
 	                  1.0,
 	                  100
 			)
@@ -157,14 +157,23 @@ class receiver(gr.top_block):
 		offset = freq-source_center_freq
 
 		pfb = self.sources[source_id]['pfb']
+
 		pfb_samp_rate = self.target_size #1000000
+		pfb_center_freq = source_center_freq - (pfb_samp_rate/2)
+
 		num_channels = source_samp_rate/pfb_samp_rate
-		pfb_id = (freq-source_center_freq) / pfb_samp_rate
-		if pfb_id < 0: 
-			pfb_id = pfb_id + num_channels
-		pfb_offset = ((freq-source_center_freq) % pfb_samp_rate)-(pfb_samp_rate/2)
 
+		offset = freq - source_center_freq
+		chan = int(round(offset/float(pfb_samp_rate)))
+		if chan < 0:
+			chan = chan + num_channels
 
+		pfb_offset = offset-(chan*(pfb_samp_rate))
+
+		pfb_id = chan
+
+		if pfb_offset < -40000 or pfb_offset > 40000:
+			print 'warning: %s edge boundary' % freq
 		#We have all our parameters, lets see if we can re-use an idling channel
 		self.access_lock.acquire()
 
@@ -279,7 +288,5 @@ if __name__ == '__main__':
 	
 	while 1:
 		msg = socket.recv()
-		print msg
 		resp = handler(msg, tb)
-		print resp
 		socket.send(resp)
