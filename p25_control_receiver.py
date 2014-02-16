@@ -72,7 +72,7 @@ class p25_control_receiver (gr.hier_block2):
 	
 	        # symbol filter        
 	        symbol_decim = 1
-	        samples_per_symbol = channel_rate // symbol_rate
+	        samples_per_symbol = (channel_rate) // symbol_rate
 	        symbol_coeffs = (1.0/samples_per_symbol,) * samples_per_symbol
 	        symbol_filter = filter.fir_filter_fff(symbol_decim, symbol_coeffs)
 	
@@ -111,7 +111,7 @@ class p25_control_receiver (gr.hier_block2):
 	        delta_hz *= self.symbol_deviation      
 	        delta_hz = max(delta_hz, -max_delta_hz)
 	        delta_hz = min(delta_hz, max_delta_hz)
-	        self.control_prefilter.set_center_freq(self.control_channel - delta_hz)
+	        #self.control_prefilter.set_center_freq(self.control_channel - delta_hz)
         def tune_next_control_channel(self):
                 self.control_channel_i += 1
                 if(self.control_channel_i >= len(self.system['channels'])):
@@ -121,8 +121,8 @@ class p25_control_receiver (gr.hier_block2):
 
                 self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
 
-                self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
-                print '%s: CC Change - %s - %s - %s' % (self.thread_id, self.control_channel, self.sources[self.control_source]['center_freq'], self.control_channel-self.sources[self.control_source]['center_freq'])
+                #self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
+                #print '%s: CC Change - %s - %s - %s' % (self.thread_id, self.control_channel, se)
                 self.decodequeue.flush()
                 sleep(0.1)
 	def procHDU(self, frame):
