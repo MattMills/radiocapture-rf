@@ -474,7 +474,6 @@ class p25_control_receiver (gr.hier_block2):
 		return channel_frequency, channel_bandwidth
 
 	def new_call(self, channel, group, user):
-		return False
 		if(self.system['id'] in self.tb.blacklists.keys() and group in self.tb.blacklists[self.system['id']]):
 			return False
 			#Ignore blacklisted groups
@@ -506,7 +505,6 @@ class p25_control_receiver (gr.hier_block2):
 		                                'system_user_local': user,
 		                                'system_channel_local': channel,
 		                                'type': 'group',
-		                                'center_freq': old_cdr['center_freq'],
 						'hang_time': self.hang_time
 		                        }
 
@@ -517,23 +515,24 @@ class p25_control_receiver (gr.hier_block2):
 					receiver.activity()
 	                                allocated_receiver = receiver
                                 break
+		self.tb.ar_lock.release()
 		if allocated_receiver == False: #If not an existing call
-			for receiver in self.tb.active_receivers: #look for an empty channel
-				if receiver.in_use == False and abs(receiver.center_freq-channel_frequency) < (self.samp_rate/2):
-					allocated_receiver = receiver
-					center = receiver.center_freq
-					break
+			#for receiver in self.tb.active_receivers: #look for an empty channel
+			#	if receiver.in_use == False and abs(receiver.center_freq-channel_frequency) < (self.samp_rate/2):
+			#		allocated_receiver = receiver
+			#		center = receiver.center_freq
+			#		break
 
-			if allocated_receiver == False: #or create a new one if there arent any empty channels
-				allocated_receiver = logging_receiver(self.samp_rate)
-				try:
-					center = self.tb.connect_channel(channel_frequency, allocated_receiver)
-				except:
-					self.tb.ar_lock.release()
-					return False
-				self.tb.active_receivers.append(allocated_receiver)
+			#if allocated_receiver == False: #or create a new one if there arent any empty channels
+			#	allocated_receiver = logging_receiver(self.samp_rate)
+			#	try:
+			#		center = self.tb.connect_channel(channel_frequency, allocated_receiver)
+			#	except:
+			#		self.tb.ar_lock.release()
+			#		return False
+			#	self.tb.active_receivers.append(allocated_receiver)
+			allocated_receiver = self.tb.connect_channel(int(channel_frequency), int(channel_bandwidth))
 			
-			allocated_receiver.tuneoffset(channel_frequency, center)
 			allocated_receiver.set_codec_p25(True)
 			allocated_receiver.set_codec_provoice(False)
 			
@@ -543,12 +542,10 @@ class p25_control_receiver (gr.hier_block2):
 				'system_user_local': user,
 				'system_channel_local': channel,
 				'type': 'group',
-				'center_freq': center,
 				'hang_time': self.hang_time
 			}
 
 			allocated_receiver.open(cdr, int(channel_bandwidth))
-		self.tb.ar_lock.release()
 		return allocated_receiver
 	def progress_call(self, channel):
                 for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
