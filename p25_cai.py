@@ -1161,8 +1161,8 @@ class p25_cai:
   },
   0b111010 :
   {
-   'name' : 'RFFS_STS_BCST',
-   'long_name' : 'RFFS Status Broadcast',
+   'name' : 'RFSS_STS_BCST',
+   'long_name' : 'RFSS Status Broadcast',
    'fields' :
    [
     {
