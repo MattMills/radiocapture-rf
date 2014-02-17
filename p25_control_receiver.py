@@ -531,7 +531,10 @@ class p25_control_receiver (gr.hier_block2):
 			#		self.tb.ar_lock.release()
 			#		return False
 			#	self.tb.active_receivers.append(allocated_receiver)
-			allocated_receiver = self.tb.connect_channel(int(channel_frequency), int(channel_bandwidth))
+			try:
+				allocated_receiver = self.tb.connect_channel(int(channel_frequency), int(channel_bandwidth))
+			except:
+				return False
 			
 			allocated_receiver.set_codec_p25(True)
 			allocated_receiver.set_codec_provoice(False)

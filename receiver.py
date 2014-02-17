@@ -97,6 +97,7 @@ class receiver(gr.top_block):
 		if channel_id == False:
 			self.ar_lock.release()
 			raise Exception('Unable to tune CC %s' % (freq))	
+			
 	
 		self.systems[system]['channel_id'] = channel_id
 		self.lock()
