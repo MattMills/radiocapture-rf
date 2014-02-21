@@ -10,7 +10,6 @@ import time, datetime
 import os
 import threading
 import uuid
-import math
 
 
 class logging_receiver(gr.top_block):
@@ -69,8 +68,8 @@ class logging_receiver(gr.top_block):
 			time.sleep(0.1)
 			if not self.codec_p25 or not self.in_use:
 				continue
-			l = math.fabs(self.probe_low.level())
-			h = math.fabs(self.probe_high.level())
+			l = abs(self.probe_low.level())
+			h = abs(self.probe_high.level())
 
 			print '%s %s' % (l, h)
 			if(l > (h*1.3)):
