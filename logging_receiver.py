@@ -1,6 +1,6 @@
 #!/usr/env/python
 
-from gnuradio import gr, blocks, analog, filter
+from gnuradio import gr, blocks, analog, filter, fft
 try:
 	from gnuradio.gr import firdes
 except:
@@ -10,6 +10,7 @@ import time, datetime
 import os
 import threading
 import uuid
+import math
 
 
 class logging_receiver(gr.top_block):
@@ -32,7 +33,16 @@ class logging_receiver(gr.top_block):
 		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", port, 1472, True)
 		self.sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
 
+		self.demod = analog.quadrature_demod_cf(1)
+		self.goe_low = fft.goertzel_fc(self.audio_rate*2, 100, 1500)
+		self.goe_high = fft.goertzel_fc(self.audio_rate*2, 100, 3000)
+		self.probe_low = blocks.probe_signal_c()
+		self.probe_high = blocks.probe_signal_c()
+
 		self.connect(self.source, self.sink)
+		self.connect(self.source, self.demod)
+		self.connect(self.demod, self.goe_low, self.probe_low)
+		self.connect(self.demod, self.goe_high, self.probe_high)
 
 		self.cdr = {}
 		self.time_open = 0
@@ -50,6 +60,25 @@ class logging_receiver(gr.top_block):
 		self.codec_p25 = False
 	
 		self.lock_id = False
+		p25_sensor = threading.Thread(target=self.p25_sensor)
+                p25_sensor.daemon = True
+                p25_sensor.start()
+	def p25_sensor(self):
+	
+		while(True):
+			l = math.fabs(self.probe_low.level())
+			h = math.fabs(self.probe_high.level())
+
+			print '%s %s' % (l, h)
+			if(l > (h*1.3)):
+				#self.activity()
+				print 'active'
+			time.sleep(0.1)
+		
+	def set_samp_rate(self, samp_rate):
+		self.samp_rate = samp_rate
+		self.goe_low.set_rate(samp_rate)
+		self.goe_high.set_rate(samp_rate)
         def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, patches, codec_provoice, codec_p25):
 		if(time_open == 0): raise RuntimeError("upload_and_cleanup() with time_open == 0")
 		
@@ -127,6 +156,7 @@ class logging_receiver(gr.top_block):
 		if(audio_rate != self.audio_rate):
 			print 'System: Adjusting audio rate %s' % (audio_rate)
 			self.audio_rate = audio_rate
+			self.set_samp_rate(audio_rate*2)
 			#channel_rate = (audio_rate*1.4)*2
 			#self.audiotaps = gr.firdes.low_pass( 1.0, self.samp_rate, (self.audio_rate), (self.audio_rate*0.6), firdes.WIN_HAMMING)
 			#self.prefilter_decim = int(self.samp_rate/audio_rate)
