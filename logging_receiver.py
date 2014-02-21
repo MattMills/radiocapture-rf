@@ -63,7 +63,7 @@ class logging_receiver(gr.top_block):
                 p25_sensor.daemon = True
                 p25_sensor.start()
 	def p25_sensor(self):
-	
+		#ghetto fabulous method to see if a P25 channel is still up, without spending all the CPU cycles to decode it live.
 		while(True):
 			time.sleep(0.1)
 			if not self.codec_p25 or not self.in_use:
@@ -71,10 +71,9 @@ class logging_receiver(gr.top_block):
 			l = abs(self.probe_low.level())
 			h = abs(self.probe_high.level())
 
-			print '%s %s' % (l, h)
+			#print '%s %s' % (l, h)
 			if(l > (h*1.3)):
-				#self.activity()
-				print 'active'
+				self.activity()
 		
 	def set_samp_rate(self, samp_rate):
 		self.samp_rate = samp_rate
