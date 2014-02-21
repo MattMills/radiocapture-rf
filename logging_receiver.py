@@ -66,6 +66,9 @@ class logging_receiver(gr.top_block):
 	def p25_sensor(self):
 	
 		while(True):
+			time.sleep(0.1)
+			if not self.codec_p25 or not self.in_use:
+				continue
 			l = math.fabs(self.probe_low.level())
 			h = math.fabs(self.probe_high.level())
 
@@ -73,7 +76,6 @@ class logging_receiver(gr.top_block):
 			if(l > (h*1.3)):
 				#self.activity()
 				print 'active'
-			time.sleep(0.1)
 		
 	def set_samp_rate(self, samp_rate):
 		self.samp_rate = samp_rate
