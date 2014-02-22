@@ -515,7 +515,6 @@ class p25_control_receiver (gr.hier_block2):
 					receiver.activity()
 	                                allocated_receiver = receiver
                                 break
-		self.tb.ar_lock.release()
 		if allocated_receiver == False: #If not an existing call
 			#for receiver in self.tb.active_receivers: #look for an empty channel
 			#	if receiver.in_use == False and abs(receiver.center_freq-channel_frequency) < (self.samp_rate/2):
@@ -551,6 +550,7 @@ class p25_control_receiver (gr.hier_block2):
 			}
 
 			allocated_receiver.open(cdr, int(channel_bandwidth))
+		self.tb.ar_lock.release()
 		return allocated_receiver
 	def progress_call(self, channel):
                 for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
