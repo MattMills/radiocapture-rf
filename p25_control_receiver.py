@@ -536,6 +536,8 @@ class p25_control_receiver (gr.hier_block2):
 			except:
 				return False
 			
+			self.tb.active_receivers.append(allocated_receiver)
+
 			allocated_receiver.set_codec_p25(True)
 			allocated_receiver.set_codec_provoice(False)
 			
