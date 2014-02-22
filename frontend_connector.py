@@ -34,7 +34,8 @@ class frontend_connector():
 
 	def create_channel(self, channel_rate, freq):
 		while True:
-			port = random.randrange(10000,20000)
+			spacer = 1000*self.my_client_id
+			port = random.randrange(10000+spacer,10000+spacer+999)
 			if port not in self.used_ports:
 				break
 
