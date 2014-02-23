@@ -25,7 +25,6 @@ import time
 import threading
 import random
 
-
 # import custom modules
 from moto_control_receiver import moto_control_receiver
 from edacs_control_receiver import edacs_control_receiver
@@ -103,7 +102,9 @@ class receiver(gr.top_block):
 		self.lock()
 		source.disconnect()
 		self.disconnect(source,channel)
-		del source
+		source = None
+		self.systems[system]['source'] = None
+		#del source
 		source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", self.connector.channel_id_to_port[channel_id], 1472, True)
 		self.connect(source,channel)
 		self.systems[system]['source'] = source
@@ -140,6 +141,8 @@ if __name__ == '__main__':
 	while 1:
 		tb.ar_lock.acquire()
 		for i,receiver in enumerate(tb.active_receivers):
+			if receiver == None:
+				continue
 			if 'hang_time' in receiver.cdr:
 				hang_time = receiver.cdr['hang_time']
 			else:
@@ -147,8 +150,12 @@ if __name__ == '__main__':
 			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
 				tb.connector.release_channel(receiver.channel_id)
 				receiver.close({})
-				
+				receiver.destroy()
+
+				tb.active_receivers[i] = None
 				del tb.active_receivers[i]
+				receiver = None
+				continue
 			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr
 				audio_rate = receiver.audio_rate

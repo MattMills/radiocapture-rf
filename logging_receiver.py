@@ -62,9 +62,10 @@ class logging_receiver(gr.top_block):
 		p25_sensor = threading.Thread(target=self.p25_sensor)
                 p25_sensor.daemon = True
                 p25_sensor.start()
+		self.destroyed = False
 	def p25_sensor(self):
 		#ghetto fabulous method to see if a P25 channel is still up, without spending all the CPU cycles to decode it live.
-		while(True):
+		while(not self.destroyed):
 			time.sleep(0.1)
 			if not self.codec_p25 or not self.in_use:
 				continue
@@ -129,11 +130,6 @@ class logging_receiver(gr.top_block):
 		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 		self.cdr['time_open'] = self.time_open
 		self.cdr['time_close'] = time.time()
-		self.lock()
-		self.source.disconnect()
-		self.disconnect(self.source)
-		del self.source
-		self.unlock()
 		if(self.audio_capture):
 			self.sink.close()
 
@@ -152,6 +148,22 @@ class logging_receiver(gr.top_block):
 		self.uuid =''
 		self.cdr = {}
 		self.in_use = False
+	def destroy(self):
+		self.destroyed = True
+		try:
+                        self.stop()
+                        self.source.disconnect()
+                        self.disconnect(self.source)
+			self.disconnect(self.sink)
+			
+                except:
+                        pass
+                try:
+                        self.source = None
+                        self.sink = None
+                        #del self.source
+                except:
+                        pass
 	def open(self, cdr, audio_rate):
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
 		self.in_use = True

@@ -209,6 +209,7 @@ class edacs_control_receiver(gr.hier_block2):
                                 channel_matched = False
 				self.tb.ar_lock.acquire()
                                 for v in self.tb.active_receivers:
+					if v == None: continue
                                         if(v.cdr != {} and v.in_use and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel']):
                                                 v.activity()
 						if(r['mtc'] == 3):
