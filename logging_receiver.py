@@ -129,8 +129,11 @@ class logging_receiver(gr.top_block):
 		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 		self.cdr['time_open'] = self.time_open
 		self.cdr['time_close'] = time.time()
+		self.lock()
 		self.source.disconnect()
-
+		self.disconnect(self.source)
+		del self.source
+		self.unlock()
 		if(self.audio_capture):
 			self.sink.close()
 
