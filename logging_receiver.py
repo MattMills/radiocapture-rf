@@ -59,13 +59,15 @@ class logging_receiver(gr.top_block):
 		self.codec_p25 = False
 	
 		self.lock_id = False
+		self.destroyed = False
 		p25_sensor = threading.Thread(target=self.p25_sensor)
                 p25_sensor.daemon = True
                 p25_sensor.start()
-		self.destroyed = False
 	def p25_sensor(self):
 		#ghetto fabulous method to see if a P25 channel is still up, without spending all the CPU cycles to decode it live.
-		while(not self.destroyed):
+		while(True):
+			if self == None or self.destroyed != False:
+				break
 			time.sleep(0.1)
 			if not self.codec_p25 or not self.in_use:
 				continue
