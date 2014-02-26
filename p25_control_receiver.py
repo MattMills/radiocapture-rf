@@ -59,7 +59,7 @@ class p25_control_receiver (gr.hier_block2):
 
 
 	        # Setup receiver attributes
-	        channel_rate = 25000 #125000
+	        channel_rate = 12500 #125000
 	        symbol_rate = 4800
 
 		self.bad_messages = 0
@@ -82,7 +82,7 @@ class p25_control_receiver (gr.hier_block2):
 	
 	        # symbol filter        
 	        symbol_decim = 1
-	        samples_per_symbol = (channel_rate) // symbol_rate
+	        samples_per_symbol = channel_rate // symbol_rate
 	        symbol_coeffs = (1.0/samples_per_symbol,) * samples_per_symbol
 	        symbol_filter = filter.fir_filter_fff(symbol_decim, symbol_coeffs)
 	
@@ -495,7 +495,7 @@ class p25_control_receiver (gr.hier_block2):
 				if receiver.cdr['system_group_local'] != group or (receiver.cdr['system_user_local'] != user and user != 0):
 					#Quick close, new user/group.
 					old_cdr = receiver.cdr
-					receiver.close({})
+					receiver.close({}, emergency=True)
 					receiver.set_codec_p25(True)
 		                        receiver.set_codec_provoice(False)
 		
@@ -516,23 +516,11 @@ class p25_control_receiver (gr.hier_block2):
 	                                allocated_receiver = receiver
                                 break
 		if allocated_receiver == False: #If not an existing call
-			#for receiver in self.tb.active_receivers: #look for an empty channel
-			#	if receiver.in_use == False and abs(receiver.center_freq-channel_frequency) < (self.samp_rate/2):
-			#		allocated_receiver = receiver
-			#		center = receiver.center_freq
-			#		break
-
-			#if allocated_receiver == False: #or create a new one if there arent any empty channels
-			#	allocated_receiver = logging_receiver(self.samp_rate)
-			#	try:
-			#		center = self.tb.connect_channel(channel_frequency, allocated_receiver)
-			#	except:
-			#		self.tb.ar_lock.release()
-			#		return False
-			#	self.tb.active_receivers.append(allocated_receiver)
 			try:
 				allocated_receiver = self.tb.connect_channel(int(channel_frequency), int(channel_bandwidth))
 			except:
+				raise
+				self.tb.ar_lock.release()
 				return False
 			
 			self.tb.active_receivers.append(allocated_receiver)
@@ -706,7 +694,7 @@ class p25_control_receiver (gr.hier_block2):
 						del t['crc']
 						del t['mfid']
 						del t['opcode']
-						print '%s: %s' % (self.thread_id, t)
+						#print '%s: %s' % (self.thread_id, t)
 					#else:
 						#print '%s: %s' % (self.thread_id, t)
 			else:
@@ -725,19 +713,19 @@ class p25_control_receiver (gr.hier_block2):
 
 # Demodulator frequency tracker
 #
-class demod_watcher(threading.Thread):
+#class demod_watcher(threading.Thread):
 
-    def __init__(self, msgq,  callback, **kwds):
-        threading.Thread.__init__ (self, **kwds)
-        self.setDaemon(1)
-        self.msgq = msgq
-        self.callback = callback
-        self.keep_running = True
-        #self.start()
-
-    def run(self):
-        while(self.keep_running):
-            msg = self.msgq.delete_head()
-            frequency_correction = msg.arg1()
-            print 'Freq correction %s' % (frequency_correction)
-            self.callback(frequency_correction)
+#    def __init__(self, msgq,  callback, **kwds):
+#        threading.Thread.__init__ (self, **kwds)
+#        self.setDaemon(1)
+#        self.msgq = msgq
+#        self.callback = callback
+#        self.keep_running = True
+#        #self.start()
+#
+#    def run(self):
+#        while(self.keep_running):
+#            msg = self.msgq.delete_head()
+#            frequency_correction = msg.arg1()
+#            print 'Freq correction %s' % (frequency_correction)
+#            self.callback(frequency_correction)

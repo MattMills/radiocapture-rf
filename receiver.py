@@ -141,31 +141,36 @@ if __name__ == '__main__':
 	while 1:
 		tb.ar_lock.acquire()
 		for i,receiver in enumerate(tb.active_receivers):
-			if receiver == None:
-				continue
+			#if receiver == None:
+			#	continue
 			if 'hang_time' in receiver.cdr:
 				hang_time = receiver.cdr['hang_time']
 			else:
 				hang_time = 3.5
-			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
+			if time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
 				tb.connector.release_channel(receiver.channel_id)
 				receiver.close({})
-				receiver.destroy()
+				#receiver.destroy()
 
-				tb.active_receivers[i] = None
-				del tb.active_receivers[i]
-				receiver = None
-				continue
+				#tb.active_receivers[i] = None
+				#receiver = None
+				#del tb.active_receivers[i]
+				#continue
 			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr
 				audio_rate = receiver.audio_rate
-				receiver.close({})
+				receiver.close({}, emergency=True)
 				receiver.open(cdr,audio_rate)
-		#	if receiver.in_use == False and time.time()-receiver.time_last_use > 120:
-		#		tb.lock()
-		#		tb.disconnect(tb.active_receivers[i])
-		#		del tb.active_receivers[i]
-		#		tb.unlock()
+			if receiver.destroyed == True:
+				#tb.lock()
+				#tb.disconnect(tb.active_receivers[i])
+				#del tb.active_receivers[i]
+				#tb.unlock()
+				#receiver.destroy()
+
+                                tb.active_receivers[i] = None
+                                receiver = None
+                                del tb.active_receivers[i]
 		tb.ar_lock.release()
 		time.sleep(0.1)
 

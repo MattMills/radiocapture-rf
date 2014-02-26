@@ -66,7 +66,8 @@ class logging_receiver(gr.top_block):
 	def p25_sensor(self):
 		#ghetto fabulous method to see if a P25 channel is still up, without spending all the CPU cycles to decode it live.
 		while(True):
-			if self == None or self.destroyed != False:
+			#if self == None or self.destroyed != False:
+			if self.destroyed != False:
 				break
 			time.sleep(0.1)
 			if not self.codec_p25 or not self.in_use:
@@ -77,12 +78,11 @@ class logging_receiver(gr.top_block):
 			#print '%s %s' % (l, h)
 			if(l > (h*1.3)):
 				self.activity()
-		
 	def set_samp_rate(self, samp_rate):
 		self.samp_rate = samp_rate
 		self.goe_low.set_rate(samp_rate)
 		self.goe_high.set_rate(samp_rate)
-        def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, patches, codec_provoice, codec_p25):
+        def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, patches, codec_provoice, codec_p25, emergency=False):
 		if(time_open == 0): raise RuntimeError("upload_and_cleanup() with time_open == 0")
 		
 		time.sleep(2)
@@ -127,6 +127,9 @@ class logging_receiver(gr.top_block):
 		except:
 			print 'error removing ' + filename[:-4] + '.wav'
 
+		if not emergency:
+			self.destroy()
+
 	def close(self, patches, upload=True, emergency=False):
 		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')
 		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
@@ -136,7 +139,7 @@ class logging_receiver(gr.top_block):
 			self.sink.close()
 
 			if(upload):
-				_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.time_open, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25])
+				_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.time_open, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25, emergency])
 	        		_thread_0.daemon = True
 			        _thread_0.start()
 			else:
@@ -151,7 +154,6 @@ class logging_receiver(gr.top_block):
 		self.cdr = {}
 		self.in_use = False
 	def destroy(self):
-		self.destroyed = True
 		try:
                         self.stop()
                         self.source.disconnect()
@@ -166,6 +168,7 @@ class logging_receiver(gr.top_block):
                         #del self.source
                 except:
                         pass
+		self.destroyed = True
 	def open(self, cdr, audio_rate):
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
 		self.in_use = True
