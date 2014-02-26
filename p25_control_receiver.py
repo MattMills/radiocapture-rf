@@ -88,7 +88,7 @@ class p25_control_receiver (gr.hier_block2):
 	
 	        # C4FM demodulator
 	        autotuneq = gr.msg_queue(2)
-	        self.demod_watcher = demod_watcher(autotuneq, self.adjust_channel_offset)
+	        #self.demod_watcher = demod_watcher(autotuneq, self.adjust_channel_offset)
 	        demod_fsk4 = op25.fsk4_demod_ff(autotuneq, channel_rate, symbol_rate)
 	
 	        # symbol slicer
