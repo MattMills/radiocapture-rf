@@ -26,6 +26,8 @@ class moto_control_receiver(gr.hier_block2):
 		# Variables
 		##################################################
 		self.tb = top_block
+		self.channel_rate = 12500
+		self.hang_time = 0.5
 		self.packets = 0
 		self.packets_bad = 0
 		self.symbol_rate = symbol_rate = 3600.0
@@ -75,12 +77,9 @@ class moto_control_receiver(gr.hier_block2):
 
 		self.source = self
 
-		control_sample_rate = 10000
-		channel_rate = control_sample_rate*3
-		self.f1d = f1d = int(samp_rate/channel_rate) #filter 1 decimation
+		control_sample_rate = 12500
+		channel_rate = control_sample_rate*2
 
-		self.control_prefilter_taps = firdes.low_pass(5,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
-		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
 		self.control_quad_demod = analog.quadrature_demod_cf(0.1)
 
 		if(self.option_dc_offset):
@@ -89,7 +88,7 @@ class moto_control_receiver(gr.hier_block2):
 			self.probe = blocks.probe_signal_f()
 
 
-		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
+		self.control_clock_recovery = digital.clock_recovery_mm_ff(channel_rate/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_byte_pack = blocks.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		self.control_msg_sink = blocks.message_sink(gr.sizeof_char*1, self.control_msg_sink_msgq, True)
@@ -101,8 +100,7 @@ class moto_control_receiver(gr.hier_block2):
 		# Connections
 		##################################################
 
-		self.connect(self.source, self.control_prefilter)
-		self.connect(self.control_prefilter, self.control_quad_demod, self.control_clock_recovery)
+		self.connect(self, self.control_quad_demod, self.control_clock_recovery)
                 self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
 
 		if(self.option_dc_offset):
@@ -120,9 +118,8 @@ class moto_control_receiver(gr.hier_block2):
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 
 		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
-		self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
 
-		print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
+		print 'CC Change - %s' % (self.control_channel)
 		self.control_msg_sink_msgq.flush()
 		time.sleep(0.1)
 
@@ -423,6 +420,7 @@ class moto_control_receiver(gr.hier_block2):
 							else:
 	                                                        p['type'] = 'Call Continuation'
 								call_type = 'u'
+							#call_type = 'd' #FIXME: This is wrong... temp fix for bucks
 							if(self.option_logging_receivers):
 								if self.channels[cmd] == self.control_channel:
 									continue
@@ -434,26 +432,35 @@ class moto_control_receiver(gr.hier_block2):
 											#existing call but user LID does not match!
 											receiver.close({}, True, True)
 											allocated_receiver = receiver
-											center = receiver.center_freq
 										else:
 											receiver.activity()
 											allocated_receiver = -1
 											break
 								
 								if allocated_receiver != -1:
-									for receiver in self.tb.active_receivers: #look for an empty channel
-										if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-											allocated_receiver = receiver
-											center = receiver.center_freq
-											break
+									#for receiver in self.tb.active_receivers: #look for an empty channel
+									#	if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
+									#		allocated_receiver = receiver
+									#		center = receiver.center_freq
+									#		break
 								
-									if allocated_receiver == False: #or create a new one if there arent any empty channels
-										allocated_receiver = logging_receiver(self.samp_rate)
-										center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
-										self.tb.active_receivers.append(allocated_receiver)
-									
+									#if allocated_receiver == False: #or create a new one if there arent any empty channels
+									#	allocated_receiver = logging_receiver(self.samp_rate)
+									#	center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
+									#	self.tb.active_receivers.append(allocated_receiver)
+
+									if(call_type == 'd'):
+										bandwidth = 12500
+									else:
+										bandwidth = 12500
+
+									try:
+						                                allocated_receiver = self.tb.connect_channel(self.channels[cmd], bandwidth)
+					        	                except:
+										self.tb.ar_lock.release()
+					                	                continue
 								
-									allocated_receiver.tuneoffset(self.channels[cmd], center)
+									#allocated_receiver.tuneoffset(self.channels[cmd], center)
 									if(call_type == 'd'):
 										allocated_receiver.set_codec_p25(True)
 									else:
@@ -466,16 +473,14 @@ class moto_control_receiver(gr.hier_block2):
 										'system_user_local': user_local,
 										'system_channel_local': cmd, 
 										'type': 'group', 
-										'center_freq': center
 									}
-
-									allocated_receiver.open(cdr, 12500.0)
+									allocated_receiver.open(cdr, bandwidth)
 								self.tb.ar_lock.release()
 										
 						else:
                                                         p['type'] = 'Unknown OSW'
 
-						if True:
+						if p['type'] != 'System status':
 							print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
 						last_cmd = cmd
 						last_i = individual
