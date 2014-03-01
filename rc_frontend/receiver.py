@@ -8,6 +8,7 @@ import gnuradio.filter.optfir as optfir
 import time
 import threading
 import math
+import os
 
 import channel
 from config import rc_config
@@ -127,6 +128,34 @@ class receiver(gr.top_block):
                                 except:
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
                                 #self.connect(this_dev, null_sink)
+
+                                self.sources[source]['block'] = this_dev
+			if self.sources[source]['type'] == 'rtlsdr':
+				import osmosdr
+
+                                process = os.popen('CellSearch -i '+ str(self.sources[source]['serial']) +' -s 739e6 -e 739e6 -b | grep 739M | awk \'{sum+=$10} END { printf("%.10f", sum/NR)}\'')
+                                output = float(process.read())
+                                process.close()
+                                self.sources[source]['offset'] = (1000000-(output*1000000))
+                                print 'Measured PPM - Dev#%s: %s' % (source, self.sources[source]['offset'])
+
+                                this_dev = osmosdr.source( args=self.sources[source]['args'] )
+                                this_dev.set_sample_rate(self.sources[source]['samp_rate'])
+                                this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
+                                this_dev.set_freq_corr(self.sources[source]['offset'], 0)
+
+                                this_dev.set_dc_offset_mode(1, 0)
+                                this_dev.set_iq_balance_mode(1, 0)
+                                this_dev.set_gain_mode(0, 0)
+                                this_dev.set_gain(self.sources[source]['rf_gain'], 0)
+                                this_dev.set_bb_gain(self.sources[source]['bb_gain'], 0)
+
+
+                                try:
+                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
+                                except:
+                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+                                self.connect(this_dev, null_sink)
 
                                 self.sources[source]['block'] = this_dev
 
