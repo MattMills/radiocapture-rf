@@ -36,8 +36,8 @@ class receiver(gr.top_block):
 			num_channels = int(math.ceil(self.sources[source]['samp_rate']/target_size))
 			self.sources[source]['pfb'] = pfb.channelizer_ccf(
 	                  num_channels,
-	                  (optfir.low_pass(1,num_channels,0.5, 0.5+0.2, 0.1, 80)),
-	                  1.0,
+	                  (optfir.low_pass(1,num_channels,0.8, 0.8+0.2, 0.1, 80)),
+	                  2.0,
 	                  100
 			)
 			self.sources[source]['pfb'].set_channel_map(([]))
@@ -148,6 +148,7 @@ class receiver(gr.top_block):
                                 this_dev.set_iq_balance_mode(1, 0)
                                 this_dev.set_gain_mode(0, 0)
                                 this_dev.set_gain(self.sources[source]['rf_gain'], 0)
+				this_dev.set_if_gain(30, 0)
                                 this_dev.set_bb_gain(self.sources[source]['bb_gain'], 0)
 
 
@@ -216,7 +217,7 @@ class receiver(gr.top_block):
 				break
 
 		if block == None:
-			block = channel.channel(dest, port, channel_rate,(pfb_samp_rate), pfb_offset)
+			block = channel.channel(dest, port, channel_rate,(pfb_samp_rate*2), pfb_offset)
 			block.source_id = source_id
 			block.pfb_id = pfb_id
 
