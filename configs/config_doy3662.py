@@ -23,6 +23,8 @@ class rc_config:
 			0:{#Backs County - South Simulcast (Site 2)
                                 'type': 'moto',
                                 'id': 0x710b,
+				'offset': 380,
+				'force_p25': True,
                                 'channels' : {
 					0x17c: 501037500, #0x17c  0x0
 	                                0x182: 501187500, #0x182  0x6
@@ -38,6 +40,8 @@ class rc_config:
 			1:{ #Bucks county - North simulcast (site 1)
 				'type': 'moto',
 				'id': 0x710a,
+				'offset': 380,
+				'force_p25': True,
 				'channels': {
 					0x181: 501162500,
 					0x189: 501362500,
@@ -47,5 +51,5 @@ class rc_config:
 				}
 			}
 		}
-		del self.systems[0]
+		#del self.systems[0]
 		self.blacklists = {}
