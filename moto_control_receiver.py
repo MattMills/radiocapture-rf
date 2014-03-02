@@ -411,6 +411,8 @@ class moto_control_receiver(gr.hier_block2):
 								p['k'] = (lid & 0x8) >> 3
                                                         p['type'] = 'System status'
 						elif self.channels.has_key(cmd) and lid != self.system_id and tg != 0x1ff0:
+							if 'offset' in self.system.keys() and last_cmd == cmd-self.system['offset']:
+								dual = True
 							if dual and last_cmd == 0x308:
 	                                                        p['type'] = 'Analog Call'
 								call_type = 'a'
@@ -420,7 +422,10 @@ class moto_control_receiver(gr.hier_block2):
 							else:
 	                                                        p['type'] = 'Call Continuation'
 								call_type = 'u'
-							#call_type = 'd' #FIXME: This is wrong... temp fix for bucks
+
+							if 'force_p25' in self.system.keys() and self.system['force_p25']:
+								call_type = 'd'
+
 							if(self.option_logging_receivers):
 								if self.channels[cmd] == self.control_channel:
 									continue
@@ -430,7 +435,8 @@ class moto_control_receiver(gr.hier_block2):
 									if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
 										if dual and receiver.cdr['system_user_local'] != last_data:
 											#existing call but user LID does not match!
-											receiver.close({}, True, True)
+											self.tb.connector.release_channel(receiver.channel_id)
+											receiver.close({})
 											allocated_receiver = receiver
 										else:
 											receiver.activity()
@@ -462,10 +468,9 @@ class moto_control_receiver(gr.hier_block2):
 								
 									#allocated_receiver.tuneoffset(self.channels[cmd], center)
 									if(call_type == 'd'):
-										allocated_receiver.set_codec_p25(True)
+										allocated_receiver.configure_blocks('p25')
 									else:
-										allocated_receiver.set_codec_p25(False)
-									allocated_receiver.set_codec_provoice(False)
+										 allocated_receiver.configure_blocks('analog')
 									user_local = last_data if dual else 0
 									cdr = {
 										'system_id': self.system['id'], 
@@ -474,7 +479,8 @@ class moto_control_receiver(gr.hier_block2):
 										'system_channel_local': cmd, 
 										'type': 'group', 
 									}
-									allocated_receiver.open(cdr, bandwidth)
+									allocated_receiver.set_rate(bandwidth)
+									allocated_receiver.open(cdr)
 								self.tb.ar_lock.release()
 										
 						else:

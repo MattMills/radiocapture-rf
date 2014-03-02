@@ -496,8 +496,7 @@ class p25_control_receiver (gr.hier_block2):
 					#Quick close, new user/group.
 					old_cdr = receiver.cdr
 					receiver.close({}, emergency=True)
-					receiver.set_codec_p25(True)
-		                        receiver.set_codec_provoice(False)
+					receiver.configure_blocks('p25')
 		
 		                        cdr = {
 		                                'system_id': self.system['id'],
@@ -507,8 +506,8 @@ class p25_control_receiver (gr.hier_block2):
 		                                'type': 'group',
 						'hang_time': self.hang_time
 		                        }
-
-		                        receiver.open(cdr, int(channel_bandwidth))
+					receiver.set_rate(int(channel_bandwidth))
+		                        receiver.open(cdr)
 					allocated_receiver = receiver
 				else:
 			
@@ -525,8 +524,7 @@ class p25_control_receiver (gr.hier_block2):
 			
 			self.tb.active_receivers.append(allocated_receiver)
 
-			allocated_receiver.set_codec_p25(True)
-			allocated_receiver.set_codec_provoice(False)
+			allocated_receiver.configure_blocks('p25')
 			
 			cdr = {
 				'system_id': self.system['id'],
@@ -537,7 +535,8 @@ class p25_control_receiver (gr.hier_block2):
 				'hang_time': self.hang_time
 			}
 
-			allocated_receiver.open(cdr, int(channel_bandwidth))
+			allocated_receiver.set_rate(int(channel_bandwidth))
+			allocated_receiver.open(cdr)
 		self.tb.ar_lock.release()
 		return allocated_receiver
 	def progress_call(self, channel):

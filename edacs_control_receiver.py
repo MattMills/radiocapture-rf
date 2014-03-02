@@ -213,10 +213,9 @@ class edacs_control_receiver(gr.hier_block2):
                                         if(v.cdr != {} and v.in_use and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel']):
                                                 v.activity()
 						if(r['mtc'] == 3):
-							v.set_codec_provoice(True)
+							v.configure_blocks('provoice')
 						else:
-							v.set_codec_provoice(False
-)
+							v.configure_blocks('analog')
                                                 channel_matched = True
 				self.tb.ar_lock.release()
                                 if(not channel_matched and r['mtc'] != 1 and r['mtc'] != 0):
@@ -351,8 +350,10 @@ class edacs_control_receiver(gr.hier_block2):
 		receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
                 print 'Tuning new group call - %s' % ( system['channels'][channel])
-                receiver.set_codec_provoice(provoice)
-		receiver.set_codec_p25(False)
+		if provoice:
+			receiver.configure_blocks('provoice')
+		else:
+			receiver.configure_blocks('analog')
 		cdr = {
 			'system_id': self.system['id'], 
 			'system_type': self.system['type'],
@@ -362,14 +363,17 @@ class edacs_control_receiver(gr.hier_block2):
 			'type': 'group',
 			'hang_time': self.hang_time
 		}
-		receiver.open(cdr, self.audio_rate)
+		receiver.set_rate(self.audio_rate)
+		receiver.open(cdr)
 		self.tb.ar_lock.release()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
 		self.tb.ar_lock.acquire()
 	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
-                receiver.set_codec_provoice(False)
-		receiver.set_codec_p25(False)
+                if provoice:
+                        receiver.configure_blocks('provoice')
+                else:
+                        receiver.configure_blocks('analog')
                 cdr = {
                         'system_id': self.system['id'],
 			'system_type': self.system['type'],
@@ -379,6 +383,7 @@ class edacs_control_receiver(gr.hier_block2):
                         'type': 'individual',
 			'hang_time': self.hang_time
                 }
+		receiver.set_rate(self.audio_rate)
 		receiver.open(cdr, self.audio_rate)
 		self.tb.ar_lock.release()
 
