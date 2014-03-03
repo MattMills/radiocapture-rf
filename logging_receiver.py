@@ -135,7 +135,7 @@ class logging_receiver(gr.top_block):
                         )
 			self.connect(self.source, self.signal_squelch, self.audiodemod, self.high_pass, self.resampler, self.sink)
 		elif protocol == 'p25':
-			symbol_deviation = 600.0
+			self.symbol_deviation = symbol_deviation = 600.0
                         symbol_rate = 4800
                         channel_rate = self.input_rate
 		
@@ -309,9 +309,7 @@ class logging_receiver(gr.top_block):
 	def close(self, patches, upload=True, emergency=False):
 		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')
 		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
-		self.demod_watcher.keep_running = False
-		self.decodequeue2
-		self.demod_watcher = None
+
 		self.cdr['time_open'] = self.time_open
 		self.cdr['time_close'] = time.time()
 		if(self.audio_capture):
@@ -335,6 +333,9 @@ class logging_receiver(gr.top_block):
 		self.cdr = {}
 		self.in_use = False
 	def destroy(self):
+		self.demod_watcher.keep_running = False
+		self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
+
 		try:
                         self.stop()
                         self.source.disconnect()
@@ -509,14 +510,16 @@ class demod_watcher(threading.Thread):
         self.msgq = msgq
         self.callback = callback
         self.keep_running = True
+	self.last_msg = None
         self.start()
 
     def run(self):
         while(self.keep_running):
-            msg = self.msgq.delete_head()
-            frequency_correction = msg.arg1()
-            print 'Freq correction %s' % (frequency_correction)
-            self.callback(frequency_correction)
+		msg = self.msgq.delete_head()
+		self.last_msg = msg
+		frequency_correction = msg.arg1()
+	        print 'Freq correction %s' % (frequency_correction)
+		self.callback(frequency_correction)
                                                                  
 if __name__ == '__main__':
 	tb = logging_receiver(49999)
