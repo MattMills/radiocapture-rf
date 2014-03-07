@@ -179,10 +179,11 @@ class logging_receiver(gr.top_block):
 			self.connect(self.slicer,self.decoder2, self.qsink)
 			#self.connect(self.fm_demod, self.avg, self.mult, (self.subtract,1))
 		elif protocol == 'provoice':
-			fm_demod_gain = channel_rate / (2.0 * pi * symbol_deviation)
+			symbol_deviation = 600.0
+			fm_demod_gain = self.input_rate / (2.0 * pi * symbol_deviation)
                         self.fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 			
-			self.resampler_in = filter.rational_resampler_fff(interpolation=48000, decimation=channel_rate, taps=None, fractional_bw=None, )
+			self.resampler_in = filter.rational_resampler_fff(interpolation=48000, decimation=self.input_rate, taps=None, fractional_bw=None, )
 			self.dsd = dsd.block_ff(dsd.dsd_FRAME_PROVOICE,dsd.dsd_MOD_AUTO_SELECT,1,0,False)
 			
 			self.connect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
@@ -333,8 +334,12 @@ class logging_receiver(gr.top_block):
 		self.cdr = {}
 		self.in_use = False
 	def destroy(self):
-		self.demod_watcher.keep_running = False
-		self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
+		if self.protocol == 'p25':
+			try:
+				self.demod_watcher.keep_running = False
+				self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
+			except:
+				pass
 
 		try:
                         self.stop()
