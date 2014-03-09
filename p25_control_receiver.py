@@ -518,11 +518,12 @@ class p25_control_receiver (gr.hier_block2):
 			try:
 				allocated_receiver = self.tb.connect_channel(int(channel_frequency), int(channel_bandwidth))
 			except:
-				raise
+				#raise
+				
 				self.tb.ar_lock.release()
 				return False
 			
-			self.tb.active_receivers.append(allocated_receiver)
+			#self.tb.active_receivers.append(allocated_receiver)
 
 			allocated_receiver.configure_blocks('p25')
 			
