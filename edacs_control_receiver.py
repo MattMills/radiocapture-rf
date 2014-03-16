@@ -41,6 +41,7 @@ class edacs_control_receiver(gr.hier_block2):
 		self.control_lcn = control_lcn = 1
 		self.bad_messages = 0
 		self.total_messages = 0
+		self.quality = []
 
 		self.is_locked = False
 
@@ -330,6 +331,9 @@ class edacs_control_receiver(gr.hier_block2):
 
                 return False
         def quality_check(self):
+
+		desired_quality = 666.0 #approx 66.0 packets per sec
+
                 #global bad_messages, total_messages
 		bad_messages = self.bad_messages
 		total_messages = self.total_messages
@@ -339,8 +343,17 @@ class edacs_control_receiver(gr.hier_block2):
                 while True:
                         time.sleep(10); #only check messages once per 10second
                         sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.total_messages-last_total) + '/' + str(self.bad_messages-last_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
-                        #dbc.query('insert into signal_record (total, bad, timestamp, system) values (%s, %s, CURRENT_TIMESTAMP, %s)' % ((total_messages[sid]-last_total[sid]), (bad_messages[sid]-last_bad[sid]), sid))
+			current_packets = self.total_messages-last_total
+			current_packets_bad = self.bad_messages-last_bad
+
+                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+
+
+			if len(self.quality) >= 60:
+                                self.quality.pop(0)
+
+                        self.quality.append((current_packets-current_packets_bad)/desired_quality)
+
                         last_total = self.total_messages
                         last_bad = self.bad_messages
 

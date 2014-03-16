@@ -64,6 +64,7 @@ class p25_control_receiver (gr.hier_block2):
 
 		self.bad_messages = 0
 		self.total_messages = 0
+		self.quality = []
 	
 	      
 	        # channel filter
@@ -700,6 +701,8 @@ class p25_control_receiver (gr.hier_block2):
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
+		desired_quality = 133.0 # approx 13.3 packets per sec
+
                 bad_messages = self.bad_messages
                 total_messages = self.total_messages
                 last_total = 0
@@ -707,7 +710,15 @@ class p25_control_receiver (gr.hier_block2):
                 while True:
                         sleep(10); #only check messages once per 10second
                         sid = '%s %s-%s %s-%s' % (self.system['id'], self.P25['System ID'], self.P25['WACN ID'], self.P25['RF Sub-system ID'], self.P25['Site ID'])
-                        print 'System: %s (%s/%s) (%s/%s) CC: %s AR: %s' % (sid, self.total_messages-last_total, self.bad_messages-last_bad, self.total_messages, self.bad_messages, self.control_channel, len(self.tb.active_receivers))
+			
+			current_packets = self.total_messages-last_total
+			current_packets_bad = self.bad_messages-last_bad
+
+                        print 'System: %s (%s/%s) (%s/%s) CC: %s AR: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel, len(self.tb.active_receivers))
+			if len(self.quality) >= 60:
+                                self.quality.pop(0)
+
+                        self.quality.append((current_packets-current_packets_bad)/desired_quality)
                         last_total = self.total_messages
                         last_bad = self.bad_messages
 
