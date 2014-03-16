@@ -45,7 +45,8 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.is_locked = False
 
-		#self.control_lcn_alt.insert(0, self.control_lcn) # add primary LCN to end of alternate list
+		self.enable_capture = True
+		self.keep_running = True
 
 		################################################
 		# Blocks
@@ -358,6 +359,8 @@ class edacs_control_receiver(gr.hier_block2):
                         last_bad = self.bad_messages
 
         def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
+		if not self.enable_capture:
+			return True
 		self.tb.ar_lock.acquire()
 
 		receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
@@ -380,6 +383,8 @@ class edacs_control_receiver(gr.hier_block2):
 		receiver.open(cdr)
 		self.tb.ar_lock.release()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
+		if not self.enable_capture:
+			return True
 		self.tb.ar_lock.acquire()
 	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
@@ -558,7 +563,7 @@ class edacs_control_receiver(gr.hier_block2):
 	        self.loop_start = loop_start = time.time()
 		system = self.system
 
-	        while(1):
+	        while(self.keep_running):
 			for patch in self.patches:
 				deletes = []
 				for group in self.patches[patch]:

@@ -66,6 +66,9 @@ class p25_control_receiver (gr.hier_block2):
 		self.total_messages = 0
 		self.quality = []
 	
+		self.enable_capture = True
+		self.keep_running = True
+	
 	      
 	        # channel filter
 	        channel_rate = self.channel_rate*2
@@ -475,6 +478,9 @@ class p25_control_receiver (gr.hier_block2):
 		return channel_frequency, channel_bandwidth
 
 	def new_call(self, channel, group, user):
+		if not self.enable_capture:
+			return False
+
 		if(self.system['id'] in self.tb.blacklists.keys() and group in self.tb.blacklists[self.system['id']]):
 			return False
 			#Ignore blacklisted groups
@@ -565,7 +571,7 @@ class p25_control_receiver (gr.hier_block2):
 		loops_locked = 0
 		wrong_duid_count = 0
 
-		while True:
+		while self.keep_running:
 			if loops_locked < -1000 and time()-loop_start > 2:
 				self.tune_next_control_channel()
 

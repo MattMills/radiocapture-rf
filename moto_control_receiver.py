@@ -58,6 +58,9 @@ class moto_control_receiver(gr.hier_block2):
 		self.option_udp_sink = False
 		self.option_logging_receivers = True
 
+		self.enable_capture = True
+		self.keep_running = True
+
 		##################################################
 		# Message Queues
 		##################################################
@@ -185,7 +188,7 @@ class moto_control_receiver(gr.hier_block2):
 		last_i = 0x0
 		last_data = 0x0
 
-		while 1:
+		while self.keep_running:
 			if(sync_loops < -200):
 				print 'NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]])
 				#print 'b/p: %s %s' % (packets, packets_bad)
@@ -444,6 +447,10 @@ class moto_control_receiver(gr.hier_block2):
 							if(self.option_logging_receivers):
 								if self.channels[cmd] == self.control_channel:
 									continue
+								#This allows the upstream control to disable capture during receiver handoff.
+								if not self.enable_capture:
+									continue 
+							
 								allocated_receiver = False
 								self.tb.ar_lock.acquire()
 								for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
