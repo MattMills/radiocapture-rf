@@ -157,10 +157,13 @@ if __name__ == '__main__':
 				#del tb.active_receivers[i]
 				#continue
 			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
-				cdr = receiver.cdr
-				audio_rate = receiver.audio_rate
-				receiver.close({}, emergency=True)
-				receiver.open(cdr,audio_rate)
+				try:
+					cdr = receiver.cdr
+					audio_rate = receiver.audio_rate
+					receiver.close({}, emergency=True)
+					receiver.open(cdr,audio_rate)
+				except:
+					pass
 			if receiver.destroyed == True:
 				#tb.lock()
 				#tb.disconnect(tb.active_receivers[i])
