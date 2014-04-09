@@ -77,7 +77,7 @@ class receiver(gr.top_block):
 			this_block = self.systems[system]['block']
 			self.systems[system]['channel_id'] = None
 
-			udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (1000+system), 1472, True)
+			udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8000+system), 1472, True)
 			self.connect(udp_source, this_block)
 			self.systems[system]['source'] = udp_source
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
