@@ -41,10 +41,12 @@ class edacs_control_receiver(gr.hier_block2):
 		self.control_lcn = control_lcn = 1
 		self.bad_messages = 0
 		self.total_messages = 0
+		self.quality = []
 
 		self.is_locked = False
 
-		#self.control_lcn_alt.insert(0, self.control_lcn) # add primary LCN to end of alternate list
+		self.enable_capture = True
+		self.keep_running = True
 
 		################################################
 		# Blocks
@@ -330,6 +332,9 @@ class edacs_control_receiver(gr.hier_block2):
 
                 return False
         def quality_check(self):
+
+		desired_quality = 666.0 #approx 66.0 packets per sec
+
                 #global bad_messages, total_messages
 		bad_messages = self.bad_messages
 		total_messages = self.total_messages
@@ -339,12 +344,23 @@ class edacs_control_receiver(gr.hier_block2):
                 while True:
                         time.sleep(10); #only check messages once per 10second
                         sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.total_messages-last_total) + '/' + str(self.bad_messages-last_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
-                        #dbc.query('insert into signal_record (total, bad, timestamp, system) values (%s, %s, CURRENT_TIMESTAMP, %s)' % ((total_messages[sid]-last_total[sid]), (bad_messages[sid]-last_bad[sid]), sid))
+			current_packets = self.total_messages-last_total
+			current_packets_bad = self.bad_messages-last_bad
+
+                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+
+
+			if len(self.quality) >= 60:
+                                self.quality.pop(0)
+
+                        self.quality.append((current_packets-current_packets_bad)/desired_quality)
+
                         last_total = self.total_messages
                         last_bad = self.bad_messages
 
         def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
+		if not self.enable_capture:
+			return True
 		self.tb.ar_lock.acquire()
 
 		receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
@@ -367,6 +383,8 @@ class edacs_control_receiver(gr.hier_block2):
 		receiver.open(cdr)
 		self.tb.ar_lock.release()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
+		if not self.enable_capture:
+			return True
 		self.tb.ar_lock.acquire()
 	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
@@ -545,7 +563,7 @@ class edacs_control_receiver(gr.hier_block2):
 	        self.loop_start = loop_start = time.time()
 		system = self.system
 
-	        while(1):
+	        while(self.keep_running):
 			for patch in self.patches:
 				deletes = []
 				for group in self.patches[patch]:

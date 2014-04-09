@@ -30,10 +30,14 @@ class moto_control_receiver(gr.hier_block2):
 		self.hang_time = 0.5
 		self.packets = 0
 		self.packets_bad = 0
+	
+		self.quality = []
+
 		self.symbol_rate = symbol_rate = 3600.0
 		self.samp_rate = samp_rate
 		self.control_source = 0
 		self.block_id = block_id
+
 		
 		self.offset = offset = 0
 		self.is_locked = False
@@ -53,6 +57,9 @@ class moto_control_receiver(gr.hier_block2):
 		self.option_dc_offset = False
 		self.option_udp_sink = False
 		self.option_logging_receivers = True
+
+		self.enable_capture = True
+		self.keep_running = True
 
 		##################################################
 		# Message Queues
@@ -124,6 +131,9 @@ class moto_control_receiver(gr.hier_block2):
 		time.sleep(0.1)
 
         def quality_check(self):
+
+		desired_quality = 429.0 # approx 42.9 packets per sec
+
                 #global bad_messages, total_messages
                 bad_messages = self.packets_bad
                 total_messages = self.packets
@@ -134,7 +144,15 @@ class moto_control_receiver(gr.hier_block2):
                         time.sleep(10); #only check messages once per 10second
 
                         sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.packets-last_total) + '/' + str(self.packets_bad-last_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+			current_packets = self.packets-last_total
+			current_packets_bad = self.packets_bad-last_bad
+                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+
+			if len(self.quality) >= 60:
+				self.quality.pop(0)
+
+			self.quality.append((current_packets-current_packets_bad)/desired_quality)
+
                         last_total = self.packets
                         last_bad = self.packets_bad
 
@@ -170,7 +188,7 @@ class moto_control_receiver(gr.hier_block2):
 		last_i = 0x0
 		last_data = 0x0
 
-		while 1:
+		while self.keep_running:
 			if(sync_loops < -200):
 				print 'NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]])
 				#print 'b/p: %s %s' % (packets, packets_bad)
@@ -429,6 +447,10 @@ class moto_control_receiver(gr.hier_block2):
 							if(self.option_logging_receivers):
 								if self.channels[cmd] == self.control_channel:
 									continue
+								#This allows the upstream control to disable capture during receiver handoff.
+								if not self.enable_capture:
+									continue 
+							
 								allocated_receiver = False
 								self.tb.ar_lock.acquire()
 								for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
