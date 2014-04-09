@@ -74,6 +74,7 @@ class p25_control_receiver (gr.hier_block2):
 	        channel_rate = self.channel_rate*2
 	        trans_width = 12.5e3 / 2;
 	        trans_centre = trans_width + (trans_width / 2)
+		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, channel_rate)
 	
 	        # power squelch
 	        #power_squelch = gr.pwr_squelch_cc(squelch, 1e-3, 0, True)
@@ -92,7 +93,8 @@ class p25_control_receiver (gr.hier_block2):
 	
 	        # C4FM demodulator
 	        autotuneq = gr.msg_queue(2)
-	        #self.demod_watcher = demod_watcher(autotuneq, self.adjust_channel_offset)
+	        self.demod_watcher = demod_watcher(autotuneq, self.adjust_channel_offset)
+
 	        demod_fsk4 = op25.fsk4_demod_ff(autotuneq, channel_rate, symbol_rate)
 	
 	        # symbol slicer
@@ -105,7 +107,7 @@ class p25_control_receiver (gr.hier_block2):
 		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq)
 	
 
-	        self.connect(self, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
+	        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
 	
                 ##################################################
                 # Threads
@@ -125,7 +127,7 @@ class p25_control_receiver (gr.hier_block2):
 	        delta_hz *= self.symbol_deviation      
 	        delta_hz = max(delta_hz, -max_delta_hz)
 	        delta_hz = min(delta_hz, max_delta_hz)
-	        #self.control_prefilter.set_center_freq(self.control_channel - delta_hz)
+	        self.control_prefilter.set_center_freq(0 + delta_hz)
         def tune_next_control_channel(self):
                 self.control_channel_i += 1
                 if(self.control_channel_i >= len(self.system['channels'])):
@@ -730,19 +732,19 @@ class p25_control_receiver (gr.hier_block2):
 
 # Demodulator frequency tracker
 #
-#class demod_watcher(threading.Thread):
+class demod_watcher(threading.Thread):
 
-#    def __init__(self, msgq,  callback, **kwds):
-#        threading.Thread.__init__ (self, **kwds)
-#        self.setDaemon(1)
-#        self.msgq = msgq
-#        self.callback = callback
-#        self.keep_running = True
-#        #self.start()
-#
-#    def run(self):
-#        while(self.keep_running):
-#            msg = self.msgq.delete_head()
-#            frequency_correction = msg.arg1()
-#            print 'Freq correction %s' % (frequency_correction)
-#            self.callback(frequency_correction)
+    def __init__(self, msgq,  callback, **kwds):
+        threading.Thread.__init__ (self, **kwds)
+        self.setDaemon(1)
+        self.msgq = msgq
+        self.callback = callback
+        self.keep_running = True
+        self.start()
+
+    def run(self):
+        while(self.keep_running):
+            msg = self.msgq.delete_head()
+            frequency_correction = msg.arg1()
+            #print 'Freq correction %s' % (frequency_correction)
+            self.callback(frequency_correction)
