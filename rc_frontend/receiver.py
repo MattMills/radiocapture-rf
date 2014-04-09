@@ -29,7 +29,7 @@ class receiver(gr.top_block):
                 self.sources = config.sources
 
                 for source in self.sources:
-			self.target_size = target_size = 100000
+			self.target_size = target_size = 200000
 			if(self.sources[source]['samp_rate']%target_size):
 				raise Exception('samp_rate not round enough')
 
