@@ -8,7 +8,7 @@ import binascii
 import uuid
 import datetime
 
-from gnuradio import gr, uhd, filter, analog,blocks
+from gnuradio import gr, uhd, filter, analog, blocks, digital
 from gnuradio.filter import firdes
 from math import pi
 import op25_repeater as repeater
@@ -37,7 +37,7 @@ class p25_control_receiver (gr.hier_block2):
 		self.block_id = block_id
 		self.sources = sources
 		self.samp_rate = samp_rate
-		self.channel_rate = 12500
+		self.channel_rate = 12500*2
 
 		self.control_channel = system['channels'][system['default_control_channel']]
 		self.control_channel_i = system['default_control_channel']
@@ -47,6 +47,10 @@ class p25_control_receiver (gr.hier_block2):
 		self.channel_identifier_table = {}
 
 		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
+
+		self.modulation = system['modulation']
+		if self.modulation == None:
+			self.modulation = 'C4FM'
 
 		self.P25 = {}
 		self.P25['WACN ID'] = None
@@ -79,24 +83,42 @@ class p25_control_receiver (gr.hier_block2):
 	        # power squelch
 	        #power_squelch = gr.pwr_squelch_cc(squelch, 1e-3, 0, True)
 	        #self.connect(self.channel_filter, power_squelch)
-	
-	        # FM demodulator
-	        self.symbol_deviation = 600.0
-	        fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
-	        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
-	
-	        # symbol filter        
-	        symbol_decim = 1
-	        samples_per_symbol = channel_rate // symbol_rate
-	        symbol_coeffs = (1.0/samples_per_symbol,) * samples_per_symbol
-	        symbol_filter = filter.fir_filter_fff(symbol_decim, symbol_coeffs)
-	
-	        # C4FM demodulator
-	        autotuneq = gr.msg_queue(2)
-	        self.demod_watcher = demod_watcher(autotuneq, self.adjust_channel_offset)
 
-	        demod_fsk4 = op25.fsk4_demod_ff(autotuneq, channel_rate, symbol_rate)
+                autotuneq = gr.msg_queue(2)
+                self.demod_watcher = demod_watcher(autotuneq, self.adjust_channel_offset)
+		self.symbol_deviation = 600.0
+
+		if self.modulation == 'C4FM':
+		        # FM demodulator
+		        fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
+		        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 	
+		        # symbol filter        
+		        symbol_decim = 1
+		        samples_per_symbol = channel_rate // symbol_rate
+		        symbol_coeffs = (1.0/samples_per_symbol,) * samples_per_symbol
+		        symbol_filter = filter.fir_filter_fff(symbol_decim, symbol_coeffs)
+	
+		        demod_fsk4 = op25.fsk4_demod_ff(autotuneq, channel_rate, symbol_rate)
+		elif self.modulation == 'CQPSK':
+			self.resampler = filter.pfb.arb_resampler_ccf(float(48000)/float(channel_rate))
+			self.agc = analog.feedforward_agc_cc(16,1.0)
+			self.symbol_filter_c = blocks.multiply_const_cc(1.0)
+
+	                gain_mu= 0.025
+	                omega = float(channel_rate // symbol_rate)
+	                gain_omega = 0.1  * gain_mu * gain_mu
+	
+	                alpha = 0.04
+	                beta = 0.125 * alpha * alpha
+	                fmax = 1200     # Hz
+	                fmax = 2*pi * fmax / 48000
+			self.clock = repeater.gardner_costas_cc(omega, gain_mu, gain_omega, alpha,  beta, fmax, -fmax)
+			self.diffdec = digital.diff_phasor_cc()
+			self.to_float = blocks.complex_to_arg()
+			self.rescale = blocks.multiply_const_ff( (1 / (pi / 4)) )
+			self.udp = blocks.udp_sink(gr.sizeof_float, "127.0.0.1", (1555), 1472, True)
+
 	        # symbol slicer
 	        levels = [ -2.0, 0.0, 2.0, 4.0 ]
 	        slicer = op25.fsk4_slicer_fb(levels)
@@ -106,8 +128,11 @@ class p25_control_receiver (gr.hier_block2):
 		qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
 		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq)
 	
-
-	        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
+		if self.modulation == 'C4FM':
+		        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
+		elif self.modulation == 'CQPSK':
+			self.connect(self, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
+			self.connect(self.rescale, self.udp)
 	
                 ##################################################
                 # Threads
@@ -668,15 +693,16 @@ class p25_control_receiver (gr.hier_block2):
 							'Transmit Offset': t['Transmit Offset']
 							}
 					elif t['name'] == 'IDEN_UP_VU':
-						print '%s: %s' % (self.thread_id, t)
+						pass
+						#print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
 						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
-						#print '[%s]%s: %s' % (time(), self.thread_id, t)
+						print '[%s]%s: %s' % (time(), self.thread_id, t)
 						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
 						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
-						#print '[%s]%s: %s' % (time(), self.thread_id, t)
+						print '[%s]%s: %s' % (time(), self.thread_id, t)
 						pass
 					elif t['name'] == 'UU_V_CH_GRANT':
 						print '%s: %s' % (self.thread_id, t)
@@ -705,7 +731,8 @@ class p25_control_receiver (gr.hier_block2):
 						del t['opcode']
 						#print '%s: %s' % (self.thread_id, t)
 					#else:
-						#print '%s: %s' % (self.thread_id, t)
+					#	print '%s: %s' % (self.thread_id, t)
+					#print '%s: %s' % (self.thread_id, t)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
