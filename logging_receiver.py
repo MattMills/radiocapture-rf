@@ -1,6 +1,6 @@
 #!/usr/env/python
 
-from gnuradio import gr, blocks, analog, filter, fft
+from gnuradio import gr, blocks, analog, filter, fft, digital
 try:
 	from gnuradio.gr import firdes
 except:
@@ -80,8 +80,8 @@ class logging_receiver(gr.top_block):
 		p25_sensor.daemon = True
 		p25_sensor.start()
 	def configure_blocks(self, protocol):
-		if not (protocol == 'p25' or protocol == 'provoice' or protocol == 'analog' or protocol == 'none'):
-			raise Exception('Invalid protocol')
+		if not (protocol == 'p25' or protocol == 'p25_cqpsk' or protocol == 'provoice' or protocol == 'analog' or protocol == 'none'):
+			raise Exception('Invalid protocol %s' % protocol)
 		if self.protocol == protocol:
 			return True
 		self.lock()
@@ -113,6 +113,32 @@ class logging_receiver(gr.top_block):
 			self.imbe = None
 			self.float_conversion = None
 			self.resampler = None
+		elif self.protocol == 'p25_cqpsk':
+			self.disconnect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer)#, (self.subtract,0))
+                        self.disconnect(self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
+                        self.disconnect(self.slicer,self.decoder2, self.qsink)
+
+                        self.prefilter = None
+                        self.resampler = None
+                        self.agc = None
+                        self.symbol_filter_c = None
+                        self.clock = None
+                        self.diffdec = None
+                        self.to_float = None
+                        self.rescale = None
+                        self.slicer = None
+
+                        self.imbe = None
+                        self.decodequeue3 = None
+                        self.decodequeue2 = None
+                        self.decodequeue = None
+
+                        self.demod_watcher = None
+                        self.decoder  = None
+                        self.decoder2 = None
+                        self.qsink = None
+                        self.float_conversion = None
+
 		elif self.protocol == 'provoice':
 			self.disconnect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
 			self.fm_demod = None
@@ -178,6 +204,61 @@ class logging_receiver(gr.top_block):
 			self.connect(self.fm_demod, self.symbol_filter, self.demod_fsk4, self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
 			self.connect(self.slicer,self.decoder2, self.qsink)
 			#self.connect(self.fm_demod, self.avg, self.mult, (self.subtract,1))
+		elif protocol == 'p25_cqpsk':
+			self.symbol_deviation = symbol_deviation = 600.0
+                        symbol_rate = 4800
+			channel_rate = self.input_rate
+			
+
+                        self.prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, self.input_rate)
+
+                        samples_per_symbol = self.input_rate // symbol_rate
+                        
+			autotuneq = gr.msg_queue(2)
+			print 'INPUT RATE: %s' % (self.input_rate)
+			#self.resampler = filter.pfb.arb_resampler_ccf(float(48000)/float(self.input_rate))
+			#self.resampler = filter.pfb.arb_resampler_ccf(float(48000)/float(channel_rate))
+			#self.resampler = filter.pfb.arb_resampler_ccf(float(48000))
+			self.resampler = blocks.multiply_const_cc(1.0)
+                        self.agc = analog.feedforward_agc_cc(1024,1.0)
+                        self.symbol_filter_c = blocks.multiply_const_cc(1.0)
+
+                        gain_mu= 0.025
+			omega = float(channel_rate) / float(symbol_rate)
+                        gain_omega = 0.1  * gain_mu * gain_mu
+
+                        alpha = 0.04
+                        beta = 0.125 * alpha * alpha
+                        fmax = 1200     # Hz
+                        fmax = 2*pi * fmax / channel_rate
+
+                        self.clock = repeater.gardner_costas_cc(omega, gain_mu, gain_omega, alpha,  beta, fmax, -fmax)
+                        self.diffdec = digital.diff_phasor_cc()
+                        self.to_float = blocks.complex_to_arg()
+                        self.rescale = blocks.multiply_const_ff( (1 / (pi / 4)) )
+
+                        # symbol slicer
+                        levels = [ -2.0, 0.0, 2.0, 4.0 ]
+                        self.slicer = op25.fsk4_slicer_fb(levels)
+
+                        self.imbe = repeater.vocoder(False, True, 0, "", 0, False)
+                        self.decodequeue3 = decodequeue3 = gr.msg_queue(10000)
+                        self.decodequeue2 = decodequeue2 = gr.msg_queue(10000)
+                        self.decodequeue = decodequeue = gr.msg_queue(10000)
+
+                        self.demod_watcher = demod_watcher(decodequeue2, self.adjust_channel_offset)
+                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2)
+                        self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3)
+
+                        self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
+
+                        self.float_conversion = blocks.short_to_float(1, 8192)
+
+                        self.connect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer)#, (self.subtract,0))
+			#self.null_sink = blocks.null_sink(8)
+			#self.connect(self.clock, self.null_sink)
+                        self.connect(self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
+                        self.connect(self.slicer,self.decoder2, self.qsink)
 		elif protocol == 'provoice':
 			symbol_deviation = 600.0
 			fm_demod_gain = self.input_rate / (2.0 * pi * symbol_deviation)
@@ -334,7 +415,7 @@ class logging_receiver(gr.top_block):
 		self.cdr = {}
 		self.in_use = False
 	def destroy(self):
-		if self.protocol == 'p25':
+		if self.protocol == 'p25' or self.protocol=='p25_cqpsk':
 			try:
 				self.demod_watcher.keep_running = False
 				self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
@@ -363,6 +444,7 @@ class logging_receiver(gr.top_block):
                         self.channel_rate = channel_rate
                         self.input_rate = channel_rate*2
 			proto = self.protocol
+			if proto == None: return True
 			self.configure_blocks('none')
 			self.configure_blocks(proto)
 
