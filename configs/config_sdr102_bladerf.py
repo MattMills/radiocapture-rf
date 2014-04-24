@@ -10,23 +10,26 @@ class rc_config:
 		self.sources = {
 			0:{
 				'type': 'bladerf',
-				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
+				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
 				'center_freq': 476812500,
 				'samp_rate': 16000000,
+				#'center_freq': 467175500,
+				#'samp_rate': 32000000,
 				#'center_freq': 470050000,
 				#'samp_rate': 400000,
 				'rf_gain': 4,
-				'bb_gain': 10
+				'bb_gain': 9
 			},
 			1:{
                                 'type': 'bladerf',
-                                'args': 'numchan=1 bladerf=1,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
+                                'args': 'numchan=1 bladerf=1,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
                                 'center_freq': 457975000,
                                 'samp_rate': 16000000,
                                 'rf_gain': 4,
-                                'bb_gain': 10
+                                'bb_gain': 9
                         }
 		}
+		#del self.sources[1]
 
 		self.systems = {
 			2: { #ICIS P25 RFSS1 SITE10 - Pasadena
