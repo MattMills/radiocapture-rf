@@ -11,13 +11,13 @@ class rc_config:
 			0:{
 				'type': 'bladerf',
 				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
-				'center_freq': 476812500,
-				'samp_rate': 16000000,
-				#'center_freq': 467175500,
-				#'samp_rate': 32000000,
+				#'center_freq': 476812500,
+				#'samp_rate': 16000000,
+				'center_freq': 467060500,
+				'samp_rate': 32000000,
 				#'center_freq': 470050000,
 				#'samp_rate': 400000,
-				'rf_gain': 4,
+				'rf_gain': 0,
 				'bb_gain': 9
 			},
 			1:{
@@ -29,7 +29,7 @@ class rc_config:
                                 'bb_gain': 9
                         }
 		}
-		#del self.sources[1]
+		del self.sources[1]
 
 		self.systems = {
 			2: { #ICIS P25 RFSS1 SITE10 - Pasadena
