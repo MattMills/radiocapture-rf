@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from gnuradio import gr
+from gnuradio import gr, filter
 from gnuradio import blocks
-from gnuradio.filter import pfb
+from gnuradio.filter import pfb, firdes
 import gnuradio.filter.optfir as optfir
 
 import time
@@ -11,6 +11,7 @@ import math
 import os
 
 import channel
+import copy
 from config import rc_config
 
 class receiver(gr.top_block):
@@ -26,42 +27,39 @@ class receiver(gr.top_block):
 		self.access_lock.acquire()
 	
 		config = rc_config()
-                self.sources = config.sources
+                self.realsources = config.sources
 
-                for source in self.sources:
-			self.target_size = target_size = 200000
-			if(self.sources[source]['samp_rate']%target_size):
-				raise Exception('samp_rate not round enough')
+		self.sources = {}
+		numsources = 0
+		for source in self.realsources:
+			newsource1 = copy.copy(self.realsources[source])
+			newsource2 = copy.copy(self.realsources[source])
 
-			num_channels = int(math.ceil(self.sources[source]['samp_rate']/target_size))
-			self.sources[source]['pfb'] = pfb.channelizer_ccf(
-	                  num_channels,
-	                  (optfir.low_pass(1,num_channels,0.5, 0.5+0.2, 0.1, 80)),
-	                  1.0,
-	                  100
-			)
-			self.sources[source]['pfb'].set_channel_map(([]))
-			#null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-			#self.connect((self.sources[source]['pfb'], 0), null_sink)
-			for x in range(0,num_channels):
-				null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-				self.connect((self.sources[source]['pfb'], x), null_sink)
+			decim = 2
+			samp_rate = self.realsources[source]['samp_rate']
+			channel_rate = (samp_rate/decim)/2
+			transition = channel_rate*0.5
+			
+			taps = firdes.low_pass(1,samp_rate,channel_rate,transition)
+			print taps
 
+	                filt1 = filter.freq_xlating_fir_filter_ccc(decim, (taps), -samp_rate/4, samp_rate)
+			filt2 = filter.freq_xlating_fir_filter_ccc(decim, (taps), samp_rate/4, samp_rate)
 
-                        if self.sources[source]['type'] == 'usrp':
+                        if self.realsources[source]['type'] == 'usrp':
 				from gnuradio import uhd
 
                                 this_dev = uhd.usrp_source(
-                                        device_addr=self.sources[source]['device_addr'],
+                                        device_addr=self.realsources[source]['device_addr'],
                                         stream_args=uhd.stream_args(
                                                 cpu_format="fc32",
-                                                otw_format=self.sources[source]['otw_format'],
-                                                args=self.sources[source]['args'],
+                                                otw_format=self.realsources[source]['otw_format'],
+                                                args=self.realsources[source]['args'],
                                         ),
                                 )
-                                this_dev.set_samp_rate(self.sources[source]['samp_rate'])
-                                this_dev.set_center_freq(self.sources[source]['center_freq'])
-                                this_dev.set_gain(self.sources[source]['rf_gain'])
+                                this_dev.set_samp_rate(self.realsources[source]['samp_rate'])
+                                this_dev.set_center_freq(self.realsources[source]['center_freq'])
+                                this_dev.set_gain(self.realsources[source]['rf_gain'])
 
                                 try:
                                         null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
@@ -69,27 +67,27 @@ class receiver(gr.top_block):
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
                                 #self.connect(this_dev, null_sink)
 
-                                self.sources[source]['block'] = this_dev
-                        if self.sources[source]['type'] == 'usrp2x':
+                                self.realsources[source]['block'] = this_dev
+                        if self.realsources[source]['type'] == 'usrp2x':
 				from gnuradio import uhd
 
                                 this_dev = uhd.usrp_source(
-                                        device_addr=self.sources[source]['device_addr'],
+                                        device_addr=self.realsources[source]['device_addr'],
                                         stream_args=uhd.stream_args(
                                                 cpu_format="fc32",
-                                                otw_format=self.sources[source]['otw_format'],
-                                                args=self.sources[source]['args'],
+                                                otw_format=self.realsources[source]['otw_format'],
+                                                args=self.realsources[source]['args'],
                                                 channels=range(2),
                                         ),
                                 )
 
                                 this_dev.set_subdev_spec('A:RX1 A:RX2', 0)
-                                this_dev.set_samp_rate(self.sources[source]['samp_rate'])
+                                this_dev.set_samp_rate(self.realsources[source]['samp_rate'])
 
-                                this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
-                                this_dev.set_center_freq(self.sources[source+1]['center_freq'], 1)
-                                this_dev.set_gain(self.sources[source]['rf_gain'], 0)
-                                this_dev.set_gain(self.sources[source+1]['rf_gain'], 1)
+                                this_dev.set_center_freq(self.realsources[source]['center_freq'], 0)
+                                this_dev.set_center_freq(self.realsources[source+1]['center_freq'], 1)
+                                this_dev.set_gain(self.realsources[source]['rf_gain'], 0)
+                                this_dev.set_gain(self.realsources[source+1]['rf_gain'], 1)
 
                                 multiply = blocks.multiply_const_vcc((1, ))
                                 try:
@@ -97,7 +95,7 @@ class receiver(gr.top_block):
                                 except:
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
                                 #self.connect((this_dev,0), multiply, null_sink)
-                                self.sources[source]['block'] = multiply
+                                self.realsources[source]['block'] = multiply
 
                                 multiply = blocks.multiply_const_vcc((1, ))
                                 try:
@@ -105,20 +103,20 @@ class receiver(gr.top_block):
                                 except:
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
                                 #self.connect((this_dev,1), multiply, null_sink)
-                                self.sources[source+1]['block'] = multiply
-                        if self.sources[source]['type'] == 'bladerf':
+                                self.realsources[source+1]['block'] = multiply
+                        if self.realsources[source]['type'] == 'bladerf':
 				import osmosdr
 
-                                this_dev = osmosdr.source( args=self.sources[source]['args'] )
-                                this_dev.set_sample_rate(self.sources[source]['samp_rate'])
-                                this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
+                                this_dev = osmosdr.source( args=self.realsources[source]['args'] )
+                                this_dev.set_sample_rate(self.realsources[source]['samp_rate'])
+                                this_dev.set_center_freq(self.realsources[source]['center_freq'], 0)
                                 this_dev.set_freq_corr(0, 0)
                                 #this_dev.set_dc_offset_mode(0, 0)
                                 #this_dev.set_iq_balance_mode(0, 0)
                                 this_dev.set_gain_mode(0, 0)
-                                this_dev.set_gain(self.sources[source]['rf_gain'], 0)
+                                this_dev.set_gain(self.realsources[source]['rf_gain'], 0)
                                 this_dev.set_if_gain(20, 0)
-                                this_dev.set_bb_gain(self.sources[source]['bb_gain'], 0)
+                                this_dev.set_bb_gain(self.realsources[source]['bb_gain'], 0)
                                 this_dev.set_antenna("", 0)
                                 this_dev.set_bandwidth(0, 0)
 
@@ -129,27 +127,27 @@ class receiver(gr.top_block):
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
                                 #self.connect(this_dev, null_sink)
 
-                                self.sources[source]['block'] = this_dev
-			if self.sources[source]['type'] == 'rtlsdr':
+                                self.realsources[source]['block'] = this_dev
+			if self.realsources[source]['type'] == 'rtlsdr':
 				import osmosdr
 
-                                process = os.popen('CellSearch -i '+ str(self.sources[source]['serial']) +' -s 739e6 -e 739e6 -b | grep 739M | awk \'{sum+=$10} END { printf("%.10f", sum/NR)}\'')
+                                process = os.popen('CellSearch -i '+ str(self.realsources[source]['serial']) +' -s 739e6 -e 739e6 -b | grep 739M | awk \'{sum+=$10} END { printf("%.10f", sum/NR)}\'')
                                 output = float(process.read())
                                 process.close()
-                                self.sources[source]['offset'] = (1000000-(output*1000000))
-                                print 'Measured PPM - Dev#%s: %s' % (source, self.sources[source]['offset'])
+                                self.realsources[source]['offset'] = (1000000-(output*1000000))
+                                print 'Measured PPM - Dev#%s: %s' % (source, self.realsources[source]['offset'])
 
-                                this_dev = osmosdr.source( args=self.sources[source]['args'] )
-                                this_dev.set_sample_rate(self.sources[source]['samp_rate'])
-                                this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
-                                this_dev.set_freq_corr(self.sources[source]['offset'], 0)
+                                this_dev = osmosdr.source( args=self.realsources[source]['args'] )
+                                this_dev.set_sample_rate(self.realsources[source]['samp_rate'])
+                                this_dev.set_center_freq(self.realsources[source]['center_freq'], 0)
+                                this_dev.set_freq_corr(self.realsources[source]['offset'], 0)
 
                                 this_dev.set_dc_offset_mode(1, 0)
                                 this_dev.set_iq_balance_mode(1, 0)
                                 this_dev.set_gain_mode(0, 0)
-                                this_dev.set_gain(self.sources[source]['rf_gain'], 0)
+                                this_dev.set_gain(self.realsources[source]['rf_gain'], 0)
 				this_dev.set_if_gain(30, 0)
-                                this_dev.set_bb_gain(self.sources[source]['bb_gain'], 0)
+                                this_dev.set_bb_gain(self.realsources[source]['bb_gain'], 0)
 
 
                                 try:
@@ -158,10 +156,46 @@ class receiver(gr.top_block):
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
                                 self.connect(this_dev, null_sink)
 
-                                self.sources[source]['block'] = this_dev
+                                self.realsources[source]['block'] = this_dev
 
+
+			self.connect(self.realsources[source]['block'], filt1)
+			self.connect(self.realsources[source]['block'], filt2)
+			
+			newsource1['block'] = filt1
+			newsource1['center_freq'] = self.realsources[source]['center_freq']-self.realsources[source]['samp_rate']/4
+			newsource1['samp_rate'] = newsource1['samp_rate']/decim
+			newsource2['block'] = filt2
+			newsource2['center_freq'] = self.realsources[source]['center_freq']+self.realsources[source]['samp_rate']/4
+			newsource2['samp_rate'] = newsource2['samp_rate']/decim
+		
+			self.sources[numsources] = newsource1
+			numsources = numsources+1
+			self.sources[numsources] = newsource2
+			numsources = numsources+1
+			print newsource1
+			print newsource2
+
+                for source in self.sources:
+                        self.target_size = target_size = 400000
+                        if(self.sources[source]['samp_rate']%target_size):
+                                raise Exception('samp_rate not round enough')
+
+                        num_channels = int(math.ceil(self.sources[source]['samp_rate']/target_size))
+                        self.sources[source]['pfb'] = pfb.channelizer_ccf(
+                          num_channels,
+                          (optfir.low_pass(1,num_channels,0.5, 0.5+0.2, 0.1, 80)),
+                          1.0,
+                          100
+                        )
+                        self.sources[source]['pfb'].set_channel_map(([]))
+                        #null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+                        #self.connect((self.sources[source]['pfb'], 0), null_sink)
+                        for x in range(0,num_channels):
+                                null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+                                self.connect((self.sources[source]['pfb'], x), null_sink)
 			self.connect(self.sources[source]['block'], self.sources[source]['pfb'])
-	
+
 		self.channels = []
 		#for i in self.sources.keys():
 		#	self.channels[i] = []
