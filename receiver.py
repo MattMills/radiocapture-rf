@@ -58,7 +58,7 @@ class receiver(gr.top_block):
                 self.systems = config.systems
 
 
-		self.connector = frontend_connector()
+		self.connector = frontend_connector(config.backend_ip, config.frontend_ip)
 	
 		##################################################
 		# Connections
