@@ -32,19 +32,20 @@ class receiver(gr.top_block):
 		self.sources = {}
 		numsources = 0
 		for source in self.realsources:
-			newsource1 = copy.copy(self.realsources[source])
-			newsource2 = copy.copy(self.realsources[source])
-
-			decim = 2
-			samp_rate = self.realsources[source]['samp_rate']
-			channel_rate = (samp_rate/decim)/2
-			transition = channel_rate*0.5
-			
-			taps = firdes.low_pass(1,samp_rate,channel_rate,transition)
-			print taps
-
-	                filt1 = filter.freq_xlating_fir_filter_ccc(decim, (taps), -samp_rate/4, samp_rate)
-			filt2 = filter.freq_xlating_fir_filter_ccc(decim, (taps), samp_rate/4, samp_rate)
+			if config.receiver_split2:
+				newsource1 = copy.copy(self.realsources[source])
+				newsource2 = copy.copy(self.realsources[source])
+	
+				decim = 2
+				samp_rate = self.realsources[source]['samp_rate']
+				channel_rate = (samp_rate/decim)/2
+				transition = channel_rate*0.5
+				
+				taps = firdes.low_pass(1,samp_rate,channel_rate,transition)
+				print taps
+	
+		                filt1 = filter.freq_xlating_fir_filter_ccc(decim, (taps), -samp_rate/4, samp_rate)
+				filt2 = filter.freq_xlating_fir_filter_ccc(decim, (taps), samp_rate/4, samp_rate)
 
                         if self.realsources[source]['type'] == 'usrp':
 				from gnuradio import uhd
@@ -158,23 +159,38 @@ class receiver(gr.top_block):
 
                                 self.realsources[source]['block'] = this_dev
 
+                        if config.receiver_split2:
+                                newsource1 = copy.copy(self.realsources[source])
+                                newsource2 = copy.copy(self.realsources[source])
 
-			self.connect(self.realsources[source]['block'], filt1)
-			self.connect(self.realsources[source]['block'], filt2)
+                                decim = 2
+                                samp_rate = self.realsources[source]['samp_rate']
+                                channel_rate = (samp_rate/decim)/2
+                                transition = channel_rate*0.5
+
+                                taps = firdes.low_pass(1,samp_rate,channel_rate,transition)
+                                print taps
+
+                                filt1 = filter.freq_xlating_fir_filter_ccc(decim, (taps), -samp_rate/4, samp_rate)
+                                filt2 = filter.freq_xlating_fir_filter_ccc(decim, (taps), samp_rate/4, samp_rate)
+
+				self.connect(self.realsources[source]['block'], filt1)
+				self.connect(self.realsources[source]['block'], filt2)
 			
-			newsource1['block'] = filt1
-			newsource1['center_freq'] = self.realsources[source]['center_freq']-self.realsources[source]['samp_rate']/4
-			newsource1['samp_rate'] = newsource1['samp_rate']/decim
-			newsource2['block'] = filt2
-			newsource2['center_freq'] = self.realsources[source]['center_freq']+self.realsources[source]['samp_rate']/4
-			newsource2['samp_rate'] = newsource2['samp_rate']/decim
+				newsource1['block'] = filt1
+				newsource1['center_freq'] = self.realsources[source]['center_freq']-self.realsources[source]['samp_rate']/4
+				newsource1['samp_rate'] = newsource1['samp_rate']/decim
+				newsource2['block'] = filt2
+				newsource2['center_freq'] = self.realsources[source]['center_freq']+self.realsources[source]['samp_rate']/4
+				newsource2['samp_rate'] = newsource2['samp_rate']/decim
 		
-			self.sources[numsources] = newsource1
-			numsources = numsources+1
-			self.sources[numsources] = newsource2
-			numsources = numsources+1
-			print newsource1
-			print newsource2
+				self.sources[numsources] = newsource1
+				numsources = numsources+1
+				self.sources[numsources] = newsource2
+				numsources = numsources+1
+			else:
+				self.sources[numsources] = self.realsources[source]
+				numsources = numsources+1
 
                 for source in self.sources:
                         self.target_size = target_size = 400000
