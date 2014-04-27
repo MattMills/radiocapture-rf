@@ -6,11 +6,11 @@
 # 4/28/2013 - Initial Creation
 class rc_config:
 	def __init__(self):
-
+                self.receiver_split2 = False    #Does the frontend receiver split each inbound source by 1/2
 		self.sources = {
 			0:{
 				'type': 'bladerf',
-				'args': 'numchan=1 bladerf,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
+				'args': 'numchan=1 bladerf,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
 				'center_freq': 862500000,
 				'samp_rate': 16000000,
 				'rf_gain': 2,
