@@ -64,25 +64,28 @@ class receiver(gr.top_block):
 		# Connections
 		##################################################
 		for system in self.systems:
-			if self.systems[system]['type'] == 'moto':
-				self.systems[system]['block'] = moto_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
-			elif self.systems[system]['type'] == 'edacs':
-				self.systems[system]['block'] = edacs_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
-			elif self.systems[system]['type'] == 'scanner':
-                                self.systems[system]['block'] = scanning_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
-			elif self.systems[system]['type'] == 'p25':
-                                self.systems[system]['block'] = p25_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
-			else:
-				raise Exception('Invalid system type %s' % (self.systems[system]['type']))
-			this_block = self.systems[system]['block']
-			self.systems[system]['channel_id'] = None
-
-			udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8000+system), 1472, True)
-			self.connect(udp_source, this_block)
-			self.systems[system]['source'] = udp_source
+			build_receiver(system)
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
 		self.active_receivers = []
+
+	def build_receiver(self, system):
+		if self.systems[system]['type'] == 'moto':
+                        self.systems[system]['block'] = moto_control_receiver( self.systems[system], self, system)
+                elif self.systems[system]['type'] == 'edacs':
+                        self.systems[system]['block'] = edacs_control_receiver( self.systems[system], self, system)
+                elif self.systems[system]['type'] == 'scanner':
+                        self.systems[system]['block'] = scanning_receiver( self.systems[system], self, system)
+                elif self.systems[system]['type'] == 'p25':
+                        self.systems[system]['block'] = p25_control_receiver( self.systems[system], self, system)
+                else:
+                        raise Exception('Invalid system type %s' % (self.systems[system]['type']))
+                self.systems[system]['channel_id'] = None
+
+                udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8123), 1472, True) #Nonsense port gets changed in retune_control
+                self.connect(udp_source, self.systems[system]['block'])
+
+                self.systems[system]['source'] = udp_source
 
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']

@@ -22,8 +22,7 @@ from logging_receiver import logging_receiver
 # The P25 receiver
 #
 class p25_control_receiver (gr.hier_block2):
-	def __init__(self, system, samp_rate, sources, top_block, block_id):
-	#p25_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
+	def __init__(self, system, top_block, block_id):
 
 		gr.hier_block2.__init__(self, "p25_control_receiver",
 	        	gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
@@ -35,8 +34,6 @@ class p25_control_receiver (gr.hier_block2):
 		self.tb = top_block
 		self.system = system
 		self.block_id = block_id
-		self.sources = sources
-		self.samp_rate = samp_rate
 		self.channel_rate = 12500
 
 		self.control_channel = system['channels'][system['default_control_channel']]

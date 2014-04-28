@@ -15,7 +15,7 @@ import threading
 from logging_receiver import logging_receiver
 
 class edacs_control_receiver(gr.hier_block2):
-	def __init__(self, system, samp_rate, sources, top_block, block_id):
+	def __init__(self, system, top_block, block_id):
 		gr.hier_block2.__init__(self, "edacs_control_receiver",
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
@@ -23,9 +23,7 @@ class edacs_control_receiver(gr.hier_block2):
 		self.hang_time = 0.5
 
 		self.tb = top_block
-		self.sources = sources
 		self.system = system
-		self.samp_rate = samp_rate
 		self.block_id = block_id
 
 		self.audio_rate = audio_rate = 12500
