@@ -15,7 +15,8 @@ class rc_config:
 		self.sources = {
 			0:{
 				'type': 'usrp',
-				'device_addr': "recv_frame_size=49152,num_recv_frames=512,serial=EDR11YBB1",
+				#'device_addr': "recv_frame_size=49152,num_recv_frames=256,serial=EDR11YBB1",
+				'device_addr': "serial=EDR11YBB1",
 				'otw_format': 'sc8',
 				'args': '',
 				'center_freq': 858737500,
@@ -24,7 +25,8 @@ class rc_config:
 			},
 			1:{
 				'type': 'usrp',
-				'device_addr': "recv_frame_size=49152,num_recv_frames=512,serial=E7R12X7B1",
+				#'device_addr': "recv_frame_size=49152,num_recv_frames=256,serial=E7R12X7B1",
+				'device_addr': "serial=E7R12X7B1",
 				'otw_format': 'sc8',
 				'args': '',
 				'center_freq': 866637500,
@@ -142,25 +144,6 @@ class rc_config:
 	                               0x18e: 860962500
 				}
 			},
-			4:{#Riverside EDACS - West site
-				'type': 'edacs',
-				'id': 1,
-				'symbol_rate': 9600.0,
-				'esk': False,
-				'channels': {
-	                                1: 866212500,
-	                                2: 866262500,
-	                                3: 866712500,
-	                                4: 866762500,
-	                                5: 867212500,
-	                                6: 867712500,
-	                                7: 868212500,
-	                                8: 867262500,
-	                                9: 868262500,
-	                                10: 868712500,
-	                                11: 867787500,
-	                                12: 868787500
-				}
-			}
 		}
 
+		self.blacklists = {}
