@@ -118,7 +118,7 @@ class moto_control_receiver(gr.hier_block2):
 		return self.control_msg_sink_msgq.delete_head().to_string()
 	def tune_next_control(self):
                 self.control_channel_key += 1
-                if(self.control_channel_key >= len(self.channels_list)):
+                if(self.control_channel_key >= len(self.channels)):
                         self.control_channel_key = 0
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 

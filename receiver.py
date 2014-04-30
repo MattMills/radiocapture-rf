@@ -63,11 +63,12 @@ class receiver(gr.top_block):
 		##################################################
 		# Connections
 		##################################################
+		self.active_receivers = []
+
 		for system in self.systems:
 			self.build_receiver(system)
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
-		self.active_receivers = []
 
 	def build_receiver(self, system):
 		if self.systems[system]['type'] == 'moto':
