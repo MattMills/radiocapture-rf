@@ -15,8 +15,8 @@ class rc_config:
 		self.sources = {
 			0:{
 				'type': 'usrp',
-				#'device_addr': "recv_frame_size=49152,num_recv_frames=256,serial=EDR11YBB1",
-				'device_addr': "serial=EDR11YBB1",
+				'device_addr': "recv_frame_size=24576,num_recv_frames=256,serial=EDR11YBB1",
+				#'device_addr': "serial=EDR11YBB1",
 				'otw_format': 'sc8',
 				'args': '',
 				'center_freq': 858737500,
@@ -25,8 +25,8 @@ class rc_config:
 			},
 			1:{
 				'type': 'usrp',
-				#'device_addr': "recv_frame_size=49152,num_recv_frames=256,serial=E7R12X7B1",
-				'device_addr': "serial=E7R12X7B1",
+				'device_addr': "recv_frame_size=24576,num_recv_frames=256,serial=E7R12X7B1",
+				#'device_addr': "serial=E7R12X7B1",
 				'otw_format': 'sc8',
 				'args': '',
 				'center_freq': 866637500,
