@@ -64,7 +64,7 @@ class receiver(gr.top_block):
 		# Connections
 		##################################################
 		for system in self.systems:
-			build_receiver(system)
+			self.build_receiver(system)
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
 		self.active_receivers = []
