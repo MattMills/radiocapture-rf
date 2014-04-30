@@ -23,7 +23,7 @@ class rc_config:
 				#'center_freq': 470050000,
 				#'samp_rate': 400000,
 				'rf_gain': 0,
-				'bb_gain': 9
+				'bb_gain': 15
 			},
 			1:{
                                 'type': 'bladerf',
@@ -124,10 +124,32 @@ class rc_config:
                                 },
 
                         },
+			5: {
+				'type': 'scanner',
+				'id': '12345',
+				'default_control_channel': 0,
+				'modulation': 'analog',
+				'threshold': -30,
+				'channels': {
+					0: 470537500
+				}
+			},
+			6: {   
+                                'type': 'scanner',
+                                'id': '12345',
+                                'default_control_channel': 0,
+                                'modulation': 'analog',
+                                'threshold': -30,
+                                'channels': {
+                                        0: 470412500
+                                }
+                        },
 		}
 		del self.systems[1]
 		del self.systems[2]
 		del self.systems[3]
-		#del self.systems[4]
+
+		del self.systems[0]
+		del self.systems[4]
 		self.blacklists = {}
 
