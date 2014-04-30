@@ -35,6 +35,7 @@ from logging_receiver import logging_receiver
 from config import rc_config
 from frontend_connector import frontend_connector
 
+from backend_controller import backend_controller
 class receiver(gr.top_block):
 
 	def __init__(self):
@@ -69,6 +70,7 @@ class receiver(gr.top_block):
 			self.build_receiver(system)
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
+		self.backend_controller = backend_controller(self)
 
 	def build_receiver(self, system):
 		if self.systems[system]['type'] == 'moto':
@@ -82,6 +84,7 @@ class receiver(gr.top_block):
                 else:
                         raise Exception('Invalid system type %s' % (self.systems[system]['type']))
                 self.systems[system]['channel_id'] = None
+		self.systems[system]['start_time'] = time.time()
 
                 udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8123), 1472, True) #Nonsense port gets changed in retune_control
                 self.connect(udp_source, self.systems[system]['block'])

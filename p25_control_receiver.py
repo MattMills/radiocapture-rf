@@ -753,7 +753,7 @@ class p25_control_receiver (gr.hier_block2):
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
-		desired_quality = 133.0 # approx 13.3 packets per sec
+		desired_quality = 400.0 # approx 40 tsbk per sec
 
                 bad_messages = self.bad_messages
                 total_messages = self.total_messages
