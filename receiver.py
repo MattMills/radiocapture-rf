@@ -63,6 +63,8 @@ class receiver(gr.top_block):
 		##################################################
 		# Connections
 		##################################################
+		self.active_receivers = []
+
 		for system in self.systems:
 			if self.systems[system]['type'] == 'moto':
 				self.systems[system]['block'] = moto_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
@@ -82,7 +84,6 @@ class receiver(gr.top_block):
 			self.systems[system]['source'] = udp_source
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
-		self.active_receivers = []
 
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']
