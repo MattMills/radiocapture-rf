@@ -251,7 +251,9 @@ class receiver(gr.top_block):
 
 		pfb_id = chan
 
-		if pfb_offset < -40000 or pfb_offset > 40000:
+		
+
+		if pfb_offset < (-1*(pfb_samp_rate/2))+(channel_rate/2) or pfb_offset > (pfb_samp_rate/2)-(channel_rate/2):
 			print 'warning: %s edge boundary' % freq
 		#We have all our parameters, lets see if we can re-use an idling channel
 		self.access_lock.acquire()

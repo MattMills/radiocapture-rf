@@ -16,7 +16,7 @@ from logging_receiver import logging_receiver
 
 class moto_control_receiver(gr.hier_block2):
 
-	def __init__(self, system, samp_rate, sources, top_block, block_id):
+	def __init__(self, system, top_block, block_id):
 
                 gr.hier_block2.__init__(self, "moto_control_receiver",
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
@@ -34,7 +34,6 @@ class moto_control_receiver(gr.hier_block2):
 		self.quality = []
 
 		self.symbol_rate = symbol_rate = 3600.0
-		self.samp_rate = samp_rate
 		self.control_source = 0
 		self.block_id = block_id
 
@@ -45,7 +44,6 @@ class moto_control_receiver(gr.hier_block2):
 		self.system = system
 
 		self.system_id = system['id']
-		self.sources = sources
 		self.channels = system['channels']
 		self.channels_list = self.channels.keys()
 
@@ -120,7 +118,7 @@ class moto_control_receiver(gr.hier_block2):
 		return self.control_msg_sink_msgq.delete_head().to_string()
 	def tune_next_control(self):
                 self.control_channel_key += 1
-                if(self.control_channel_key >= len(self.channels_list)):
+                if(self.control_channel_key >= len(self.channels)):
                         self.control_channel_key = 0
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 
