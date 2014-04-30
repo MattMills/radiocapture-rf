@@ -10,6 +10,7 @@ class watchdog:
 
                 context = zmq.Context()
                 self.socket = context.socket(zmq.REQ)
+		self.socket.setsockopt(zmq.LINGER, 0)
                 self.socket.connect("tcp://%s:%s" % (host, port))
 
 		#threading.Thread.__init__ (self, **kwds)
@@ -51,8 +52,23 @@ class watchdog:
 		return resp
 
 	def send_message(self, msg):
-		self.socket.send(zlib.compress(json.dumps(msg)))
-                resp = json.loads(zlib.decompress(self.socket.recv()))
+		try:
+			self.socket.send(zlib.compress(json.dumps(msg)), zmq.NOBLOCK)
+		except:
+			return {'data': 'Timeout'}
+
+		loop_continue = True
+		loop_start = time.time()
+		while loop_continue:
+			try:
+		                resp = json.loads(zlib.decompress(self.socket.recv(zmq.NOBLOCK)))
+			except Exception as e:
+				if e.errno == zmq.EAGAIN and time.time() - loop_start < 1:
+					pass #continue waiting for data
+				else:
+					loop_continue = False 
+					if resp == None:
+						resp = {'data':'Timeout'}
 
 		return resp
 	def all_get_status(self):
@@ -65,9 +81,17 @@ if __name__ == '__main__':
 	w = watchdog()
 	
 	while 1:
-		print w.all_get_status()
-		print w.all_get_status_avg()
-		print w.all_get_uptime()
+		all_status = w.all_get_status()
+		all_status_avg = w.all_get_status_avg()
+		all_uptime =  w.all_get_uptime()
+		
+		if all_status == 'Timeout' or all_status_avg == 'Timeout' or all_uptime == 'Timeout':
+			print "Host connect timeout"
+			break
+		else:
+			print all_status
+			print all_status_avg
+			print all_uptime
 		time.sleep(10)
 
 
