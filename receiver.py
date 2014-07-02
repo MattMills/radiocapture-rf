@@ -24,6 +24,7 @@ from gnuradio import blocks
 import time
 import threading
 import random
+import copy
 
 # import custom modules
 from moto_control_receiver import moto_control_receiver
@@ -72,7 +73,7 @@ class receiver(gr.top_block):
 		
 		self.backend_controller = backend_controller(self)
 
-	def build_receiver(self, system):
+	def build_receiver(self, system, capture = True):
 		if self.systems[system]['type'] == 'moto':
                         self.systems[system]['block'] = moto_control_receiver( self.systems[system], self, system)
                 elif self.systems[system]['type'] == 'edacs':
@@ -83,13 +84,43 @@ class receiver(gr.top_block):
                         self.systems[system]['block'] = p25_control_receiver( self.systems[system], self, system)
                 else:
                         raise Exception('Invalid system type %s' % (self.systems[system]['type']))
+
+		self.systems[system]['block'].enable_capture = capture
                 self.systems[system]['channel_id'] = None
 		self.systems[system]['start_time'] = time.time()
 
                 udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8123), 1472, True) #Nonsense port gets changed in retune_control
+
+		self.lock()
                 self.connect(udp_source, self.systems[system]['block'])
+		self.unlock()
 
                 self.systems[system]['source'] = udp_source
+	
+	def rebuild_receiver(self, system):
+		old_receiver = self.systems[system]['block']
+		old_freq = self.systems[system]['block'].control_channel
+
+		self.build_receiver(system, False)
+                self.retune_control(system, old_freq)
+		
+		loop_continue = True
+		loop_start = time.time()
+		#60s timeout loop to attempt to get control channel lock before becoming authoritative receiver
+		print 'System: rebuild loop start'
+		while loop_continue:
+			if loop_start - time.time() > 60:
+				loop_continue = False	
+			elif self.systems[system]['block'].is_locked :
+				loop_continue = False
+			else:
+				time.sleep(0.2)
+		print 'System: Rebuild loop end'
+
+		old_receiver.enable_capture = False
+		self.systems[system]['block'].enable_capture = True
+		old_receiver.keep_running = False
+			
 
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']

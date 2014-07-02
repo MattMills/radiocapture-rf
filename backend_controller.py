@@ -50,6 +50,21 @@ class backend_controller(threading.Thread):
                                         resp['data'][system] = time.time()-start
                                 except:
                                         resp['data'][system] = -1
+		elif msg['action'] == 'RESTART_RECEIVER':
+			resp['data'] = {}
+			system = int(msg['system'])
+			try:
+				thread = threading.Thread(target=self.tb.rebuild_receiver, args=(system,))
+				thread.setDaemon(1)
+				thread.start()
+				#self.tb.rebuild_receiver(system)
+				resp['data'][system] = 1
+			except Exception as e:
+				print 'System: %s' % (dir(e))
+				print 'System: %s' % (e)
+				resp['data'][system] = -1
+				raise
+			
 		else:
 			resp['fail'] = True
 			resp['data'] = 'UNKNOWN ACTION'

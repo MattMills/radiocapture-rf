@@ -52,6 +52,7 @@ class watchdog:
 		return resp
 
 	def send_message(self, msg):
+		resp = None
 		try:
 			self.socket.send(zlib.compress(json.dumps(msg)), zmq.NOBLOCK)
 		except:
@@ -77,6 +78,8 @@ class watchdog:
 		return self.send_message({'action': 'ALL_GET_STATUS_AVG'})['data']
 	def all_get_uptime(self):
 		return self.send_message({'action': 'ALL_GET_UPTIME'})['data']
+	def restart_receiver(self, system):
+		return self.send_message({'action': 'RESTART_RECEIVER', 'system': system})['data']
 if __name__ == '__main__':
 	w = watchdog()
 	
@@ -84,7 +87,7 @@ if __name__ == '__main__':
 		all_status = w.all_get_status()
 		all_status_avg = w.all_get_status_avg()
 		all_uptime =  w.all_get_uptime()
-		
+
 		if all_status == 'Timeout' or all_status_avg == 'Timeout' or all_uptime == 'Timeout':
 			print "Host connect timeout"
 			break
@@ -92,6 +95,10 @@ if __name__ == '__main__':
 			print all_status
 			print all_status_avg
 			print all_uptime
+			for x in all_uptime:
+				if all_uptime[x] > 120:
+					print 'Restart attempt on %s' % (x)
+					print w.restart_receiver(x)
 		time.sleep(10)
 
 

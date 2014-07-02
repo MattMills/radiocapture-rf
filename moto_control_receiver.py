@@ -138,7 +138,7 @@ class moto_control_receiver(gr.hier_block2):
                 #dbc = query_handler()
                 last_total = 0
                 last_bad = 0
-                while True:
+                while self.keep_running:
                         time.sleep(10); #only check messages once per 10second
 
                         sid = self.system['id']
