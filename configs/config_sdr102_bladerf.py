@@ -144,6 +144,16 @@ class rc_config:
                                         0: 470412500
                                 }
                         },
+			7: {
+                                'type': 'scanner',
+                                'id': '12346',
+                                'default_control_channel': 0,
+                                'modulation': 'p25',
+                                'threshold': -30,
+                                'channels': {
+                                        0: 451812500
+                                }
+                        },
 		}
 		del self.systems[1]
 		del self.systems[2]
@@ -151,5 +161,8 @@ class rc_config:
 
 		del self.systems[0]
 		del self.systems[4]
+
+		del self.systems[5]
+		del self.systems[6]
 		self.blacklists = {}
 
