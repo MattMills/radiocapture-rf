@@ -123,7 +123,7 @@ class p25_control_receiver (gr.hier_block2):
 	        # frame decoder
 		self.decodequeue = decodequeue = gr.msg_queue(1000)
 		qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
-		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False)
+		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False, False)
 	
 		if self.modulation == 'C4FM':
 		        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
