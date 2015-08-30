@@ -45,8 +45,9 @@ class p25_control_receiver (gr.hier_block2):
 
 		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
 
-		self.modulation = system['modulation']
-		if self.modulation == None:
+		try:
+			self.modulation = system['modulation']
+		except:
 			self.modulation = 'C4FM'
 
 		self.P25 = {}
@@ -122,7 +123,7 @@ class p25_control_receiver (gr.hier_block2):
 	        # frame decoder
 		self.decodequeue = decodequeue = gr.msg_queue(1000)
 		qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
-		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq)
+		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False)
 	
 		if self.modulation == 'C4FM':
 		        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
