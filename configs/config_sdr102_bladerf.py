@@ -15,26 +15,24 @@ class rc_config:
 		self.sources = {
 			0:{
 				'type': 'bladerf',
-				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
-				#'center_freq': 476812500,
-				#'samp_rate': 16000000,
-				'center_freq': 467060500,
-				'samp_rate': 32000000,
-				#'center_freq': 470050000,
-				#'samp_rate': 400000,
-				'rf_gain': 0,
-				'bb_gain': 15
+				#'args': 'bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
+				'args': 'bladerf=0,fpga=/home/mmills/build/hostedx40.rbf',
+				'center_freq': 479687500,
+				'samp_rate': 6000000,
+				'rf_gain': 2,
+				'bb_gain': 9
 			},
 			1:{
                                 'type': 'bladerf',
-                                'args': 'numchan=1 bladerf=1,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
-                                'center_freq': 457975000,
-                                'samp_rate': 16000000,
-                                'rf_gain': 4,
+                                #'args': 'numchan=1 bladerf=1,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
+				'args': 'bladerf=1,fpga=/home/mmills/build/hostedx40.rbf',
+                                'center_freq': 470006250,
+                                'samp_rate': 6000000,
+                                'rf_gain': 2,
                                 'bb_gain': 9
                         }
 		}
-		del self.sources[1]
+		#del self.sources[1]
 
 		self.systems = {
 			2: { #ICIS P25 RFSS1 SITE10 - Pasadena
@@ -60,20 +58,6 @@ class rc_config:
 					14: 477812500
                                 },
 			},
-			1: { #ICIS P25 RFSS1 SITE11 - Glendale
-                                'type': 'p25',
-                                'id': 1011,
-                                'default_control_channel': 0,
-                                'modulation': 'CQPSK',
-                                'channels': {
-                                        0: 470262500,
-                                        1: 482187500,
-                                        2: 482237500,
-                                        3: 482287500,
-                                        4: 484187500
-                                },
-                        
-                  	},
 			0: { #ICIS P25 RFSS1 SITE15 - Pomona
                                 'type': 'p25',
                                 'id': 1015,
@@ -86,20 +70,6 @@ class rc_config:
                                         3: 470162500,
                                         4: 482162500,
 					5: 482362500
-                                },
-
-                        },
-			3: { #ICIS P25 RFSS1 SITE16 - Beverly Hills
-                                'type': 'p25',
-                                'id': 1016,
-                                'default_control_channel': 0,
-                                'modulation': 'CQPSK',
-                                'channels': {
-                                        0: 482125000,
-                                        1: 482200000,
-                                        2: 482225000,
-                                        3: 482400000,
-                                        4: 482625000
                                 },
 
                         },
@@ -155,14 +125,9 @@ class rc_config:
                                 }
                         },
 		}
-		del self.systems[1]
-		del self.systems[2]
-		del self.systems[3]
-
-		del self.systems[0]
 		del self.systems[4]
-
 		del self.systems[5]
 		del self.systems[6]
+		del self.systems[7]
 		self.blacklists = {}
 
