@@ -193,8 +193,8 @@ class logging_receiver(gr.top_block):
 			self.decodequeue = decodequeue = gr.msg_queue(10000)
 
 			self.demod_watcher = demod_watcher(decodequeue2, self.adjust_channel_offset)
-                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2)
-			self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3)
+                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, False, False)
+			self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3, False, False)
 
 			self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
 			
@@ -247,8 +247,8 @@ class logging_receiver(gr.top_block):
                         self.decodequeue = decodequeue = gr.msg_queue(10000)
 
                         self.demod_watcher = demod_watcher(decodequeue2, self.adjust_channel_offset)
-                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2)
-                        self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3)
+                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, False, False)
+                        self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3, False, False)
 
                         self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
 
