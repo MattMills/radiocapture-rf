@@ -265,6 +265,7 @@ class receiver(gr.top_block):
 				block = c
 				block_id = c.block_id
 				block.set_offset(pfb_offset)
+				block.udp.disconnect()
 				#TODO: move UDP output
 				break
 
@@ -291,12 +292,13 @@ class receiver(gr.top_block):
 		self.access_lock.acquire()
 		try:
 			self.channels[block_id].in_use = False
+			self.channels[block_id].udp.disconnect()
 		except:
 			self.access_lock.release()
 			return -1
 
 		#TODO: move UDP output
-
+		
 		self.access_lock.release()
 		return True
 
