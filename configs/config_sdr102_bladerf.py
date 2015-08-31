@@ -17,7 +17,7 @@ class rc_config:
 				'type': 'bladerf',
 				#'args': 'bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,buffers=4096,buflen=65536,transfers=15,stream_timeout_ms=30000,verbosity=debug',
 				'args': 'bladerf=0,fpga=/home/mmills/build/hostedx40.rbf',
-				'center_freq': 479687500,
+				'center_freq': 479693750,
 				'samp_rate': 6000000,
 				'rf_gain': 2,
 				'bb_gain': 9
