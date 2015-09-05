@@ -6,7 +6,7 @@
 # 4/28/2013 - Initial Creation
 class rc_config:
 	def __init__(self):
-                self.receiver_split2 = False    #Does the frontend receiver split each inbound source by 1/2
+                self.receiver_split2 = True    #Does the frontend receiver split each inbound source by 1/2
 
                 self.frontend_ip = '127.0.0.1'
                 self.backend_ip = '127.0.0.1'
