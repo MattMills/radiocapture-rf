@@ -46,7 +46,8 @@ class logging_receiver(gr.top_block):
 		#optionally keep wav files around
 		self.log_wav = False
 
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", port, 1472, True)
+		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", port, 30000, True)
+		self.source.set_min_output_buffer(128*1024)
 		#self.lp1_decim = int(self.input_rate/(self.channel_rate*1.6))
                 #self.lp1 = filter.fir_filter_ccc(self.lp1_decim,firdes.low_pass( 1.0, self.input_rate, (self.channel_rate/2), ((self.channel_rate/2)*0.6), firdes.WIN_HAMMING))
 

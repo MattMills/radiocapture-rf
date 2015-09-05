@@ -89,7 +89,8 @@ class receiver(gr.top_block):
                 self.systems[system]['channel_id'] = None
 		self.systems[system]['start_time'] = time.time()
 
-                udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8123), 1472, True) #Nonsense port gets changed in retune_control
+                udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8123), 30000, True) #Nonsense port gets changed in retune_control
+		udp_source.set_min_output_buffer(128*1024)
 
 		self.lock()
                 self.connect(udp_source, self.systems[system]['block'])
@@ -143,7 +144,8 @@ class receiver(gr.top_block):
 		source = None
 		self.systems[system]['source'] = None
 		#del source
-		source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", self.connector.channel_id_to_port[channel_id], 1472, True)
+		source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", self.connector.channel_id_to_port[channel_id], 30000, True)
+		source.set_min_output_buffer(128*1024)
 		self.connect(source,channel)
 		self.systems[system]['source'] = source
 		#source.connect('127.0.0.1', self.connector.channel_id_to_port[channel_id])
