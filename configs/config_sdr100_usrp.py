@@ -7,6 +7,7 @@
 class rc_config:
 	def __init__(self):
                 self.receiver_split2 = True    #Does the frontend receiver split each inbound source by 1/2
+		self.frontend_mode = 'xlat' #Options (pfb, xlat), pfb uses polyphase filter banks, xlat uses xlating fir filters
 
                 self.frontend_ip = '127.0.0.1'
                 self.backend_ip = '127.0.0.1'
@@ -29,7 +30,7 @@ class rc_config:
 				#'device_addr': "serial=E7R12X7B1",
 				'otw_format': 'sc8',
 				'args': '',
-				'center_freq': 866637500,
+				'center_freq': 866537500,
 				'samp_rate': 8000000,
 				'rf_gain': 3
 			}
