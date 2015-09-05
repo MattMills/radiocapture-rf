@@ -26,7 +26,7 @@ class receiver(gr.top_block):
 		self.access_lock = threading.RLock()
 		self.access_lock.acquire()
 	
-		config = rc_config()
+		self.config = config = rc_config()
                 self.realsources = config.sources
 
 		self.sources = {}
@@ -174,8 +174,11 @@ class receiver(gr.top_block):
                                 filt1 = filter.freq_xlating_fir_filter_ccc(decim, (taps), -samp_rate/4, samp_rate)
                                 filt2 = filter.freq_xlating_fir_filter_ccc(decim, (taps), samp_rate/4, samp_rate)
 
-				self.connect(self.realsources[source]['block'], filt1)
-				self.connect(self.realsources[source]['block'], filt2)
+				null_sink1 = blocks.null_sink(gr.sizeof_gr_complex*1)
+				null_sink2 = blocks.null_sink(gr.sizeof_gr_complex*1)
+
+				self.connect(self.realsources[source]['block'], filt1, null_sink1)
+				self.connect(self.realsources[source]['block'], filt2, null_sink2)
 			
 				newsource1['block'] = filt1
 				newsource1['center_freq'] = self.realsources[source]['center_freq']-self.realsources[source]['samp_rate']/4
@@ -184,6 +187,8 @@ class receiver(gr.top_block):
 				newsource2['center_freq'] = self.realsources[source]['center_freq']+self.realsources[source]['samp_rate']/4
 				newsource2['samp_rate'] = newsource2['samp_rate']/decim
 		
+				
+		
 				self.sources[numsources] = newsource1
 				numsources = numsources+1
 				self.sources[numsources] = newsource2
@@ -191,26 +196,26 @@ class receiver(gr.top_block):
 			else:
 				self.sources[numsources] = self.realsources[source]
 				numsources = numsources+1
-
-                for source in self.sources:
-                        self.target_size = target_size = 400000
-                        if(self.sources[source]['samp_rate']%target_size):
-                                raise Exception('samp_rate not round enough')
-
-                        num_channels = int(math.ceil(self.sources[source]['samp_rate']/target_size))
-                        self.sources[source]['pfb'] = pfb.channelizer_ccf(
-                          num_channels,
-                          (optfir.low_pass(1,num_channels,0.5, 0.5+0.2, 0.1, 80)),
-                          1.0,
-                          100
-                        )
-                        self.sources[source]['pfb'].set_channel_map(([]))
-                        #null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                        #self.connect((self.sources[source]['pfb'], 0), null_sink)
-                        for x in range(0,num_channels):
-                                null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect((self.sources[source]['pfb'], x), null_sink)
-			self.connect(self.sources[source]['block'], self.sources[source]['pfb'])
+		if self.config.frontend_mode == 'pfb':
+	                for source in self.sources:
+	                        self.target_size = target_size = 400000
+	                        if(self.sources[source]['samp_rate']%target_size):
+	                                raise Exception('samp_rate not round enough')
+	
+	                        num_channels = int(math.ceil(self.sources[source]['samp_rate']/target_size))
+	                        self.sources[source]['pfb'] = pfb.channelizer_ccf(
+	                          num_channels,
+	                          (optfir.low_pass(1,num_channels,0.5, 0.5+0.2, 0.1, 80)),
+	                          1.0,
+	                          100
+	                        )
+	                        self.sources[source]['pfb'].set_channel_map(([]))
+	                        #null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+	                        #self.connect((self.sources[source]['pfb'], 0), null_sink)
+	                        for x in range(0,num_channels):
+	                                null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+	                                self.connect((self.sources[source]['pfb'], x), null_sink)
+				self.connect(self.sources[source]['block'], self.sources[source]['pfb'])
 
 		self.channels = []
 		#for i in self.sources.keys():
@@ -218,6 +223,63 @@ class receiver(gr.top_block):
 
 		self.access_lock.release()
 	def connect_channel(self, channel_rate, freq, dest, port):
+		if self.config.frontend_mode == 'pfb':
+			return self.connect_channel_pfb(channel_rate, freq, dest, port)
+		elif self.config.frontend_mode == 'xlat':
+			return self.connect_channel_xlat(channel_rate, freq, dest, port)
+		else:
+			raise Exception('No frontend_mode selected')
+
+	def connect_channel_xlat(self, channel_rate, freq, dest, port):
+		source_id = None
+
+                for i in self.sources.keys():
+                        if abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2:
+                                source_id = i
+                                break
+
+                if source_id == None:
+                        return -1
+		
+		source_center_freq = self.sources[source_id]['center_freq']
+                source_samp_rate = self.sources[source_id]['samp_rate']
+                source = self.sources[source_id]['block']
+
+		offset = freq-source_center_freq
+
+		#We have all our parameters, lets see if we can re-use an idling channel
+                self.access_lock.acquire()
+		block = None
+
+                for c in self.channels:
+                        if c.source_id == source_id and c.in_use == False:
+                                block = c
+                                block_id = c.block_id
+                                block.set_offset(offset)
+                                block.udp.disconnect()
+                                #TODO: move UDP output
+                                break
+
+                if block == None:
+                        block = channel.channel(dest, port, channel_rate,(source_samp_rate), offset)
+                        block.source_id = source_id
+
+                        self.channels.append(block)
+                        block_id = len(self.channels)-1
+                        block.block_id = block_id
+
+                        self.lock()
+                        self.connect(source, block)
+                        self.unlock()
+
+                block.in_use = True
+                block.udp.connect(dest, port)
+
+                self.access_lock.release()
+
+                return block.block_id
+
+	def connect_channel_pfb(self, channel_rate, freq, dest, port):
 	
 		source_id = None
 
