@@ -7,17 +7,25 @@
 class rc_config:
 	def __init__(self):
 
-		self.sources = {
+                self.sources = {
                         0:{
-                                'type': 'usrp',
-                                'device_addr': "recv_frame_size=49152,num_recv_frames=512,serial=EDR11Y7B1",
-                                'otw_format': 'sc16',
-                                'args': '',
+                                'type': 'usrp2x',
+                                #'device_addr': "recv_frame_size=49152,num_recv_frames=512,serial=E2R10Z3B1",
+                                'device_addr': "fpga=/usr/local/share/uhd/images/usrp_b100_fpga_2rx.bin,recv_frame_size=49152,num_recv_frames=512,serial=EDR11Y7B1",
+                                'otw_format': 'sc8',
+                                'args': 'peak=0.35',
                                 'center_freq': 864700000,
                                 'samp_rate': 8000000,
-                                'rf_gain': 3
+                                'rf_gain': 7
+                        },
+                        1:{
+                                'type': 'usrp2xb',
+                                'center_freq': 858000000,
+                                'samp_rate': 8000000,
+                                'rf_gain': 7
                         }
                 }
+
 
 		self.systems = {
 			0:{#San Diego - South Zone (1)
@@ -74,5 +82,4 @@ class rc_config:
 			}
 		}
 
-                del self.systems[1]
 

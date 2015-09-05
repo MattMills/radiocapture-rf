@@ -23,7 +23,8 @@ from gnuradio import blocks
 
 import time
 import threading
-
+import random
+import copy
 
 # import custom modules
 from moto_control_receiver import moto_control_receiver
@@ -33,7 +34,9 @@ from p25_control_receiver import p25_control_receiver
 
 from logging_receiver import logging_receiver
 from config import rc_config
+from frontend_connector import frontend_connector
 
+from backend_controller import backend_controller
 class receiver(gr.top_block):
 
 	def __init__(self):
@@ -45,6 +48,7 @@ class receiver(gr.top_block):
 		except:
 			pass
 		
+		self.ar_lock = threading.RLock()
 
 		##################################################
 		# Variables
@@ -56,132 +60,116 @@ class receiver(gr.top_block):
                 self.systems = config.systems
 
 
-		##################################################
-		# Blocks
-		##################################################
-		for source in self.sources:
-			if self.sources[source]['type'] == 'usrp':
-				this_dev = uhd.usrp_source(
-					device_addr=self.sources[source]['device_addr'],
-					stream_args=uhd.stream_args(
-						cpu_format="fc32",
-						otw_format=self.sources[source]['otw_format'],
-						args=self.sources[source]['args'],
-					),
-				)
-				this_dev.set_samp_rate(self.sources[source]['samp_rate'])
-				this_dev.set_center_freq(self.sources[source]['center_freq'])
-				this_dev.set_gain(self.sources[source]['rf_gain'])
-	
-				try:
-					null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-				except:
-					null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-				self.connect(this_dev, null_sink)
-	
-				self.sources[source]['block'] = this_dev
-			if self.sources[source]['type'] == 'usrp2x':
-				this_dev = uhd.usrp_source(
-                                        device_addr=self.sources[source]['device_addr'],
-                                        stream_args=uhd.stream_args(
-                                                cpu_format="fc32",
-                                                otw_format=self.sources[source]['otw_format'],
-                                                args=self.sources[source]['args'],
-						channels=range(2),
-                                        ),
-                                )
-				
-				this_dev.set_subdev_spec('A:RX1 A:RX2', 0)
-                                this_dev.set_samp_rate(self.sources[source]['samp_rate'])
-
-                                this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
-				this_dev.set_center_freq(self.sources[source+1]['center_freq'], 1)
-                                this_dev.set_gain(self.sources[source]['rf_gain'], 0)
-				this_dev.set_gain(self.sources[source+1]['rf_gain'], 1)
-			
-				multiply = blocks.multiply_const_vcc((1, ))
-				try:
-                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-                                except:
-                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-				self.connect((this_dev,0), multiply, null_sink)
-                                self.sources[source]['block'] = multiply
-
-				multiply = blocks.multiply_const_vcc((1, ))
-				try:
-                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-                                except:
-                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect((this_dev,1), multiply, null_sink)
-                                self.sources[source+1]['block'] = multiply
-			if self.sources[source]['type'] == 'bladerf':
-				this_dev = osmosdr.source( args=self.sources[source]['args'] )
-			        this_dev.set_sample_rate(self.sources[source]['samp_rate'])
-			        this_dev.set_center_freq(self.sources[source]['center_freq'], 0)
-			        this_dev.set_freq_corr(0, 0)
-			        this_dev.set_dc_offset_mode(0, 0)
-			        this_dev.set_iq_balance_mode(0, 0)
-			        this_dev.set_gain_mode(0, 0)
-			        this_dev.set_gain(self.sources[source]['rf_gain'], 0)
-			        this_dev.set_if_gain(20, 0)
-			        this_dev.set_bb_gain(self.sources[source]['bb_gain'], 0)
-			        this_dev.set_antenna("", 0)
-			        this_dev.set_bandwidth(0, 0)
-				
-
-				try:
-                                        null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
-                                except:
-                                        null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
-                                self.connect(this_dev, null_sink)
-
-                                self.sources[source]['block'] = this_dev
+		self.connector = frontend_connector(config.backend_ip, config.frontend_ip)
 	
 		##################################################
 		# Connections
 		##################################################
-		for system in self.systems:
-			if self.systems[system]['type'] == 'moto':
-				self.systems[system]['block'] = moto_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
-			elif self.systems[system]['type'] == 'edacs':
-				self.systems[system]['block'] = edacs_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
-			elif self.systems[system]['type'] == 'scanner':
-                                self.systems[system]['block'] = scanning_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
-			elif self.systems[system]['type'] == 'p25':
-                                self.systems[system]['block'] = p25_control_receiver( self.systems[system], self.sources[0]['samp_rate'], self.sources, self, system)
-			else:
-				raise Exception('Invalid system type %s' % (self.systems[system]['type']))
-			this_block = self.systems[system]['block']
-			self.systems[system]['source'] = 0
-			self.connect(self.sources[0]['block'], this_block)
-		
 		self.active_receivers = []
-		self.ar_lock = threading.RLock()
+
+		for system in self.systems:
+			self.build_receiver(system)
+			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
+		
+		self.backend_controller = backend_controller(self)
+
+	def build_receiver(self, system, capture = True):
+		if self.systems[system]['type'] == 'moto':
+                        self.systems[system]['block'] = moto_control_receiver( self.systems[system], self, system)
+                elif self.systems[system]['type'] == 'edacs':
+                        self.systems[system]['block'] = edacs_control_receiver( self.systems[system], self, system)
+                elif self.systems[system]['type'] == 'scanner':
+                        self.systems[system]['block'] = scanning_receiver( self.systems[system], self, system)
+                elif self.systems[system]['type'] == 'p25':
+                        self.systems[system]['block'] = p25_control_receiver( self.systems[system], self, system)
+                else:
+                        raise Exception('Invalid system type %s' % (self.systems[system]['type']))
+
+		self.systems[system]['block'].enable_capture = capture
+                self.systems[system]['channel_id'] = None
+		self.systems[system]['start_time'] = time.time()
+
+                udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8123), 30000, True) #Nonsense port gets changed in retune_control
+		udp_source.set_min_output_buffer(128*1024)
+
+		self.lock()
+                self.connect(udp_source, self.systems[system]['block'])
+		self.unlock()
+
+                self.systems[system]['source'] = udp_source
+	
+	def rebuild_receiver(self, system):
+		old_receiver = self.systems[system]['block']
+		old_freq = self.systems[system]['block'].control_channel
+
+		self.build_receiver(system, False)
+                self.retune_control(system, old_freq)
+		
+		loop_continue = True
+		loop_start = time.time()
+		#60s timeout loop to attempt to get control channel lock before becoming authoritative receiver
+		print 'System: rebuild loop start'
+		while loop_continue:
+			if loop_start - time.time() > 60:
+				loop_continue = False	
+			elif self.systems[system]['block'].is_locked :
+				loop_continue = False
+			else:
+				time.sleep(0.2)
+		print 'System: Rebuild loop end'
+
+		old_receiver.enable_capture = False
+		self.systems[system]['block'].enable_capture = True
+		old_receiver.keep_running = False
+			
 
 	def retune_control(self, system, freq):
 		channel = self.systems[system]['block']
-		for i in self.sources.keys():
-			if(abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2):
-				if i == self.systems[system]['source']:
-					return i
-				else:
-					self.lock()
-					self.disconnect(self.sources[self.systems[system]['source']]['block'], channel)
-					self.connect(self.sources[i]['block'], channel)
-					self.systems[system]['source'] = i
-					self.unlock()
-					return i
-		raise Exception('Control Frequency out of range %s' % (freq))
+		source = self.systems[system]['source']
+	
+		self.ar_lock.acquire()
 
-	def connect_channel(self, freq, channel):
-		for i in self.sources.keys():
-			if(abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2):
-				self.lock()
-				self.connect((self.sources[i]['block']), channel)
-				self.unlock()
-				return self.sources[i]['center_freq']
-		raise Exception('Frequency out of range %s' % (freq))
+		if(self.systems[system]['channel_id'] != None):
+			self.connector.release_channel(self.systems[system]['channel_id'])
+		channel_id = self.connector.create_channel(channel.channel_rate, freq)
+		if channel_id == False:
+			self.ar_lock.release()
+			raise Exception('Unable to tune CC %s' % (freq))	
+			
+	
+		self.systems[system]['channel_id'] = channel_id
+		self.lock()
+		source.disconnect()
+		self.disconnect(source,channel)
+		source = None
+		self.systems[system]['source'] = None
+		#del source
+		source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", self.connector.channel_id_to_port[channel_id], 30000, True)
+		source.set_min_output_buffer(128*1024)
+		self.connect(source,channel)
+		self.systems[system]['source'] = source
+		#source.connect('127.0.0.1', self.connector.channel_id_to_port[channel_id])
+		print 'connected %s %s %s %s' % (system, freq, channel.channel_rate, self.connector.channel_id_to_port[channel_id])
+		self.unlock()
 
+		self.ar_lock.release()
+	def connect_channel(self, freq, channel_rate):
+		self.ar_lock.acquire()
+                channel_id = self.connector.create_channel(channel_rate, freq)
+                if channel_id == False:
+			self.ar_lock.release()
+                        raise Exception('Unable to tune audio channel %s' % (freq))
+
+		port = self.connector.channel_id_to_port[channel_id]
+		channel = logging_receiver(port)
+		channel.start()
+
+		channel.channel_id = channel_id
+		self.active_receivers.append(channel)
+		
+                print 'connected %s %s %s' % (freq, channel_rate, self.connector.channel_id_to_port[channel_id])
+		self.ar_lock.release()
+		return channel
 if __name__ == '__main__':
 ####################################################################################################
 	
@@ -190,26 +178,42 @@ if __name__ == '__main__':
 	tb = receiver()
 	tb.start()
 	print 'Entering top_block loop'
-
 	while 1:
 		tb.ar_lock.acquire()
 		for i,receiver in enumerate(tb.active_receivers):
+			#if receiver == None:
+			#	continue
 			if 'hang_time' in receiver.cdr:
 				hang_time = receiver.cdr['hang_time']
 			else:
 				hang_time = 3.5
-			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
+			if time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
+				tb.connector.release_channel(receiver.channel_id)
 				receiver.close({})
+				#receiver.destroy()
+
+				#tb.active_receivers[i] = None
+				#receiver = None
+				#del tb.active_receivers[i]
+				#continue
 			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
-				cdr = receiver.cdr
-				audio_rate = receiver.audio_rate
-				receiver.close({})
-				receiver.open(cdr,audio_rate)
-		#	if receiver.in_use == False and time.time()-receiver.time_last_use > 120:
-		#		tb.lock()
-		#		tb.disconnect(tb.active_receivers[i])
-		#		del tb.active_receivers[i]
-		#		tb.unlock()
+				try:
+					cdr = receiver.cdr
+					audio_rate = receiver.audio_rate
+					receiver.close({}, emergency=True)
+					receiver.open(cdr,audio_rate)
+				except:
+					pass
+			if receiver.destroyed == True:
+				#tb.lock()
+				#tb.disconnect(tb.active_receivers[i])
+				#del tb.active_receivers[i]
+				#tb.unlock()
+				#receiver.destroy()
+
+                                tb.active_receivers[i] = None
+                                receiver = None
+                                del tb.active_receivers[i]
 		tb.ar_lock.release()
 		time.sleep(0.1)
 

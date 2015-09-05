@@ -16,7 +16,7 @@ from logging_receiver import logging_receiver
 
 class moto_control_receiver(gr.hier_block2):
 
-	def __init__(self, system, samp_rate, sources, top_block, block_id):
+	def __init__(self, system, top_block, block_id):
 
                 gr.hier_block2.__init__(self, "moto_control_receiver",
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
@@ -26,12 +26,17 @@ class moto_control_receiver(gr.hier_block2):
 		# Variables
 		##################################################
 		self.tb = top_block
+		self.channel_rate = 12500
+		self.hang_time = 0.5
 		self.packets = 0
 		self.packets_bad = 0
+	
+		self.quality = []
+
 		self.symbol_rate = symbol_rate = 3600.0
-		self.samp_rate = samp_rate
 		self.control_source = 0
 		self.block_id = block_id
+
 		
 		self.offset = offset = 0
 		self.is_locked = False
@@ -39,7 +44,6 @@ class moto_control_receiver(gr.hier_block2):
 		self.system = system
 
 		self.system_id = system['id']
-		self.sources = sources
 		self.channels = system['channels']
 		self.channels_list = self.channels.keys()
 
@@ -51,6 +55,9 @@ class moto_control_receiver(gr.hier_block2):
 		self.option_dc_offset = False
 		self.option_udp_sink = False
 		self.option_logging_receivers = True
+
+		self.enable_capture = True
+		self.keep_running = True
 
 		##################################################
 		# Message Queues
@@ -75,12 +82,9 @@ class moto_control_receiver(gr.hier_block2):
 
 		self.source = self
 
-		control_sample_rate = 10000
-		channel_rate = control_sample_rate*3
-		self.f1d = f1d = int(samp_rate/channel_rate) #filter 1 decimation
+		control_sample_rate = 12500
+		channel_rate = control_sample_rate*2
 
-		self.control_prefilter_taps = firdes.low_pass(5,samp_rate,(control_sample_rate/2), (control_sample_rate*0.5))
-		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(f1d, (self.control_prefilter_taps), 100000, samp_rate)
 		self.control_quad_demod = analog.quadrature_demod_cf(0.1)
 
 		if(self.option_dc_offset):
@@ -89,7 +93,7 @@ class moto_control_receiver(gr.hier_block2):
 			self.probe = blocks.probe_signal_f()
 
 
-		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/f1d/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
+		self.control_clock_recovery = digital.clock_recovery_mm_ff(channel_rate/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
 		self.control_binary_slicer = digital.binary_slicer_fb()
 		self.control_byte_pack = blocks.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		self.control_msg_sink = blocks.message_sink(gr.sizeof_char*1, self.control_msg_sink_msgq, True)
@@ -101,8 +105,7 @@ class moto_control_receiver(gr.hier_block2):
 		# Connections
 		##################################################
 
-		self.connect(self.source, self.control_prefilter)
-		self.connect(self.control_prefilter, self.control_quad_demod, self.control_clock_recovery)
+		self.connect(self, self.control_quad_demod, self.control_clock_recovery)
                 self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
 
 		if(self.option_dc_offset):
@@ -115,29 +118,39 @@ class moto_control_receiver(gr.hier_block2):
 		return self.control_msg_sink_msgq.delete_head().to_string()
 	def tune_next_control(self):
                 self.control_channel_key += 1
-                if(self.control_channel_key >= len(self.channels_list)):
+                if(self.control_channel_key >= len(self.channels)):
                         self.control_channel_key = 0
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 
 		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
-		self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
 
-		print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
+		print 'CC Change - %s' % (self.control_channel)
 		self.control_msg_sink_msgq.flush()
 		time.sleep(0.1)
 
         def quality_check(self):
+
+		desired_quality = 429.0 # approx 42.9 packets per sec
+
                 #global bad_messages, total_messages
                 bad_messages = self.packets_bad
                 total_messages = self.packets
                 #dbc = query_handler()
                 last_total = 0
                 last_bad = 0
-                while True:
+                while self.keep_running:
                         time.sleep(10); #only check messages once per 10second
 
                         sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.packets-last_total) + '/' + str(self.packets_bad-last_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+			current_packets = self.packets-last_total
+			current_packets_bad = self.packets_bad-last_bad
+                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+
+			if len(self.quality) >= 60:
+				self.quality.pop(0)
+
+			self.quality.append((current_packets-current_packets_bad)/desired_quality)
+
                         last_total = self.packets
                         last_bad = self.packets_bad
 
@@ -173,7 +186,7 @@ class moto_control_receiver(gr.hier_block2):
 		last_i = 0x0
 		last_data = 0x0
 
-		while 1:
+		while self.keep_running:
 			if(sync_loops < -200):
 				print 'NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]])
 				#print 'b/p: %s %s' % (packets, packets_bad)
@@ -414,6 +427,8 @@ class moto_control_receiver(gr.hier_block2):
 								p['k'] = (lid & 0x8) >> 3
                                                         p['type'] = 'System status'
 						elif self.channels.has_key(cmd) and lid != self.system_id and tg != 0x1ff0:
+							if 'offset' in self.system.keys() and last_cmd == cmd-self.system['offset']:
+								dual = True
 							if dual and last_cmd == 0x308:
 	                                                        p['type'] = 'Analog Call'
 								call_type = 'a'
@@ -423,42 +438,59 @@ class moto_control_receiver(gr.hier_block2):
 							else:
 	                                                        p['type'] = 'Call Continuation'
 								call_type = 'u'
+
+							if 'force_p25' in self.system.keys() and self.system['force_p25']:
+								call_type = 'd'
+
 							if(self.option_logging_receivers):
 								if self.channels[cmd] == self.control_channel:
 									continue
+								#This allows the upstream control to disable capture during receiver handoff.
+								if not self.enable_capture:
+									continue 
+							
 								allocated_receiver = False
 								self.tb.ar_lock.acquire()
 								for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
 									if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
 										if dual and receiver.cdr['system_user_local'] != last_data:
 											#existing call but user LID does not match!
-											receiver.close({}, True, True)
+											self.tb.connector.release_channel(receiver.channel_id)
+											receiver.close({})
 											allocated_receiver = receiver
-											center = receiver.center_freq
 										else:
 											receiver.activity()
 											allocated_receiver = -1
 											break
 								
 								if allocated_receiver != -1:
-									for receiver in self.tb.active_receivers: #look for an empty channel
-										if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-											allocated_receiver = receiver
-											center = receiver.center_freq
-											break
+									#for receiver in self.tb.active_receivers: #look for an empty channel
+									#	if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
+									#		allocated_receiver = receiver
+									#		center = receiver.center_freq
+									#		break
 								
-									if allocated_receiver == False: #or create a new one if there arent any empty channels
-										allocated_receiver = logging_receiver(self.samp_rate)
-										center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
-										self.tb.active_receivers.append(allocated_receiver)
-									
-								
-									allocated_receiver.tuneoffset(self.channels[cmd], center)
+									#if allocated_receiver == False: #or create a new one if there arent any empty channels
+									#	allocated_receiver = logging_receiver(self.samp_rate)
+									#	center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
+									#	self.tb.active_receivers.append(allocated_receiver)
+
 									if(call_type == 'd'):
-										allocated_receiver.set_codec_p25(True)
+										bandwidth = 12500
 									else:
-										allocated_receiver.set_codec_p25(False)
-									allocated_receiver.set_codec_provoice(False)
+										bandwidth = 12500
+
+									try:
+						                                allocated_receiver = self.tb.connect_channel(self.channels[cmd], bandwidth)
+					        	                except:
+										self.tb.ar_lock.release()
+					                	                continue
+								
+									#allocated_receiver.tuneoffset(self.channels[cmd], center)
+									if(call_type == 'd'):
+										allocated_receiver.configure_blocks('p25')
+									else:
+										 allocated_receiver.configure_blocks('analog')
 									user_local = last_data if dual else 0
 									cdr = {
 										'system_id': self.system['id'], 
@@ -466,16 +498,15 @@ class moto_control_receiver(gr.hier_block2):
 										'system_user_local': user_local,
 										'system_channel_local': cmd, 
 										'type': 'group', 
-										'center_freq': center
 									}
-
-									allocated_receiver.open(cdr, 12500.0)
+									allocated_receiver.set_rate(bandwidth)
+									allocated_receiver.open(cdr)
 								self.tb.ar_lock.release()
 										
 						else:
                                                         p['type'] = 'Unknown OSW'
 
-						if True:
+						if p['type'] != 'System status':
 							print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
 						last_cmd = cmd
 						last_i = individual

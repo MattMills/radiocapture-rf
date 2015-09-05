@@ -6,21 +6,26 @@
 # 4/28/2013 - Initial Creation
 class rc_config:
 	def __init__(self):
+                self.receiver_split2 = False    #Does the frontend receiver split each inbound source by 1/2
+
+                self.frontend_ip = '127.0.0.1'
+                self.backend_ip = '127.0.0.1'
+
 
 		self.sources = {
 			0:{
                                 'type': 'bladerf',
 				'args': 'numchan=1 bladerf=0,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
-                                'center_freq': 771644444,#855500000,
-                                'samp_rate': 10666666,
+                                'center_freq': 771000000,#855500000,
+                                'samp_rate': 12000000,
                                 'rf_gain': 4,
 				'bb_gain': 9
                         },
 			1:{
 				'type': 'bladerf',
 				'args': 'numchan=1 bladerf=1,fpga=/home/mmills/build/hostedx40.rbf,num_samples=1048576,num_transfers=65536,num_buffers=65536',
-                                'center_freq': 855500000,
-                                'samp_rate': 10666666,
+                                'center_freq': 856000000,
+                                'samp_rate': 12000000,
                                 'rf_gain': 4,
                                 'bb_gain': 9
                         }
@@ -363,21 +368,21 @@ class rc_config:
 		#del self.systems[0]
                 
 
-		del self.systems[1]
+		#del self.systems[1]
                 
 
-		del self.systems[2]
-                del self.systems[4]
-                del self.systems[6]
-                del self.systems[7]
-                del self.systems[8]
+		#del self.systems[2]
+                #del self.systems[4]
+                #del self.systems[6]
+                #del self.systems[7]
+                #del self.systems[8]
 
-		del self.systems[3]
+		#del self.systems[3]
 		
 
-		del self.systems[5]
-		del self.systems[10]
-		del self.systems[11]
-		del self.systems[12]
-		del self.systems[13]
+		#del self.systems[5]
+		#del self.systems[10]
+		#del self.systems[11]
+		#del self.systems[12]
+		#del self.systems[13]
 	

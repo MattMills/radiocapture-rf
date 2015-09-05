@@ -15,7 +15,7 @@ import threading
 from logging_receiver import logging_receiver
 
 class edacs_control_receiver(gr.hier_block2):
-	def __init__(self, system, samp_rate, sources, top_block, block_id):
+	def __init__(self, system, top_block, block_id):
 		gr.hier_block2.__init__(self, "edacs_control_receiver",
                                 gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
                                 gr.io_signature(0, 0, 0)) # Output signature
@@ -23,9 +23,7 @@ class edacs_control_receiver(gr.hier_block2):
 		self.hang_time = 0.5
 
 		self.tb = top_block
-		self.sources = sources
 		self.system = system
-		self.samp_rate = samp_rate
 		self.block_id = block_id
 
 		self.audio_rate = audio_rate = 12500
@@ -38,35 +36,29 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
 
-		#self.control_lcn = control_lcn = 1
+		self.control_lcn = control_lcn = 1
 		self.bad_messages = 0
 		self.total_messages = 0
+		self.quality = []
 
 		self.is_locked = False
 
-		#self.control_lcn_alt.insert(0, self.control_lcn) # add primary LCN to end of alternate list
+		self.enable_capture = True
+		self.keep_running = True
 
 		################################################
 		# Blocks
 		################################################
 	
 
-		control_samp_rate = 12500
-		control_channel_rate = control_samp_rate #Channel rate must be higher for clock recovery
-		decimation_s1 = int(samp_rate/control_channel_rate)
-		post_decimation_samp_rate = int(samp_rate/decimation_s1)
+		self.channel_rate = 12500
+		self.receive_rate = self.channel_rate*2 #Decimation adds 50% on either side
 
-		print 'Decimation: %s' % (decimation_s1)
-
-		self.taps = taps = firdes.low_pass(5, samp_rate, control_channel_rate/2, control_channel_rate/2*0.55, firdes.WIN_HAMMING)
-
-		#self.set_max_output_buffer(100000)
-        	self.control_prefilter = filter.freq_xlating_fir_filter_ccc(decimation_s1, (taps), 0, samp_rate)
 		try:
 			self.control_quad_demod = gr.quadrature_demod_cf(5)
 		except:
 			self.control_quad_demod = analog.quadrature_demod_cf(5)
-		self.control_clock_recovery = digital.clock_recovery_mm_ff(samp_rate/decimation_s1/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
+		self.control_clock_recovery = digital.clock_recovery_mm_ff(self.receive_rate/symbol_rate, 1.4395919, 0.5, 0.05, 0.005)
                 self.control_binary_slicer = digital.binary_slicer_fb()
 		try:
 			self.control_unpacked_to_packed = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
@@ -88,18 +80,17 @@ class edacs_control_receiver(gr.hier_block2):
 		#self.websocket_sink = gr.udp_sink(gr.sizeof_char, "127.0.0.1", (10000+self.system['id']), 1472, True)
 		#self.connect(self.control_unpacked_to_packed, self.websocket_sink)
 
-		#self.connect(self.control_freq_xlating_fir_filter, self.udp_sink)
+		#self.udp_sink = blocks.udp_sink(gr.sizeof_gr_complex, "127.0.0.1", (9999+self.system['id']), 1472, True)
+		#self.connect(self, self.udp_sink)
 	
 		#self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
                 #self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
 
-		self.source = self
 		################################################
 		# Connections
 		################################################
 	
-		self.connect(   (self.source, self.control_source),
-                                self.control_prefilter,
+		self.connect(   self,
                                 self.control_quad_demod,
                                 self.control_clock_recovery,
                                 self.control_binary_slicer,
@@ -135,8 +126,7 @@ class edacs_control_receiver(gr.hier_block2):
 		
 		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
 	
-                self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
-                print 'CC Change - %s - %s - %s' % (self.control_channel, self.sources[self.control_source]['center_freq'], self.sources[self.control_source]['center_freq']-self.control_channel)
+                print 'CC Change - %s' % (self.control_channel)
                 self.control_msg_queue.flush()
                 time.sleep(0.1)
 
@@ -146,13 +136,6 @@ class edacs_control_receiver(gr.hier_block2):
 
         def recv_pkt(self):
                 return self.control_msg_queue.delete_head().to_string()
-        def build_audio_channel(self, c):
-		allocated_receiver = logging_receiver(self.samp_rate)
-		center = self.tb.connect_channel(self.channels[c], allocated_receiver)
-		self.tb.active_receivers.append(allocated_receiver)
-		
-		return (allocated_receiver, center)
-		
 
         def binary_invert(self, s):
                 r = ''
@@ -226,13 +209,13 @@ class edacs_control_receiver(gr.hier_block2):
                                 channel_matched = False
 				self.tb.ar_lock.acquire()
                                 for v in self.tb.active_receivers:
+					if v == None: continue
                                         if(v.cdr != {} and v.in_use and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel']):
                                                 v.activity()
 						if(r['mtc'] == 3):
-							v.set_codec_provoice(True)
+							v.configure_blocks('provoice')
 						else:
-							v.set_codec_provoice(False
-)
+							v.configure_blocks('analog')
                                                 channel_matched = True
 				self.tb.ar_lock.release()
                                 if(not channel_matched and r['mtc'] != 1 and r['mtc'] != 0):
@@ -347,6 +330,9 @@ class edacs_control_receiver(gr.hier_block2):
 
                 return False
         def quality_check(self):
+
+		desired_quality = 666.0 #approx 66.0 packets per sec
+
                 #global bad_messages, total_messages
 		bad_messages = self.bad_messages
 		total_messages = self.total_messages
@@ -356,21 +342,32 @@ class edacs_control_receiver(gr.hier_block2):
                 while True:
                         time.sleep(10); #only check messages once per 10second
                         sid = self.system['id']
-                        print 'System: ' + str(sid) + ' (' + str(self.total_messages-last_total) + '/' + str(self.bad_messages-last_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
-                        #dbc.query('insert into signal_record (total, bad, timestamp, system) values (%s, %s, CURRENT_TIMESTAMP, %s)' % ((total_messages[sid]-last_total[sid]), (bad_messages[sid]-last_bad[sid]), sid))
+			current_packets = self.total_messages-last_total
+			current_packets_bad = self.bad_messages-last_bad
+
+                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+
+
+			if len(self.quality) >= 60:
+                                self.quality.pop(0)
+
+                        self.quality.append((current_packets-current_packets_bad)/desired_quality)
+
                         last_total = self.total_messages
                         last_bad = self.bad_messages
 
         def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
+		if not self.enable_capture:
+			return True
 		self.tb.ar_lock.acquire()
-		receiver = False
-		while receiver == False:# or receiver.get_lock() != self.thread_id:
-	                (receiver,center) = self.get_receiver(system, channel)
+
+		receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
-                print 'Tuning new group call - %s %s' % ( system['channels'][channel], center)
-                receiver.tuneoffset(system['channels'][channel], center)
-                receiver.set_codec_provoice(provoice)
-		receiver.set_codec_p25(False)
+                print 'Tuning new group call - %s' % ( system['channels'][channel])
+		if provoice:
+			receiver.configure_blocks('provoice')
+		else:
+			receiver.configure_blocks('analog')
 		cdr = {
 			'system_id': self.system['id'], 
 			'system_type': self.system['type'],
@@ -378,20 +375,21 @@ class edacs_control_receiver(gr.hier_block2):
 			'system_user_local': logical_id,
 			'system_channel_local': channel,
 			'type': 'group',
-			'center_freq': center,
 			'hang_time': self.hang_time
 		}
-		receiver.open(cdr, self.audio_rate)
+		receiver.set_rate(self.audio_rate)
+		receiver.open(cdr)
 		self.tb.ar_lock.release()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
+		if not self.enable_capture:
+			return True
 		self.tb.ar_lock.acquire()
-		reciever = False
-		while receiver == False:# or receiver.get_lock() != self.thread_id:
-	                (receiver,center) = self.get_receiver(system, channel)
+	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
-                receiver.tuneoffset(system['channels'][channel], self.center_freq)
-                receiver.set_codec_provoice(False)
-		receiver.set_codec_p25(False)
+                if provoice:
+                        receiver.configure_blocks('provoice')
+                else:
+                        receiver.configure_blocks('analog')
                 cdr = {
                         'system_id': self.system['id'],
 			'system_type': self.system['type'],
@@ -399,29 +397,11 @@ class edacs_control_receiver(gr.hier_block2):
                         'system_caller_local': caller_logical_id,
                         'system_channel_local': channel,
                         'type': 'individual',
-                        'center_freq': center,
 			'hang_time': self.hang_time
                 }
+		receiver.set_rate(self.audio_rate)
 		receiver.open(cdr, self.audio_rate)
 		self.tb.ar_lock.release()
-        def get_receiver(self, system, channel):
-                free_al = []
-                for v in self.tb.active_receivers:
-                        if(v.in_use == False): free_al.append(v)
-                        if(v.cdr != {} and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == channel and v.in_use == True):
-                                print 'emergency close of open audiologger for new traffic'
-                                v.close(self.patches, True, True)
-                                receiver = v
-				center = receiver.center_freq
-				return (receiver,center)
-		for v in free_al:
-			if abs(v.center_freq-system['channels'][channel]) < (self.samp_rate/2):
-	                	receiver = v
-				center = receiver.center_freq
-				return (receiver,center)
-
-		(receiver, center) = self.build_audio_channel(channel)
-                return (receiver,center)
 
         def packet_framer(self, system, frame, bad_messages, total_messages):
                 m1_1 = frame[0:40]
@@ -581,7 +561,7 @@ class edacs_control_receiver(gr.hier_block2):
 	        self.loop_start = loop_start = time.time()
 		system = self.system
 
-	        while(1):
+	        while(self.keep_running):
 			for patch in self.patches:
 				deletes = []
 				for group in self.patches[patch]:
