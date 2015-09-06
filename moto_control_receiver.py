@@ -444,7 +444,10 @@ class moto_control_receiver(gr.hier_block2):
 							if 'force_p25' in self.system.keys() and self.system['force_p25']:
 								call_type = 'd'
 
+							user_local = last_data if dual else 0
+
 							if(self.option_logging_receivers):
+								self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  tg, user_local, self.channels[cmd], call_type)
 								if self.channels[cmd] == self.control_channel:
 									continue
 								#This allows the upstream control to disable capture during receiver handoff.
@@ -493,7 +496,6 @@ class moto_control_receiver(gr.hier_block2):
 										allocated_receiver.configure_blocks('p25')
 									else:
 										 allocated_receiver.configure_blocks('analog')
-									user_local = last_data if dual else 0
 									cdr = {
 										'system_id': self.system['id'], 
 										'system_group_local': tg, 
@@ -511,7 +513,7 @@ class moto_control_receiver(gr.hier_block2):
 						if p['type'] != 'System status':
 							print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
 
-						self.backend_event_publisher.publish_raw_control('test', self.system_id, p)
+						self.backend_event_publisher.publish_raw_control('test', self.system['id'], self.system['type'], p)
 						last_cmd = cmd
 						last_i = individual
 						last_data = lid
