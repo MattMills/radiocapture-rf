@@ -13,6 +13,7 @@ import os
 import random
 import threading
 from logging_receiver import logging_receiver
+from backend_event_publisher import backend_event_publisher
 
 class edacs_control_receiver(gr.hier_block2):
 	def __init__(self, system, top_block, block_id):
@@ -105,6 +106,7 @@ class edacs_control_receiver(gr.hier_block2):
 		###############################################
 		self.patches = {}
 		self.patch_timeout = 3 #seconds
+                self.backend_event_publisher = backend_event_publisher()
 
 		control_decode_0 = threading.Thread(target=self.control_decode)
 		control_decode_0.daemon = True
@@ -357,6 +359,13 @@ class edacs_control_receiver(gr.hier_block2):
                         last_bad = self.bad_messages
 
         def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
+		if provoice == False:
+			call_type = 'group_analog'
+		else:
+			call_type = 'group_provoice'
+
+		self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  group, logical_id, system['channels'][channel], call_type)
+
 		if not self.enable_capture:
 			return True
 		self.tb.ar_lock.acquire()
@@ -381,6 +390,12 @@ class edacs_control_receiver(gr.hier_block2):
 		receiver.open(cdr)
 		self.tb.ar_lock.release()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
+		if provoice == False:
+                        call_type = 'individual_analog'
+                else:
+                        call_type = 'individual_provoice'
+
+                self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  group, logical_id, system['channels'][channel], call_type)
 		if not self.enable_capture:
 			return True
 		self.tb.ar_lock.acquire()
