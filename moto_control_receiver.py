@@ -13,6 +13,7 @@ import time
 import threading
 
 from logging_receiver import logging_receiver
+from backend_event_publisher import backend_event_publisher
 
 class moto_control_receiver(gr.hier_block2):
 
@@ -113,6 +114,7 @@ class moto_control_receiver(gr.hier_block2):
 
 		if(self.option_udp_sink):
 			self.connect(self.control_prefilter, self.udp)
+		self.backend_event_publisher = backend_event_publisher()
 		
 	def get_msgq(self):
 		return self.control_msg_sink_msgq.delete_head().to_string()
@@ -508,6 +510,8 @@ class moto_control_receiver(gr.hier_block2):
 
 						if p['type'] != 'System status':
 							print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
+
+						self.backend_event_publisher.publish_raw_control('test', self.system_id, p)
 						last_cmd = cmd
 						last_i = individual
 						last_data = lid
