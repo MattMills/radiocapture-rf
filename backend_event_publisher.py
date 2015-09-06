@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 
-import zmq
+from stompest.config import StompConfig
+from stompest.sync import Stomp
 import json
 import zlib
 
 
-class receiver_publisher():
-        def __init__(self, host='*', port=50001):
+class backend_event_publisher():
+        def __init__(self):
 
-                context = zmq.Context()
-                self.socket = context.socket(zmq.PUB)
-                self.socket.connect("tcp://%s:%s" % (host, port))
+		self.config = StompConfig('tcp://23.239.220.248:61613')
+		self.client = Stomp(self.config)
+		self.client.connect()
 
-		self.obq = []
 
-	def detail(self, system_id, item):
-		
-		self.socket.send("%s %s" % (system_id, zlib.compress(json.dumps(item))))
+	def publish_raw_control(self, location_id, system_id, item):
+		dest_queue = '/topic/raw/%s/%s' % (location_id, system_id)
+		self.client.send(dest_queue, json.dumps(item))
+
