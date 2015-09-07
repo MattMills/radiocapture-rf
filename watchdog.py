@@ -96,9 +96,12 @@ if __name__ == '__main__':
 			print all_status_avg
 			print all_uptime
 			for x in all_uptime:
-				if all_uptime[x] > 120:
+				if all_uptime[x] > 86400:
 					print 'Restart attempt on %s' % (x)
 					print w.restart_receiver(x)
+				#if all_uptime[x] > 300 and all_status_avg[x] < 0.8:
+				#	print 'Restart attempt on %s' % (x)
+                                #        print w.restart_receiver(x)
 		time.sleep(10)
 
 
