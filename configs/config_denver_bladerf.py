@@ -7,6 +7,7 @@
 class rc_config:
 	def __init__(self):
                 self.receiver_split2 = False    #Does the frontend receiver split each inbound source by 1/2
+		self.frontend_mode = 'xlat'
 
 		self.frontend_ip = '127.0.0.1'
 		self.backend_ip = '127.0.0.1'
@@ -19,7 +20,7 @@ class rc_config:
                                 'center_freq': 856175000,
                                 'samp_rate': 12000000,
                                 'rf_gain': 2,
-				'bb_gain': 18
+				'bb_gain': 20
                         }
 		}
 
@@ -122,5 +123,5 @@ class rc_config:
 				}
 			}
 		}
-		#del self.systems[3]
-		#del self.systems[2]
+		del self.systems[3]
+		del self.systems[2]
