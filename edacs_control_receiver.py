@@ -213,6 +213,7 @@ class edacs_control_receiver(gr.hier_block2):
                                 for v in self.tb.active_receivers:
 					if v == None: continue
                                         if(v.cdr != {} and v.in_use and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel']):
+				                self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  v.cdr['system_group_local'], v.cdr['system_user_local'], system['channels'][r['channel']], 'continuation')
                                                 v.activity()
 						if(r['mtc'] == 3):
 							v.configure_blocks('provoice')
