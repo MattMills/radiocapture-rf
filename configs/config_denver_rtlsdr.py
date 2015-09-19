@@ -7,6 +7,7 @@
 class rc_config:
 	def __init__(self):
                 self.receiver_split2 = False    #Does the frontend receiver split each inbound source by 1/2
+		self.frontend_mode = 'xlat'
 
                 self.frontend_ip = '127.0.0.1'
                 self.backend_ip = '127.0.0.1'
@@ -14,22 +15,50 @@ class rc_config:
 
 
 		self.samp_rate = 2400000
-		self.gain = 46
+		self.gain = 28
 		self.if_gain = 15 
 
 		self.sources = {
-			0:{'serial': 0},
-			1:{'serial': 1},
-			2:{'serial': 2},
-			3:{'serial': 3},
-			4:{'serial': 4}
-		}
-		self.center_freq = {
-			0: 855050000,
-			1: 857450000,
-			2: 859850000,
-			3: 852200000,
-			4: 853850000
+			0:{
+				'type': 'rtlsdr', 
+				'args': 'rtl=10',
+				'bb_gain': self.if_gain,
+				'rf_gain': self.gain,
+				'center_freq': 855050000,
+				'samp_rate': self.samp_rate
+			},
+			1:{
+                                'type': 'rtlsdr',
+                                'args': 'rtl=11',
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 857450000,
+                                'samp_rate': self.samp_rate
+                        },
+                        2:{
+                                'type': 'rtlsdr',
+                                'args': 'rtl=12',
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 859850000,
+                                'samp_rate': self.samp_rate
+                        },
+                        3:{
+                                'type': 'rtlsdr',
+                                'args': 'rtl=13',
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 852200000,
+                                'samp_rate': self.samp_rate
+                        },
+                        4:{
+                                'type': 'rtlsdr',
+                                'args': 'rtl=14',
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 853850000,
+                                'samp_rate': self.samp_rate
+                        },
 		}
 
 
