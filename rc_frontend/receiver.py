@@ -132,11 +132,12 @@ class receiver(gr.top_block):
 			if self.realsources[source]['type'] == 'rtlsdr':
 				import osmosdr
 
-                                process = os.popen('CellSearch -i '+ str(self.realsources[source]['serial']) +' -s 739e6 -e 739e6 -b | grep 739M | awk \'{sum+=$10} END { printf("%.10f", sum/NR)}\'')
-                                output = float(process.read())
-                                process.close()
-                                self.realsources[source]['offset'] = (1000000-(output*1000000))
-                                print 'Measured PPM - Dev#%s: %s' % (source, self.realsources[source]['offset'])
+                                #process = os.popen('CellSearch -i '+ str(self.realsources[source]['serial']) +' -s 739e6 -e 739e6 -b | grep 739M | awk \'{sum+=$10} END { printf("%.10f", sum/NR)}\'')
+                                #output = float(process.read())
+                                #process.close()
+                                #self.realsources[source]['offset'] = (1000000-(output*1000000))
+				self.realsources[source]['offset'] = 0
+                                #print 'Measured PPM - Dev#%s: %s' % (source, self.realsources[source]['offset'])
 
                                 this_dev = osmosdr.source( args=self.realsources[source]['args'] )
                                 this_dev.set_sample_rate(self.realsources[source]['samp_rate'])
@@ -158,7 +159,6 @@ class receiver(gr.top_block):
                                 self.connect(this_dev, null_sink)
 
                                 self.realsources[source]['block'] = this_dev
-
                         if config.receiver_split2:
                                 newsource1 = copy.copy(self.realsources[source])
                                 newsource2 = copy.copy(self.realsources[source])
