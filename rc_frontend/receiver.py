@@ -136,13 +136,13 @@ class receiver(gr.top_block):
                                 #output = float(process.read())
                                 #process.close()
                                 #self.realsources[source]['offset'] = (1000000-(output*1000000))
-				self.realsources[source]['offset'] = 0
+				#self.realsources[source]['offset'] = 0
                                 #print 'Measured PPM - Dev#%s: %s' % (source, self.realsources[source]['offset'])
 
                                 this_dev = osmosdr.source( args=self.realsources[source]['args'] )
                                 this_dev.set_sample_rate(self.realsources[source]['samp_rate'])
-                                this_dev.set_center_freq(self.realsources[source]['center_freq'], 0)
-                                this_dev.set_freq_corr(self.realsources[source]['offset'], 0)
+                                this_dev.set_center_freq(self.realsources[source]['center_freq']+self.realsources[source]['offset'], 0)
+                                #this_dev.set_freq_corr(self.realsources[source]['offset'], 0)
 
                                 this_dev.set_dc_offset_mode(1, 0)
                                 this_dev.set_iq_balance_mode(1, 0)
