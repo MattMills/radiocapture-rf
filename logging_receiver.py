@@ -275,7 +275,8 @@ class logging_receiver(gr.top_block):
                 delta_hz *= self.symbol_deviation
                 delta_hz = max(delta_hz, -max_delta_hz)
                 delta_hz = min(delta_hz, max_delta_hz)
-                self.prefilter.set_center_freq(0 - delta_hz)
+		if self.prefilter != None:
+	                self.prefilter.set_center_freq(0 - delta_hz)
 	def p25_sensor(self):
 		import binascii
 		buf = ''
@@ -422,6 +423,7 @@ class logging_receiver(gr.top_block):
 				self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
 			except:
 				pass
+		self.configure_blocks('none')
 
 		try:
                         self.stop()
