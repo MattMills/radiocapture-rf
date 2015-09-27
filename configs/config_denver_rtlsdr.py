@@ -228,7 +228,7 @@ class rc_config:
                                         0x1: 853462500,
 					0x99: 854837500,
 					0xe8: 856812500,
-					0x2: 856887500,
+					0xeb: 856887500,
 					0x113: 857887500,
 					0x137: 858787500,
 					0x13b: 858887500,
@@ -242,11 +242,11 @@ class rc_config:
 				'type': 'moto',
                                 'id': 0x8d34,
                                 'channels' : {
-                                        0x1: 406775000,
-                                        0x2: 407125000,
-                                        0x3: 407812500,
-                                        0x4: 408425000,
-                                        0x5: 408775000,
+                                        0x1ba: 406775000,
+                                        0x1d6: 407125000,
+                                        0x20d: 407812500,
+                                        0x23e: 408425000,
+                                        0x25a: 408775000,
                                 }
                         },
                         7: { #Adams County Simulcast (Denver Metro)	3	22
@@ -488,16 +488,26 @@ class rc_config:
                                 }
                         }
 		}
-
-		del self.systems[18]
-		del self.systems[17]
-		del self.systems[16]
-		del self.systems[15]
-		del self.systems[14]
+		#del self.systems[19]
+		#del self.systems[18]
+		#del self.systems[17]
+		#del self.systems[16]
+		#del self.systems[15]
+		#del self.systems[14]
 		del self.systems[13]
 		del self.systems[12]
-		del self.systems[11]
+		#del self.systems[11]
 		#del self.systems[10]
 		del self.systems[9]
+		#del self.systems[8]
 		del self.systems[7]
+	
+		#del self.systems[6]
+		#del self.systems[5]
+		#del self.systems[4]
+		#del self.systems[3]
+		#del self.systems[2]
+		#del self.systems[1]
+		#del self.systems[0]
+
 		
