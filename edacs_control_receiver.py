@@ -216,8 +216,7 @@ class edacs_control_receiver(gr.hier_block2):
 				                self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  v.cdr['system_group_local'], v.cdr['system_user_local'], system['channels'][r['channel']], 'continuation')
                                                 v.activity()
 						if(r['mtc'] == 3):
-							v.configure_blocks('analog')
-							#v.configure_blocks('provoice')
+							v.configure_blocks('provoice')
 						else:
 							v.configure_blocks('analog')
                                                 channel_matched = True
@@ -376,8 +375,7 @@ class edacs_control_receiver(gr.hier_block2):
                 #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
                 print 'Tuning new group call - %s' % ( system['channels'][channel])
 		if provoice:
-			receiver.configure_blocks('analog')
-			#receiver.configure_blocks('provoice')
+			receiver.configure_blocks('provoice')
 		else:
 			receiver.configure_blocks('analog')
 		cdr = {
@@ -405,8 +403,7 @@ class edacs_control_receiver(gr.hier_block2):
 	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
                 if provoice:
-			receiver.configure_blocks('analog')
-                        #receiver.configure_blocks('provoice')
+                        receiver.configure_blocks('provoice')
                 else:
                         receiver.configure_blocks('analog')
                 cdr = {
