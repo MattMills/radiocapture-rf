@@ -313,10 +313,10 @@ class edacs_control_receiver(gr.hier_block2):
                                 m= 'Unknown MTB' + mtb
                 else:
                         m= 'Unknown MTA ' + mta
-                if(m2 == -1 and m != ''):
-                        print "(%s)[%s] %s" %(time.time(),hex(int(m1, 2)), m)
-                elif( m != ''):
-                        print "(%s)[%s][%s] %s" %(time.time(),hex(int(m1, 2)), hex(int(m2,2)), m)
+                #if(m2 == -1 and m != ''):
+                #        print "(%s)[%s] %s" %(time.time(),hex(int(m1, 2)), m)
+                #elif( m != ''):
+                #        print "(%s)[%s][%s] %s" %(time.time(),hex(int(m1, 2)), hex(int(m2,2)), m)
         def is_double_message(self, m1):
                 if(m1 == -1): return True
                 mta = m1[:3]
