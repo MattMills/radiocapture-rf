@@ -81,7 +81,7 @@ class logging_receiver(gr.top_block):
 		p25_sensor.daemon = True
 		p25_sensor.start()
 	def configure_blocks(self, protocol):
-		if not (protocol == 'p25' or protocol == 'p25_cqpsk' or protocol == 'provoice' or protocol == 'analog' or protocol == 'none'):
+		if not (protocol == 'p25' or protocol == 'p25_cqpsk' or protocol == 'provoice' or protocol == 'dsd_p25' or protocol == 'analog' or protocol == 'none'):
 			raise Exception('Invalid protocol %s' % protocol)
 		if self.protocol == protocol:
 			return True
@@ -145,11 +145,15 @@ class logging_receiver(gr.top_block):
 			self.fm_demod = None
 			self.resampler_in = None
 			self.dsd = None
-
+		elif self.protocol == 'dsd_p25':
+			self.disconnect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
+                        self.fm_demod = None
+                        self.resampler_in = None
+                        self.dsd = None
 		self.protocol = protocol
 			
 		if protocol == 'analog':
-			self.signal_squelch = analog.pwr_squelch_cc(-50,0.01, 0, True)
+			self.signal_squelch = analog.pwr_squelch_cc(-100,0.01, 0, True)
 			#self.tone_squelch = gr.tone_squelch_ff(audiorate, 4800.0, 0.05, 300, 0, True)
                         #tone squelch is EDACS ONLY
 			self.audiodemod = analog.fm_demod_cf(channel_rate=self.input_rate, audio_decim=1, deviation=15000, audio_pass=(self.input_rate*0.25), audio_stop=((self.input_rate*0.25)+2000), gain=8, tau=75e-6)
@@ -262,15 +266,26 @@ class logging_receiver(gr.top_block):
                         self.connect(self.slicer,self.decoder2, self.qsink)
 		elif protocol == 'provoice':
 			symbol_deviation = 600.0
-			fm_demod_gain = self.input_rate / (2.0 * pi * symbol_deviation)
+			fm_demod_gain = 0.6 #self.input_rate / (2.0 * pi * symbol_deviation)
                         self.fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 			
 			self.resampler_in = filter.rational_resampler_fff(interpolation=48000, decimation=self.input_rate, taps=None, fractional_bw=None, )
-			self.dsd = dsd.block_ff(dsd.dsd_FRAME_PROVOICE,dsd.dsd_MOD_AUTO_SELECT,1,0,False)
+			self.dsd = dsd.block_ff(dsd.dsd_FRAME_PROVOICE,dsd.dsd_MOD_AUTO_SELECT,3,3,True)
 			
 			self.connect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
+		elif protocol == 'dsd_p25':
+                        symbol_deviation = 600.0
+                        fm_demod_gain = 0.4 #self.input_rate / (2.0 * pi * symbol_deviation)
+                        self.fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
+
+                        self.resampler_in = filter.rational_resampler_fff(interpolation=48000, decimation=self.input_rate, taps=None, fractional_bw=None, )
+                        self.dsd = dsd.block_ff(dsd.dsd_FRAME_P25_PHASE_1,dsd.dsd_MOD_AUTO_SELECT,3,3,False)
+
+                        self.connect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
 		self.unlock()
 	def adjust_channel_offset(self, delta_hz):
+		print 'adjust channel offset: %s' % (delta_hz)
+
                 max_delta_hz = 12000.0
                 delta_hz *= self.symbol_deviation
                 delta_hz = max(delta_hz, -max_delta_hz)
@@ -322,7 +337,7 @@ class logging_receiver(gr.top_block):
 					self.activity()
 				#if self.in_use and (duid == 0x3 or duid == 0xF) and (last_duid == 0x3 or last_duid == 0xF):
 				#	self.close({})
-				print '%s %s' % (hex(duid), hex(nac))
+				#print '%s %s' % (hex(duid), hex(nac))
 				last_duid = duid
                                 try:
                                         if duid == 0x0:
@@ -341,9 +356,9 @@ class logging_receiver(gr.top_block):
                                                 r = self.procTLC(frame)
                                         else:
                                                 print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
-					print r
+					#print r
                                 except Exception as e:
-					if duid == 0x5 or duid == 0xf: print e
+					if duid == 0x5 or duid == 0xf: pass #print e
                                         continue
 
 
