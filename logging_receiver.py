@@ -141,10 +141,11 @@ class logging_receiver(gr.top_block):
                         self.float_conversion = None
 
 		elif self.protocol == 'provoice':
-			self.disconnect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
+			self.disconnect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.out_squelch, self.sink)
 			self.fm_demod = None
 			self.resampler_in = None
 			self.dsd = None
+			self.out_squelch = None
 		elif self.protocol == 'dsd_p25':
 			self.disconnect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
                         self.fm_demod = None
@@ -265,14 +266,14 @@ class logging_receiver(gr.top_block):
                         self.connect(self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
                         self.connect(self.slicer,self.decoder2, self.qsink)
 		elif protocol == 'provoice':
-			symbol_deviation = 600.0
-			fm_demod_gain = 0.6 #self.input_rate / (2.0 * pi * symbol_deviation)
+			fm_demod_gain = 0.6
                         self.fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 			
 			self.resampler_in = filter.rational_resampler_fff(interpolation=48000, decimation=self.input_rate, taps=None, fractional_bw=None, )
-			self.dsd = dsd.block_ff(dsd.dsd_FRAME_PROVOICE,dsd.dsd_MOD_AUTO_SELECT,3,3,True)
+			self.dsd = dsd.block_ff(dsd.dsd_FRAME_PROVOICE,dsd.dsd_MOD_AUTO_SELECT,3,0,False)
+			self.out_squelch = analog.pwr_squelch_ff(-100,0.01, 0, True)
 			
-			self.connect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
+			self.connect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.out_squelch, self.sink)
 		elif protocol == 'dsd_p25':
                         symbol_deviation = 600.0
                         fm_demod_gain = 0.4 #self.input_rate / (2.0 * pi * symbol_deviation)
