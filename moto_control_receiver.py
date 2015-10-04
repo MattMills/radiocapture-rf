@@ -31,6 +31,7 @@ class moto_control_receiver(gr.hier_block2):
 		self.hang_time = 0.5
 		self.packets = 0
 		self.packets_bad = 0
+		self.patches = {}
 	
 		self.quality = []
 

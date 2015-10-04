@@ -190,12 +190,12 @@ if __name__ == '__main__':
 				hang_time = 3.5
 
 			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time:
-				receiver.close({}, False)
+				receiver.close(receiver.receiver.patches, False)
 
 			if receiver.in_use == True and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr
 				audio_rate = receiver.audio_rate
-				receiver.close({}, True)
+				receiver.close(receiver.receiver.patches, True)
 				receiver.open(cdr,audio_rate)
 			if receiver.in_use == False and time.time()-receiver.time_activity > 120:
 				receiver.destroy()

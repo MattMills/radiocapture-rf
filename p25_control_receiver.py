@@ -31,6 +31,7 @@ class p25_control_receiver (gr.hier_block2):
 		self.hang_time = 3.5 #500 ms hang time	
 
 		#set globals
+		self.patches = {}
 		self.tb = top_block
 		self.system = system
 		self.block_id = block_id
