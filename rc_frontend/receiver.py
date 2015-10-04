@@ -397,22 +397,24 @@ if __name__ == '__main__':
 				print 'failed to create channel %s' % freq
 				return 'na,%s' % freq
 			else:
-	                       	print 'Created channel ar: %s %s %s %s %s' % (len(tb.channels), channel_rate, freq, dest, port)
+	                       	print '%s Created channel ar: %s %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, dest, port, result)
 				clients[c].append(result)
 				return 'create,%s' % result
 		elif data[0] == 'release':
-			c = int(data[1])
-			block_id = int(data[2])
-
-			result = tb.release_channel(block_id)
-			if result == -1:
-                                #Channel failed to release
-				print 'failed to release %s' % block_id
+			try:
+				c = int(data[1])
+				block_id = int(data[2])
+				result = tb.release_channel(block_id)
+				if result == -1:
+	                                #Channel failed to release
+					print 'failed to release %s' % block_id
+					return 'na,%s\n' % block_id
+	                        else:
+					print '%s Released channel %s' % ( time.time(), block_id)
+					clients[c].remove(block_id)
+					return 'release,%s\n' % block_id
+			except:
 				return 'na,%s\n' % block_id
-                        else:
-				print 'Released channel'
-				clients[c].remove(block_id)
-				return 'release,%s\n' % block_id
 		elif data[0] == 'quit':
 			c = data[1]
 			for x in clients[c]:
