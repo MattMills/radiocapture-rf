@@ -149,6 +149,7 @@ class p25_control_receiver (gr.hier_block2):
 	        delta_hz = max(delta_hz, -max_delta_hz)
 	        delta_hz = min(delta_hz, max_delta_hz)
 	        self.control_prefilter.set_center_freq(0 + delta_hz)
+		print 'adjust control %s' % (delta_hz)
         def tune_next_control_channel(self):
                 self.control_channel_i += 1
                 if(self.control_channel_i >= len(self.system['channels'])):
@@ -648,7 +649,8 @@ class p25_control_receiver (gr.hier_block2):
 					elif duid == 0xF: 
 						r = self.procTLC(frame)
 					else:
-						print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
+						pass
+						#print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
 				except Exception as e:
 					self.bad_messages = self.bad_messages + 3
 					continue
@@ -715,23 +717,26 @@ class p25_control_receiver (gr.hier_block2):
                                                         'Transmit Offset': t['Transmit Offset']
                                                         }
 						#print '%s: %s' % (self.thread_id, t)
+					elif t['name'] == 'IDEN_UP_TDMA':
+						pass
+						#print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
 						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
-						print '[%s]%s: %s' % (time(), self.thread_id, t)
+						#print '[%s]%s: %s' % (time(), self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
 						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
-						print '[%s]%s: %s' % (time(), self.thread_id, t)
+						#print '[%s]%s: %s' % (time(), self.thread_id, t)
 					elif t['name'] == 'UU_V_CH_GRANT':
-						print '%s: %s' % (self.thread_id, t)
+						pass #print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'UU_ANS_REQ':
-						print '%s: %s' % (self.thread_id, t)
+						pass #print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT_EXP':
-						print '%s: %s' % (self.thread_id, t)
+						pass #print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_AFF_RSP':
-						print '%s: %s' % (self.thread_id, t)
+						pass #print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'U_REG_RSP':
-						print '%s: %s' % (self.thread_id, t)
+						pass #print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'NET_STS_BCST':
 						self.P25['WACN ID'] = hex(int(t['WACN ID']))
 						self.P25['System ID'] = hex(int(t['System ID']))
@@ -749,7 +754,7 @@ class p25_control_receiver (gr.hier_block2):
 						del t['opcode']
 						#print '%s: %s' % (self.thread_id, t)
 					#else:
-					#	print '%s: %s' % (self.thread_id, t)
+						#print '%s: %s' % (self.thread_id, t)
 					#print '%s: %s' % (self.thread_id, t)
 			else:
 				loops_locked = loops_locked - 1
@@ -791,5 +796,8 @@ class demod_watcher(threading.Thread):
         while(self.keep_running):
             msg = self.msgq.delete_head()
             frequency_correction = msg.arg1()
-            #print 'Freq correction %s' % (frequency_correction)
+	    if frequency_correction == 0.0:
+		continue
+	    print '%s' % (msg.arg2())
+            print 'Freq correction %s' % (frequency_correction)
             self.callback(frequency_correction)
