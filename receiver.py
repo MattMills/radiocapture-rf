@@ -164,7 +164,7 @@ class receiver(gr.top_block):
                         raise Exception('Unable to tune audio channel %s' % (freq))
 
 		port = self.connector.channel_id_to_port[channel_id]
-		channel = logging_receiver(port)
+		channel = logging_receiver(self, port)
 		channel.start()
 
 		channel.channel_id = channel_id
@@ -175,7 +175,7 @@ class receiver(gr.top_block):
 		return channel
 if __name__ == '__main__':
 ####################################################################################################
-	
+	import var_dump
 	if gr.enable_realtime_scheduling() != gr.RT_OK:
 		print "Error: failed to enable realtime scheduling."
 	tb = receiver()
@@ -184,36 +184,22 @@ if __name__ == '__main__':
 	while 1:
 		tb.ar_lock.acquire()
 		for i,receiver in enumerate(tb.active_receivers):
-			#if receiver == None:
-			#	continue
 			if 'hang_time' in receiver.cdr:
 				hang_time = receiver.cdr['hang_time']
 			else:
 				hang_time = 3.5
-			if time.time()-receiver.time_activity > hang_time and receiver.time_activity != 0 and receiver.time_open != 0:
-				tb.connector.release_channel(receiver.channel_id)
-				receiver.close({})
-				#receiver.destroy()
 
-				#tb.active_receivers[i] = None
-				#receiver = None
-				#del tb.active_receivers[i]
-				#continue
-			if receiver.in_use == True and receiver.time_open != 0 and time.time()-receiver.time_open > 120:
-				try:
-					cdr = receiver.cdr
-					audio_rate = receiver.audio_rate
-					receiver.close({}, emergency=True)
-					receiver.open(cdr,audio_rate)
-				except:
-					pass
+			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time:
+				receiver.close({}, False)
+
+			if receiver.in_use == True and time.time()-receiver.time_open > 120:
+				cdr = receiver.cdr
+				audio_rate = receiver.audio_rate
+				receiver.close({}, True)
+				receiver.open(cdr,audio_rate)
+			if receiver.in_use == False and time.time()-receiver.time_activity > 120:
+				receiver.destroy()
 			if receiver.destroyed == True:
-				#tb.lock()
-				#tb.disconnect(tb.active_receivers[i])
-				#del tb.active_receivers[i]
-				#tb.unlock()
-				#receiver.destroy()
-
                                 tb.active_receivers[i] = None
                                 receiver = None
                                 del tb.active_receivers[i]

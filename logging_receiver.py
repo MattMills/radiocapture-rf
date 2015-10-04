@@ -23,7 +23,7 @@ import op25_repeater as repeater
 from p25_cai import p25_cai
 
 class logging_receiver(gr.top_block):
-	def __init__(self, port):
+	def __init__(self, receiver, port):
 		self.audio_capture = True;
 
 		gr.top_block.__init__(self, "logging_receiver")
@@ -39,6 +39,7 @@ class logging_receiver(gr.top_block):
 
 		self.filename = "/dev/null"
 		self.filepath = "/dev/null"
+		self.receiver = receiver
 	
 		#optionall log dat files
 		self.log_dat = False
@@ -59,8 +60,8 @@ class logging_receiver(gr.top_block):
 		#self.connect(self.source, self.lp1)
 
 		self.cdr = {}
-		self.time_open = 0
-		self.time_activity = 0
+		self.time_open = time.time()
+		self.time_activity = time.time()
 		self.time_last_use = time.time()
 		self.uuid = ''
 		self.freq = 0
@@ -364,49 +365,45 @@ class logging_receiver(gr.top_block):
 
 
         def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, patches, codec_provoice, codec_p25, emergency=False):
-		if(time_open == 0): raise RuntimeError("upload_and_cleanup() with time_open == 0")
-		
-		time.sleep(2)
-		#if codec_provoice:
-		#	os.system('nice -n 19 ./file_to_wav.py -i %s -p -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.input_rate, self.audio_rate))
-		#elif codec_p25:
-		#	os.system('nice -n 19 ./file_to_wav.py -i %s -5 -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.audio_rate, self.audio_rate))
-		#else:
-		#	os.system('nice -n 19 ./file_to_wav.py -i %s -r %s -c %s -s -70 -v -100 2>&1 >/dev/null' % (filename, self.audio_rate*2, self.audio_rate))
-                os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '.wav' + ' 2>&1 >/dev/null')
 		try:
-                	os.makedirs('/nfs/%s' % (filepath, ))
-                except:
-                        pass
-		filename = '%s' % (filepath + uuid + '.mp3', )
-		tags = {}
-		tags['TIT2'] = '%s %s' % (cdr['type'],cdr['system_group_local'])
-		tags['TPE1'] = '%s' %(cdr['system_user_local'])
-		tags['TALB'] = '%s' % (cdr['system_id'])
-		
-		if(cdr['system_group_local'] in patches):
-			groups = []
-		        for group in patches[cdr['system_group_local']]:
-		        	groups.append(group)
-			tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['timestamp'], groups)
-		else:
-			tags['COMM'] = '%s,%s,%s' % (cdr['system_channel_local'],cdr['timestamp'], [])
-		tags['COMM'] = tags['COMM'].replace(':', '|')
-		os.system('id3v2 -2 --TIT2 "%s" --TPE1 "%s" --TALB "%s" -c "RC":"%s":"English" %s' % (tags['TIT2'], tags['TPE1'], tags['TALB'], tags['COMM'], filename))
+			time.sleep(2)
+			#if codec_provoice:
+			#	os.system('nice -n 19 ./file_to_wav.py -i %s -p -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.input_rate, self.audio_rate))
+			#elif codec_p25:
+			#	os.system('nice -n 19 ./file_to_wav.py -i %s -5 -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.audio_rate, self.audio_rate))
+			#else:
+			#	os.system('nice -n 19 ./file_to_wav.py -i %s -r %s -c %s -s -70 -v -100 2>&1 >/dev/null' % (filename, self.audio_rate*2, self.audio_rate))
+	                os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '.wav' + ' 2>&1 >/dev/null')
+			try:
+	                	os.makedirs('/nfs/%s' % (filepath, ))
+	                except:
+	                        pass
+			filename = '%s' % (filepath + uuid + '.mp3', )
+			tags = {}
+			tags['TIT2'] = '%s %s' % (cdr['type'],cdr['system_group_local'])
+			tags['TPE1'] = '%s' %(cdr['system_user_local'])
+			tags['TALB'] = '%s' % (cdr['system_id'])
+			
+			if(cdr['system_group_local'] in patches):
+				groups = []
+			        for group in patches[cdr['system_group_local']]:
+			        	groups.append(group)
+				tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['timestamp'], groups)
+			else:
+				tags['COMM'] = '%s,%s,%s' % (cdr['system_channel_local'],cdr['timestamp'], [])
+			tags['COMM'] = tags['COMM'].replace(':', '|')
+			os.system('id3v2 -2 --TIT2 "%s" --TPE1 "%s" --TALB "%s" -c "RC":"%s":"English" %s' % (tags['TIT2'], tags['TPE1'], tags['TALB'], tags['COMM'], filename))
+	
+			try: 
+				if not self.log_wav:
+					os.remove(filename[:-4] + '.wav')
+			except:
+				print 'error removing ' + filename[:-4] + '.wav'
+		finally:
+			if not emergency:
+				self.destroy()
 
-
-
-
-		try: 
-			if not self.log_wav:
-				os.remove(filename[:-4] + '.wav')
-		except:
-			print 'error removing ' + filename[:-4] + '.wav'
-
-		if not emergency:
-			self.destroy()
-
-	def close(self, patches, upload=True, emergency=False):
+	def close(self, patches, emergency=False):
 		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')
 		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 
@@ -417,16 +414,9 @@ class logging_receiver(gr.top_block):
 			if self.log_dat:
                                 self.dat_sink.close()
 
-			if(upload):
-				_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.time_open, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25, emergency])
-	        		_thread_0.daemon = True
-			        _thread_0.start()
-			else:
-				try:
-					os.remove(self.filename)
-					pass
-				except:
-					print 'Error removing ' +self.filename
+			_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.time_open, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25, emergency])
+	        	_thread_0.daemon = True
+			_thread_0.start()
 		self.time_open = 0
 		self.time_last_use = time.time()
 		self.uuid =''
@@ -439,9 +429,12 @@ class logging_receiver(gr.top_block):
 				self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
 			except:
 				pass
-		self.configure_blocks('none')
+		self.receiver.ar_lock.acquire()
+		self.receiver.connector.release_channel(self.channel_id)
+		self.receiver.ar_lock.release()
 
 		try:
+			self.configure_blocks('none')
                         self.stop()
                         self.source.disconnect()
                         self.disconnect(self.source)
