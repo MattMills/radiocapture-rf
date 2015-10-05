@@ -145,7 +145,7 @@ class p25_control_receiver (gr.hier_block2):
 		if self.modulation == 'C4FM':
 		        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
 		elif self.modulation == 'CQPSK':
-			self.connect(self, self.fm_demod)
+			self.connect(self, fm_demod)
 			self.connect(self, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
 	
                 ##################################################
