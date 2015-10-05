@@ -487,7 +487,7 @@ class moto_control_receiver(gr.hier_block2):
 										bandwidth = 12500
 
 									try:
-						                                allocated_receiver = self.tb.connect_channel(self.channels[cmd], bandwidth)
+						                                allocated_receiver = self.tb.connect_channel(self.channels[cmd], bandwidth, self)
 					        	                except:
 										self.tb.ar_lock.release()
 					                	                continue

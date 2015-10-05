@@ -47,6 +47,8 @@ class edacs_control_receiver(gr.hier_block2):
 		self.enable_capture = True
 		self.keep_running = True
 
+		self.freq_offset = 0
+
 		################################################
 		# Blocks
 		################################################
@@ -72,10 +74,10 @@ class edacs_control_receiver(gr.hier_block2):
 			self.control_msg_sink = blocks.message_sink(gr.sizeof_char, self.control_msg_queue,True)
 
 		#offset measurement
-                #moving_sum = gr.moving_average_ff(10000, 1, 40000)
-                #subtract = blocks.sub_ff(1)
-                #divide_const = blocks.multiply_const_vff((0.0001, ))
-                #self.probe = gr.probe_signal_f()
+                moving_sum = blocks.moving_average_ff(10000, 1, 40000)
+                subtract = blocks.sub_ff(1)
+                divide_const = blocks.multiply_const_vff((0.0001, ))
+                self.probe = blocks.probe_signal_f()
 
 		#Local websocket output
 		#self.websocket_sink = gr.udp_sink(gr.sizeof_char, "127.0.0.1", (10000+self.system['id']), 1472, True)
@@ -98,7 +100,7 @@ class edacs_control_receiver(gr.hier_block2):
                                 self.control_unpacked_to_packed,
 				self.control_msg_sink)
 
-		#self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
+		self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
 		
 		#self.connect((self.source,0), self.null_sink0)
                 #self.connect((self.source,1), self.null_sink1)
@@ -349,7 +351,7 @@ class edacs_control_receiver(gr.hier_block2):
 			current_packets_bad = self.bad_messages-last_bad
 
                         print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
-
+			print 'System: %s %s' % (sid, self.probe.level())
 
 			if len(self.quality) >= 60:
                                 self.quality.pop(0)
@@ -371,7 +373,7 @@ class edacs_control_receiver(gr.hier_block2):
 			return True
 		self.tb.ar_lock.acquire()
 
-		receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
+		receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate, self)
                 #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
                 print 'Tuning new group call - %s' % ( system['channels'][channel])
 		if provoice:
@@ -400,7 +402,7 @@ class edacs_control_receiver(gr.hier_block2):
 		if not self.enable_capture:
 			return True
 		self.tb.ar_lock.acquire()
-	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate)
+	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate, self)
                 #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
                 if provoice:
                         receiver.configure_blocks('provoice')

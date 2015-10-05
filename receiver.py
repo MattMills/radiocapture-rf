@@ -60,6 +60,7 @@ class receiver(gr.top_block):
 		except:
 			self.blacklists = {}
 		self.control_source = 0
+		self.freq_offset = 0
                 self.systems = config.systems
 
 
@@ -75,6 +76,11 @@ class receiver(gr.top_block):
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
 		self.backend_controller = backend_controller(self)
+
+                offset_correction = threading.Thread(target=self.offset_correction)
+                offset_correction.daemon = True
+                offset_correction.start()
+
 
 	def build_receiver(self, system, capture = True):
 		if self.systems[system]['type'] == 'moto':
@@ -100,6 +106,7 @@ class receiver(gr.top_block):
 		self.unlock()
 
                 self.systems[system]['source'] = udp_source
+		self.systems[system]['freq_offset'] = 0
 	
 	def rebuild_receiver(self, system):
 		old_receiver = self.systems[system]['block']
@@ -154,9 +161,11 @@ class receiver(gr.top_block):
 		#source.connect('127.0.0.1', self.connector.channel_id_to_port[channel_id])
 		print 'connected %s %s %s %s' % (system, freq, channel.channel_rate, self.connector.channel_id_to_port[channel_id])
 		self.unlock()
+		self.systems[system]['current_freq'] = freq
+		self.systems[system]['freq_offset'] = 0
 
 		self.ar_lock.release()
-	def connect_channel(self, freq, channel_rate):
+	def connect_channel(self, freq, channel_rate, controller):
 		self.ar_lock.acquire()
                 channel_id = self.connector.create_channel(channel_rate, freq)
                 if channel_id == False:
@@ -164,7 +173,7 @@ class receiver(gr.top_block):
                         raise Exception('Unable to tune audio channel %s' % (freq))
 
 		port = self.connector.channel_id_to_port[channel_id]
-		channel = logging_receiver(self, port)
+		channel = logging_receiver(self, port, controller)
 		channel.start()
 
 		channel.channel_id = channel_id
@@ -173,6 +182,18 @@ class receiver(gr.top_block):
                 print 'connected %s %s %s' % (freq, channel_rate, self.connector.channel_id_to_port[channel_id])
 		self.ar_lock.release()
 		return channel
+	def offset_correction(self):
+		while True:
+			for system in self.systems:
+				probe_level = self.systems[system]['block'].probe.level()
+				if probe_level > 0.05:
+					self.systems[system]['freq_offset'] = self.systems[system]['freq_offset'] + (probe_level*100)
+					print 'System: %s %s' % (system, int(self.systems[system]['current_freq']+self.systems[system]['freq_offset']))
+			                self.systems[system]['block'].control_source = self.retune_control(self.systems[system]['block'].block_id, int(self.systems[system]['current_freq']+self.systems[system]['freq_offset']))
+	
+			time.sleep(1)
+		
+
 if __name__ == '__main__':
 ####################################################################################################
 	import var_dump
@@ -190,12 +211,12 @@ if __name__ == '__main__':
 				hang_time = 3.5
 
 			if receiver.in_use == True and time.time()-receiver.time_activity > hang_time:
-				receiver.close(receiver.receiver.patches, False)
+				receiver.close(receiver.controller.patches, False)
 
 			if receiver.in_use == True and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr
 				audio_rate = receiver.audio_rate
-				receiver.close(receiver.receiver.patches, True)
+				receiver.close(receiver.controller.patches, True)
 				receiver.open(cdr,audio_rate)
 			if receiver.in_use == False and time.time()-receiver.time_activity > 120:
 				receiver.destroy()

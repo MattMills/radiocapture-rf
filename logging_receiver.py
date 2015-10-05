@@ -23,7 +23,7 @@ import op25_repeater as repeater
 from p25_cai import p25_cai
 
 class logging_receiver(gr.top_block):
-	def __init__(self, receiver, port):
+	def __init__(self, receiver, port, controller):
 		self.audio_capture = True;
 
 		gr.top_block.__init__(self, "logging_receiver")
@@ -40,6 +40,7 @@ class logging_receiver(gr.top_block):
 		self.filename = "/dev/null"
 		self.filepath = "/dev/null"
 		self.receiver = receiver
+		self.controller = controller
 	
 		#optionall log dat files
 		self.log_dat = False

@@ -9,7 +9,7 @@ import zlib
 class backend_event_publisher():
         def __init__(self):
 
-		self.config = StompConfig('tcp://23.239.220.248:61613')
+		self.config = StompConfig('tcp://10.5.1.138:61613')
 		self.client = Stomp(self.config)
 		self.client.connect()
 

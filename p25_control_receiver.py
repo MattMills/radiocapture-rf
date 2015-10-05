@@ -549,7 +549,7 @@ class p25_control_receiver (gr.hier_block2):
                                 break
 		if allocated_receiver == False: #If not an existing call
 			try:
-				allocated_receiver = self.tb.connect_channel(int(channel_frequency), int(channel_bandwidth))
+				allocated_receiver = self.tb.connect_channel(int(channel_frequency), int(channel_bandwidth), self)
 			except:
 				#raise
 				
