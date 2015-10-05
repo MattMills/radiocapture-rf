@@ -167,7 +167,7 @@ class receiver(gr.top_block):
 		self.ar_lock.release()
 	def connect_channel(self, freq, channel_rate, controller):
 		self.ar_lock.acquire()
-                channel_id = self.connector.create_channel(channel_rate, freq)
+                channel_id = self.connector.create_channel(channel_rate, freq+self.systems[controller.block_id]['freq_offset'])
                 if channel_id == False:
 			self.ar_lock.release()
                         raise Exception('Unable to tune audio channel %s' % (freq))
