@@ -354,10 +354,11 @@ class receiver(gr.top_block):
 		self.access_lock.acquire()
 		try:
 			self.channels[block_id].in_use = False
+			self.channels[block_id].udp.connect('127.0.0.1', 9999)
 			self.channels[block_id].udp.disconnect()
 		except:
 			self.access_lock.release()
-			return -1
+			raise Exception('Failed to release channel')
 
 		#TODO: move UDP output
 		
@@ -405,6 +406,7 @@ if __name__ == '__main__':
 				c = int(data[1])
 				block_id = int(data[2])
 				result = tb.release_channel(block_id)
+				
 				if result == -1:
 	                                #Channel failed to release
 					print 'failed to release %s' % block_id

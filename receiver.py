@@ -98,8 +98,8 @@ class receiver(gr.top_block):
                 self.systems[system]['channel_id'] = None
 		self.systems[system]['start_time'] = time.time()
 
-                udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8123), 30000, True) #Nonsense port gets changed in retune_control
-		udp_source.set_min_output_buffer(128*1024)
+                udp_source = blocks.udp_source(gr.sizeof_gr_complex*1, "127.0.0.1", (8123), 147200, True) #Nonsense port gets changed in retune_control
+		udp_source.set_min_output_buffer(1280*1024)
 
 		self.lock()
                 self.connect(udp_source, self.systems[system]['block'])
@@ -134,10 +134,9 @@ class receiver(gr.top_block):
 			
 
 	def retune_control(self, system, freq):
-		channel = self.systems[system]['block']
-		source = self.systems[system]['source']
-	
 		self.ar_lock.acquire()
+		channel = self.systems[system]['block']
+                source = self.systems[system]['source']
 
 		if(self.systems[system]['channel_id'] != None):
 			self.connector.release_channel(self.systems[system]['channel_id'])
@@ -154,8 +153,8 @@ class receiver(gr.top_block):
 		source = None
 		self.systems[system]['source'] = None
 		#del source
-		source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", self.connector.channel_id_to_port[channel_id], 30000, True)
-		source.set_min_output_buffer(128*1024)
+		source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", self.connector.channel_id_to_port[channel_id], 147200, True)
+		source.set_min_output_buffer(1280*1024)
 		self.connect(source,channel)
 		self.systems[system]['source'] = source
 		#source.connect('127.0.0.1', self.connector.channel_id_to_port[channel_id])
@@ -167,7 +166,7 @@ class receiver(gr.top_block):
 		self.ar_lock.release()
 	def connect_channel(self, freq, channel_rate, controller):
 		self.ar_lock.acquire()
-                channel_id = self.connector.create_channel(channel_rate, freq+self.systems[controller.block_id]['freq_offset'])
+                channel_id = self.connector.create_channel(channel_rate, int(freq+self.systems[controller.block_id]['freq_offset']))
                 if channel_id == False:
 			self.ar_lock.release()
                         raise Exception('Unable to tune audio channel %s' % (freq))
@@ -190,7 +189,9 @@ class receiver(gr.top_block):
 				if probe_level > 0.05:
 					self.systems[system]['freq_offset'] = self.systems[system]['freq_offset'] + (probe_level*100)
 					print 'System: %s %s' % (system, int(self.systems[system]['current_freq']+self.systems[system]['freq_offset']))
+					self.ar_lock.acquire()
 			                self.systems[system]['block'].control_source = self.retune_control(self.systems[system]['block'].block_id, int(self.systems[system]['current_freq']+self.systems[system]['freq_offset']))
+					self.ar_lock.release()
 	
 			time.sleep(1)
 		
