@@ -102,7 +102,13 @@ class moto_control_receiver(gr.hier_block2):
 
 		if(self.option_udp_sink):
 			self.udp = blocks.udp_sink(gr.sizeof_gr_complex*1, "127.0.0.1", self.system_id, 1472, True)
-	
+
+                moving_sum = blocks.moving_average_ff(10000, 1, 40000)
+                subtract = blocks.sub_ff(1)
+                divide_const = blocks.multiply_const_vff((0.0001, ))
+                self.probe = blocks.probe_signal_f()
+                self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)	
+
 		##################################################
 		# Connections
 		##################################################

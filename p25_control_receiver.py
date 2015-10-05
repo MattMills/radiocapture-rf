@@ -90,6 +90,12 @@ class p25_control_receiver (gr.hier_block2):
 		        # FM demodulator
 		        fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
 		        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
+
+	                moving_sum = blocks.moving_average_ff(10000, 1, 40000)
+	                subtract = blocks.sub_ff(1)
+        	        divide_const = blocks.multiply_const_vff((0.0001, ))
+                	self.probe = blocks.probe_signal_f()
+	                self.connect(fm_demod, moving_sum, divide_const, self.probe)
 	
 		        # symbol filter        
 		        symbol_decim = 1
