@@ -188,7 +188,7 @@ class receiver(gr.top_block):
 			for system in self.systems:
 				probe_level = self.systems[system]['block'].probe.level()
 				if probe_level > 0.05:
-					self.systems[system]['freq_offset'] = self.systems[system]['freq_offset'] + (probe_level*100)
+					self.systems[system]['freq_offset'] = self.systems[system]['freq_offset'] - (probe_level*100)
 					print 'System: %s %s' % (system, int(self.systems[system]['current_freq']+self.systems[system]['freq_offset']))
 			                self.systems[system]['block'].control_source = self.retune_control(self.systems[system]['block'].block_id, int(self.systems[system]['current_freq']+self.systems[system]['freq_offset']))
 	
