@@ -196,7 +196,6 @@ class receiver(gr.top_block):
 
 if __name__ == '__main__':
 ####################################################################################################
-	import var_dump
 	if gr.enable_realtime_scheduling() != gr.RT_OK:
 		print "Error: failed to enable realtime scheduling."
 	tb = receiver()
