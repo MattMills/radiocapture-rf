@@ -183,6 +183,7 @@ class receiver(gr.top_block):
 		self.ar_lock.release()
 		return channel
 	def offset_correction(self):
+		time.sleep(10)
 		while True:
 			for system in self.systems:
 				probe_level = self.systems[system]['block'].probe.level()
