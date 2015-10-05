@@ -105,6 +105,16 @@ class p25_control_receiver (gr.hier_block2):
 	
 		        demod_fsk4 = op25.fsk4_demod_ff(autotuneq, channel_rate, symbol_rate)
 		elif self.modulation == 'CQPSK':
+			# FM demodulator
+                        fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
+                        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
+
+                        moving_sum = blocks.moving_average_ff(10000, 1, 40000)
+                        subtract = blocks.sub_ff(1)
+                        divide_const = blocks.multiply_const_vff((0.0001, ))
+                        self.probe = blocks.probe_signal_f()
+                        self.connect(fm_demod, moving_sum, divide_const, self.probe)
+
 			#self.resampler = filter.pfb.arb_resampler_ccf(float(48000)/float(channel_rate))
 			self.resampler = blocks.multiply_const_cc(1.0)
 			self.agc = analog.feedforward_agc_cc(1024,1.0)
@@ -135,6 +145,7 @@ class p25_control_receiver (gr.hier_block2):
 		if self.modulation == 'C4FM':
 		        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
 		elif self.modulation == 'CQPSK':
+			self.connect(self, self.fm_demod)
 			self.connect(self, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
 	
                 ##################################################
