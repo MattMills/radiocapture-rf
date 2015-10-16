@@ -6,10 +6,11 @@ import threading
 import binascii
 import uuid
 import datetime
+import time
 
 from gnuradio import gr, uhd, filter, analog, blocks
 from gnuradio.filter import firdes
-from time import sleep,time
+
 
 class channel ( gr.hier_block2):
 	def __init__(self, dest, port, channel_rate, samp_rate, offset):
@@ -32,6 +33,12 @@ class channel ( gr.hier_block2):
 		self.udp = blocks.udp_sink(gr.sizeof_gr_complex*1, dest, port, 1472, True)
 		
 		self.connect(self, self.prefilter, self.udp)
+                self.init_time = time.time()
+                self.channel_close_time = 0
+        def __str__(self):
+            return "Channel: dest:%s port:%s channel_rate:%s samp_rate:%s offset:%s init_time:%s" % (self.dest, self.port, self.channel_rate, self.samp_rate, self.offset, self.init_time)
+        def __repr__(self):
+            return "<Channel dest:%s port:%s channel_rate:%s samp_rate:%s offset:%s init_time:%s>" % (self.dest, self.port, self.channel_rate, self.samp_rate, self.offset, self.init_time)
 
 	def get_samp_rate(self):
 		return self.samp_rate
@@ -51,5 +58,9 @@ class channel ( gr.hier_block2):
 	def set_offset(self, offset):
 		self.offset = offset
 		self.prefilter.set_center_freq(self.offset)
+        def destroy(self):
+            self.disconnect(self, self.prefilter, self.udp)
+            self.prefilter = None
+            self.udp = None
 
 
