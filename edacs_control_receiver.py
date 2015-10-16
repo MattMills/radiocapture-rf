@@ -232,8 +232,8 @@ class edacs_control_receiver(gr.hier_block2):
                                                                 self.new_call_group(system, r['channel'],r['id'], 0, False)
 
                                                 else:
-							pass
-                                                        #self.new_call_individual(system, r['channel'] ,0, r['id'], False)
+							#pass
+                                                        self.new_call_individual(system, r['channel'] ,0, r['id'], False)
 
                                         #active_channels[r['channel']] = time()
                                 m = 'Channel Update - ' + str(r)
@@ -258,8 +258,8 @@ class edacs_control_receiver(gr.hier_block2):
                                 m = 'iCall - ' + str(r)
                                 if( r['channel'] in system['channels'].keys() and r['channel'] != self.control_lcn): # nd r['group'] == 609): #and r['channel'] in self.wav_sinks):
                                         #check if channel is already tuned to
-					pass
-                                        #self.new_call_individual(system, r['channel'], r['callee_logical_id'], r['caller_logical_id'], r['tx_trunked'])
+					#pass
+                                        self.new_call_individual(system, r['channel'], r['callee_logical_id'], r['caller_logical_id'], r['tx_trunked'])
                         elif(mtb == '110'):
                                 r['drop'] = True if m1[8:9] == '1' else False
                                 r['unkey'] = True if m1[8:9] == '0' else False
@@ -393,12 +393,13 @@ class edacs_control_receiver(gr.hier_block2):
 		receiver.open(cdr)
 		self.tb.ar_lock.release()
         def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
+                return True
 		if provoice == False:
                         call_type = 'individual_analog'
                 else:
                         call_type = 'individual_provoice'
 
-                self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  group, logical_id, system['channels'][channel], call_type)
+                self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  callee_logical_id, caller_logical_id, system['channels'][channel], call_type)
 		if not self.enable_capture:
 			return True
 		self.tb.ar_lock.acquire()
