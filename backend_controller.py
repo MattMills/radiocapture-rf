@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 
-import zmq
 import json
 import zlib
 import time
 import threading
+from stompest.config import StompConfig
+from stompest.sync import Stomp
 
 class backend_controller(threading.Thread):
-        def __init__(self, tb, host='0.0.0.0', port=50002):
+        def __init__(self, tb, host='127.0.0.1', port=61613):
 
 		self.tb = tb
-                context = zmq.Context()
-                self.socket = context.socket(zmq.REP)
-                self.socket.bind("tcp://%s:%s" % (host, port))
+		self.config = StompConfig('tcp://%s:%s' % (host, port))
+		self.client = Stomp(self.config)
+                self.client.connect()
 
 		threading.Thread.__init__ (self)
 		self.setDaemon(1)
@@ -71,9 +72,10 @@ class backend_controller(threading.Thread):
 
 		return resp
 
-	def run(self):
 
-	        while 1:
-	                msg = json.loads(zlib.decompress(self.socket.recv()))
-	                resp = self.handler(msg)
-	                self.socket.send(zlib.compress(json.dumps(resp)))
+	def run(self):
+            pass
+	        #while 1:
+	                #msg = json.loads(zlib.decompress(self.socket.recv()))
+	                #resp = self.handler(msg)
+                        #
