@@ -222,7 +222,7 @@ class receiver(gr.top_block):
 		#	self.channels[i] = []
 
 		self.access_lock.release()
-	def connect_channel(self, channel_rate, freq, dest, port):
+        def connect_channel(self, channel_rate, freq, dest, port):
 		if self.config.frontend_mode == 'pfb':
 			return self.connect_channel_pfb(channel_rate, freq, dest, port)
 		elif self.config.frontend_mode == 'xlat':
@@ -270,6 +270,14 @@ class receiver(gr.top_block):
 
                         self.lock()
                         self.connect(source, block)
+
+                        #While we're locked to connect this block, look for any idle channels and disco/destroy.
+                        for c in self.channels:
+                            if c.channel_close_time != 0 and time.time()-c.channel_close_time > 10 and block != c:
+                                self.disconnect(source, c)
+                                c.destroy()
+                                c = None
+                                del c
                         self.unlock()
 
                 block.in_use = True
@@ -356,6 +364,7 @@ class receiver(gr.top_block):
 			self.channels[block_id].in_use = False
 			self.channels[block_id].udp.connect('127.0.0.1', 9999)
 			self.channels[block_id].udp.disconnect()
+                        self.channel_close_time = time.time()
 		except:
 			self.access_lock.release()
 			raise Exception('Failed to release channel')
@@ -434,8 +443,10 @@ if __name__ == '__main__':
 	context = zmq.Context()
 	socket = context.socket(zmq.REP)
 	socket.bind("tcp://0.0.0.0:50000")
-	
+	start_time = time.time()
+
 	while 1:
 		msg = socket.recv()
 		resp = handler(msg, tb)
 		socket.send(resp)
+                #print(tb.channels)
