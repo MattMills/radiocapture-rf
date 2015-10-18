@@ -99,7 +99,7 @@ class rc_config:
                                 'rf_gain': self.gain,
                                 'center_freq': 772000000,
 				'samp_rate': self.samp_rate
-                        }
+                        },
 			9:{
 				'type': 'rtlsdr',
 				'args': 'rtl=19,buffers=4',
