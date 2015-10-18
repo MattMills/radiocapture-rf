@@ -61,6 +61,7 @@ class logging_receiver(gr.top_block):
 		#self.connect(self.source, self.lp1)
 
 		self.cdr = {}
+                self.last_cdr = {}
 		self.time_open = time.time()
 		self.time_activity = time.time()
 		self.time_last_use = time.time()
@@ -82,6 +83,11 @@ class logging_receiver(gr.top_block):
 		p25_sensor = threading.Thread(target=self.p25_sensor)
 		p25_sensor.daemon = True
 		p25_sensor.start()
+
+                debug = threading.Thread(target=self.debug)
+                debug.daemon = True
+                debug.start()
+
 	def configure_blocks(self, protocol):
 		if not (protocol == 'p25' or protocol == 'p25_cqpsk' or protocol == 'provoice' or protocol == 'dsd_p25' or protocol == 'analog' or protocol == 'none'):
 			raise Exception('Invalid protocol %s' % protocol)
@@ -295,6 +301,11 @@ class logging_receiver(gr.top_block):
                 delta_hz = min(delta_hz, max_delta_hz)
 		if self.prefilter != None:
 	                self.prefilter.set_center_freq(0 - delta_hz)
+
+        def debug(self):
+            while not self.destroyed:
+                time.sleep(10)
+                print 'DEBUG: %s %s %s %s %s %s' % (time.time(), 0, self.time_open, self.time_activity, self.destroyed, self.in_use)
 	def p25_sensor(self):
 		import binascii
 		buf = ''
@@ -308,7 +319,7 @@ class logging_receiver(gr.top_block):
                                 0xF: 'Terminator with Link Control'
                                 }
 		last_duid = None
-		while(True):
+		while(not self.destroyed):
 			#if self == None or self.destroyed != False:
 			if self.destroyed != False:
 				break
@@ -366,7 +377,9 @@ class logging_receiver(gr.top_block):
 
 
         def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, patches, codec_provoice, codec_p25, emergency=False):
-		try:
+                        
+                        if not emergency:
+                            self.destroy()
 			time.sleep(2)
 			#if codec_provoice:
 			#	os.system('nice -n 19 ./file_to_wav.py -i %s -p -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.input_rate, self.audio_rate))
@@ -400,9 +413,6 @@ class logging_receiver(gr.top_block):
 					os.remove(filename[:-4] + '.wav')
 			except:
 				print 'error removing ' + filename[:-4] + '.wav'
-		finally:
-			if not emergency:
-				self.destroy()
 
 	def close(self, patches, emergency=False):
 		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')
@@ -418,37 +428,44 @@ class logging_receiver(gr.top_block):
 			_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.time_open, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25, emergency])
 	        	_thread_0.daemon = True
 			_thread_0.start()
-		self.time_open = 0
+		#self.time_open = 0
 		self.time_last_use = time.time()
 		self.uuid =''
+                self.last_cdr = self.cdr
 		self.cdr = {}
 		self.in_use = False
 	def destroy(self):
+                if self.destroy == True:
+                    return True
 		if self.protocol == 'p25' or self.protocol=='p25_cqpsk':
 			try:
 				self.demod_watcher.keep_running = False
 				self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
 			except:
 				pass
-		self.receiver.ar_lock.acquire()
+		#self.receiver.ar_lock.acquire()
 		self.receiver.connector.release_channel(self.channel_id)
-		self.receiver.ar_lock.release()
+		#self.receiver.ar_lock.release()
 
-		try:
-			self.configure_blocks('none')
-                        self.stop()
-                        self.source.disconnect()
-                        self.disconnect(self.source)
-			self.disconnect(self.sink)
-			
-                except:
-                        pass
+		self.configure_blocks('none')
+                self.stop()
                 try:
-                        self.source = None
-                        self.sink = None
-                        #del self.source
+                    self.source.disconnect()
                 except:
-                        pass
+                    pass
+
+                try:
+                    self.disconnect(self.source)
+                except:
+                    pass
+                try:
+    		    self.disconnect(self.sink)
+                except:
+                    pass
+			
+                self.source = None
+                self.sink = None
+
 		self.destroyed = True
 
 	def set_rate(self, channel_rate):
