@@ -12,7 +12,7 @@ class rc_config:
                 self.frontend_ip = '127.0.0.1'
                 self.backend_ip = '127.0.0.1'
 
-
+                self.site_uuid = 'f1877ce6-bfef-4c9e-b34d-014c24c974f2'
 
 		self.samp_rate = 2400000
 		self.gain = 28
