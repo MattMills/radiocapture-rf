@@ -88,8 +88,8 @@ class rc_config:
                                 'offset': 1400,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
-                                'center_freq': 770500000,
-                                'samp_rate': 3200000
+                                'center_freq': 770000000,
+				'samp_rate': self.samp_rate
                         },
 			8:{
                                 'type': 'rtlsdr',
@@ -97,9 +97,18 @@ class rc_config:
                                 'offset': 1120,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
-                                'center_freq': 773500000,
-                                'samp_rate': 3200000
-                        },
+                                'center_freq': 772000000,
+				'samp_rate': self.samp_rate
+                        }
+			9:{
+				'type': 'rtlsdr',
+				'args': 'rtl=19,buffers=4',
+				'offset': 1290,
+				'bb_gain': self.if_gain,
+				'rf_gain': self.gain,
+				'center_freq': 774000000,
+				'samp_rate': self.samp_rate
+			},
 			
 
 		}
