@@ -9,8 +9,8 @@ class rc_config:
                 self.receiver_split2 = False    #Does the frontend receiver split each inbound source by 1/2
 		self.frontend_mode = 'xlat'
 
-                self.frontend_ip = '127.0.0.1'
-                self.backend_ip = '127.0.0.1'
+                self.frontend_ip = '10.5.0.22'
+                self.backend_ip = '10.5.0.23'
 
                 self.site_uuid = 'f1877ce6-bfef-4c9e-b34d-014c24c974f2'
 
@@ -89,7 +89,7 @@ class rc_config:
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 770500000,
-                                'samp_rate': 3000000
+                                'samp_rate': 3200000
                         },
 			8:{
                                 'type': 'rtlsdr',
@@ -98,7 +98,7 @@ class rc_config:
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 773500000,
-                                'samp_rate': 3000000
+                                'samp_rate': 3200000
                         },
 			
 
@@ -494,13 +494,13 @@ class rc_config:
 		#del self.systems[16]
 		#del self.systems[15]
 		#del self.systems[14]
-		del self.systems[13]
-		del self.systems[12]
+		#del self.systems[13]
+		#del self.systems[12]
 		#del self.systems[11]
 		#del self.systems[10]
-		del self.systems[9]
+		#del self.systems[9]
 		#del self.systems[8]
-		del self.systems[7]
+		#del self.systems[7]
 	
 		#del self.systems[6]
 		#del self.systems[5]
