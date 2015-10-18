@@ -219,8 +219,8 @@ if __name__ == '__main__':
 				audio_rate = receiver.audio_rate
 				receiver.close(receiver.controller.patches, True)
 				receiver.open(cdr,audio_rate)
-			if receiver.in_use == False and time.time()-receiver.time_activity > 120:
-				receiver.destroy()
+			#if receiver.in_use == False and time.time()-receiver.time_activity > 120:
+			#	receiver.destroy()
 			if receiver.destroyed == True:
                                 tb.active_receivers[i] = None
                                 receiver = None

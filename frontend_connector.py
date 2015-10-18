@@ -2,11 +2,12 @@
 
 import zmq
 import random
-
+import threading
 
 class frontend_connector():
 	def __init__(self, dest='127.0.0.1', host='127.0.0.1', port=50000):
 	
+                self.thread_lock = threading.Lock()
 		self.dest = dest
 
 		#self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,6 +34,7 @@ class frontend_connector():
 			pass
 
 	def create_channel(self, channel_rate, freq):
+                self.thread_lock.acquire()
 		while True:
 			spacer = 1000*self.my_client_id
 			port = random.randrange(10000+spacer,10000+spacer+999)
@@ -44,23 +46,28 @@ class frontend_connector():
 		data = data.strip().split(',')
 
 		if data[0] == 'na': #failed
+                        self.thread_lock.release()
 			return False
 		elif data[0] == 'create': #succeeded
 			channel_id = data[1]
 			self.used_ports.append(port)
 			self.channel_id_to_port[channel_id] = port
 
+                        self.thread_lock.release()
 			return channel_id
 		else:
+                        self.thread_lock.release()
 			return False
                         
 	def release_channel(self, channel_id):
+                self.thread_lock.acquire()
 		self.socket.send('release,%s,%s' % (self.my_client_id,channel_id))
                 data = self.socket.recv(1024)
                 data = data.strip().split(',')
 		
 		
                 if data[0] == 'na': #failed
+                        self.thread_lock.release()
                         return False
                 elif data[0] == 'release': #succeeded
                         channel_id = data[1]
@@ -70,8 +77,10 @@ class frontend_connector():
 
                         self.used_ports.remove(port)
 
+                        self.thread_lock.release()
                         return channel_id
 		else:
+                        self.thread_lock.release()
 			return False
 
 if __name__ == '__main__':
