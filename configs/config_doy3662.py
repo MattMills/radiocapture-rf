@@ -7,54 +7,82 @@
 class rc_config:
 	def __init__(self):
                 self.receiver_split2 = False    #Does the frontend receiver split each inbound source by 1/2
+		self.frontend_mode = 'xlat'
 
                 self.frontend_ip = '127.0.0.1'
                 self.backend_ip = '127.0.0.1'
 
+                self.site_uuid = 'none'
+
+		self.samp_rate = 2400000
+		self.gain = 28
+		self.if_gain = 20
 
 		self.sources = {
-                        0:{
+			0:{
+				'type': 'rtlsdr', 
+				'args': 'rtl=3-1,buffers=4',
+				'offset': 0,
+				'bb_gain': self.if_gain,
+				'rf_gain': self.gain,
+				'center_freq': 770000000, 
+				'samp_rate': self.samp_rate
+			},
+			1:{
                                 'type': 'rtlsdr',
-				'serial': '0',
-                                'args': 'numchan=1 rtl=0',
-                                'center_freq': 502000000,
-                                'samp_rate': 2800000,
-                                'rf_gain': 30,
-                                'bb_gain': 31
-                        }
-                }
+                                'args': 'rtl=3-2,buffers=4',
+				'offset': 0,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 772000000,
+                                'samp_rate': self.samp_rate
+                        },
+                        2:{
+                                'type': 'rtlsdr',
+                                'args': 'rtl=3-3,buffers=4',
+				'offset': 0,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 774000000,
+                                'samp_rate': self.samp_rate
+                        },
+			
+
+		}
+
 
 		self.systems = {
-			0:{#Backs County - South Simulcast (Site 2)
-                                'type': 'moto',
-                                'id': 0x710b,
-				'offset': 380,
-				'force_p25': True,
-                                'channels' : {
-					0x17c: 501037500, #0x17c  0x0
-	                                0x182: 501187500, #0x182  0x6
-	                                0x183: 501212500, #0x183  0x7
-	                                0x184: 501237500, #0x184  0x8
-	                                0x185: 501262500, #0x185  0x9
-	                                0x18b: 501412500, #0x18b  0xf
-	                                0x192: 501587500, #0x192  0x16
-	                                0x195: 501662500, #0x195  0x19
-	                                0x199: 501762500  #0x199  0x1d
+                        0: {
+                                'type': 'p25',
+                                'id': '1-001',
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 769256250,
+					1: 769268750,
+					2: 769506250,
+					3: 769518750,
+					4: 770556250,
+					5: 770806250,
+					6: 770818750,
+					7: 771106250,
+					8: 771118750,
+					9: 771681250,
+					10: 771693750,
+					11: 771981250,
+					12: 771993750,
+					13: 772331250,
+					14: 772343750,
+					15: 772656250,
+					16: 772981250,
+					17: 772993750,
+					18: 773231250,
+					19: 773243750,
+					20: 773881250,
+					21: 773893750,
+					22: 774656250,
+					23: 774668750,
                                 }
                         },
-			1:{ #Bucks county - North simulcast (site 1)
-				'type': 'moto',
-				'id': 0x710a,
-				'offset': 380,
-				'force_p25': True,
-				'channels': {
-					0x181: 501162500,
-					0x189: 501362500,
-					0x18f: 501512500,
-					0x191: 501562500,
-					0x198: 501737500
-				}
-			}
 		}
-		#del self.systems[0]
-		self.blacklists = {}
+
+		
