@@ -511,13 +511,15 @@ class p25_control_receiver (gr.hier_block2):
 		try:
                         base_freq = self.channel_identifier_table[chan_ident]['Base Frequency']
                         chan_spacing = self.channel_identifier_table[chan_ident]['Channel Spacing']/1000
+			slots = self.channel_identifier_table[chan_ident]['Slots']
                 except KeyError:
-                        return False, False
-		chan_freq = (chan_number*chan_spacing)
+                        return False, False, False
+		chan_freq = ((chan_number/slots)*chan_spacing)
+		slot_number = (chan_number % slots)
                 channel_frequency = (base_freq + chan_freq)*1000000
                 channel_bandwidth = self.channel_identifier_table[chan_ident]['BW']*1000
 
-		return channel_frequency, channel_bandwidth
+		return channel_frequency, channel_bandwidth, slot_number
 
 	def new_call(self, channel, group, user):
 		if not self.enable_capture:
@@ -527,7 +529,7 @@ class p25_control_receiver (gr.hier_block2):
 			return False
 			#Ignore blacklisted groups
 		
-		channel_frequency, channel_bandwidth = self.get_channel_detail(channel)
+		channel_frequency, channel_bandwidth, slot = self.get_channel_detail(channel)
 		if(channel_frequency == False):
 			return False
 
@@ -714,7 +716,9 @@ class p25_control_receiver (gr.hier_block2):
 							'BW': t['BW VU'], 
 							'Base Frequency': t['Base Frequency'], 
 							'Channel Spacing': t['Channel Spacing'],
-							'Transmit Offset': t['Transmit Offset VU']
+							'Transmit Offset': t['Transmit Offset VU'],
+							'Type': 'FDMA',
+							'Slots': 1,
 							}
 						#print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'IDEN_UP':
@@ -727,30 +731,69 @@ class p25_control_receiver (gr.hier_block2):
 
                                                 t['Transmit Offset'] = sign*(t['Transmit Offset']&0xff)*0.250
 
-
                                                 self.channel_identifier_table[t['Identifier']] = {
                                                         'BW': t['BW'],
                                                         'Base Frequency': t['Base Frequency'],
                                                         'Channel Spacing': t['Channel Spacing'],
-                                                        'Transmit Offset': t['Transmit Offset']
+                                                        'Transmit Offset': t['Transmit Offset'],
+							'Type': 'FDMA',
+							'Slots': 1,
                                                         }
 						#print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'IDEN_UP_TDMA':
-						pass
+						#p25-1-001: {'lb': '0', 'name': 'IDEN_UP_TDMA', 
+						#'p': '0', 'Transmit Offset TDMA': 10592, 'Channel Type': 3, 
+						#'crc': 0, 'Base Frequency': 152401250, 'opcode': 51, 
+						#'Channel Spacing': 100, 'Identifier': 3, 'mfid': 0}
+						t['Base Frequency'] = t['Base Frequency']*0.000005
+						t['Channel Spacing'] = t['Channel Spacing']*0.125
+						t['Transmit Offset TDMA'] = int(t['Transmit Offset TDMA'])
+                                                sign = (t['Transmit Offset TDMA']&0x100>>8)
+						if sign == 0: sign = -1
+
+						t['Transmit Offset TDMA'] = sign*(t['Transmit Offset TDMA']&0x1fff)
+
+						if(t['Channel Type'] == 0 or t['Channel Type'] == 1 or t['Channel Type'] == 2):
+							t['Access Type'] = 'FDMA'
+							t['Slots'] = 1
+						elif(t['Channel Type'] == 3 or t['Channel Type'] == 4 or t['Channel Type'] == 5):
+							t['Access Type'] = 'TDMA'
+							if(t['Channel Type'] == 3 or t['Channel Type'] == 5):
+								t['Slots'] = 2
+							elif(t['Channel Type'] == 4):
+								t['Slots'] = 4
+						
+
+						if(t['Channel Type'] == 0 or t['Channel Type'] == 1 or t['Channel Type'] == 3 or t['Channel Type'] == 5):
+							t['BW'] = 12.5
+						elif(t['Channel Type'] == 2):
+							t['BW'] = 6.25
+						elif(t['Channel Type'] == 4):
+							t['BW'] = 25
+
+						self.channel_identifier_table[t['Identifier']] = {
+                                                        'BW': t['BW'],
+                                                        'Base Frequency': t['Base Frequency'],
+                                                        'Channel Spacing': t['Channel Spacing'],
+                                                        'Transmit Offset': t['Transmit Offset TDMA'],
+                                                        'Type': t['Access Type'],
+							'Slots': t['Slots'],
+                                                        }
+						
 						#print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT':
 						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
-						#print '[%s]%s: %s' % (time(), self.thread_id, t)
+						print '[%s]%s: %s' % (time(), self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
 						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
-						#print '[%s]%s: %s' % (time(), self.thread_id, t)
+						print '[%s]%s: %s' % (time(), self.thread_id, t)
 					elif t['name'] == 'UU_V_CH_GRANT':
-						pass #print '%s: %s' % (self.thread_id, t)
+						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'UU_ANS_REQ':
-						pass #print '%s: %s' % (self.thread_id, t)
+						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT_EXP':
-						pass #print '%s: %s' % (self.thread_id, t)
+						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'GRP_AFF_RSP':
 						pass #print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'U_REG_RSP':
