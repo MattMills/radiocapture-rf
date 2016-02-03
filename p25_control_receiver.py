@@ -36,6 +36,7 @@ class p25_control_receiver (gr.hier_block2):
 		self.system = system
 		self.block_id = block_id
 		self.channel_rate = 12500
+		self.audio_rate = self.channel_rate
 
 		self.control_channel = system['channels'][system['default_control_channel']]
 		self.control_channel_i = system['default_control_channel']
