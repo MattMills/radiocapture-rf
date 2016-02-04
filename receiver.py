@@ -216,7 +216,7 @@ if __name__ == '__main__':
 
 			if receiver.in_use == True and time.time()-receiver.time_open > 120:
 				cdr = receiver.cdr
-				audio_rate = receiver.audio_rate
+				audio_rate = receiver.channel_rate
 				receiver.close(receiver.controller.patches, True)
 				receiver.open(cdr,audio_rate)
 			#if receiver.in_use == False and time.time()-receiver.time_activity > 120:
