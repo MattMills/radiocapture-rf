@@ -17,6 +17,7 @@ from time import sleep,time
 
 from p25_cai import p25_cai
 from logging_receiver import logging_receiver
+from backend_event_publisher import backend_event_publisher
 
 
 # The P25 receiver
@@ -152,6 +153,8 @@ class p25_control_receiver (gr.hier_block2):
                 ##################################################
                 # Threads
                 ##################################################
+
+		self.backend_event_publisher = backend_event_publisher()
 
                 receive_engine = threading.Thread(target=self.receive_engine)
                 receive_engine.daemon = True
@@ -523,6 +526,10 @@ class p25_control_receiver (gr.hier_block2):
 		return channel_frequency, channel_bandwidth, slot_number
 
 	def new_call(self, channel, group, user):
+		channel_frequency, channel_bandwidth, slot = self.get_channel_detail(channel)
+
+		self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  group, user, channel_frequency, 'd')
+
 		if not self.enable_capture:
 			return False
 
@@ -530,7 +537,6 @@ class p25_control_receiver (gr.hier_block2):
 			return False
 			#Ignore blacklisted groups
 		
-		channel_frequency, channel_bandwidth, slot = self.get_channel_detail(channel)
 		if(channel_frequency == False):
 			return False
 
