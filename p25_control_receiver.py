@@ -10,7 +10,7 @@ import datetime
 
 from gnuradio import gr, uhd, filter, analog, blocks, digital
 from gnuradio.filter import firdes
-from math import pi
+from math import pi, floor
 import op25_repeater as repeater
 import op25
 from time import sleep,time
@@ -520,7 +520,7 @@ class p25_control_receiver (gr.hier_block2):
                         return False, False, False
 		chan_freq = ((chan_number/slots)*chan_spacing)
 		slot_number = (chan_number % slots)
-                channel_frequency = int((base_freq + chan_freq)*1000000)
+                channel_frequency = floor((base_freq + chan_freq)*1000000)
                 channel_bandwidth = self.channel_identifier_table[chan_ident]['BW']*1000
 
 		return channel_frequency, channel_bandwidth, slot_number
