@@ -520,7 +520,7 @@ class p25_control_receiver (gr.hier_block2):
                         return False, False, False
 		chan_freq = ((chan_number/slots)*chan_spacing)
 		slot_number = (chan_number % slots)
-                channel_frequency = (base_freq + chan_freq)*1000000
+                channel_frequency = int((base_freq + chan_freq)*1000000)
                 channel_bandwidth = self.channel_identifier_table[chan_ident]['BW']*1000
 
 		return channel_frequency, channel_bandwidth, slot_number
