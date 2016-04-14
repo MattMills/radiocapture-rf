@@ -29,7 +29,7 @@ class p25_control_receiver (gr.hier_block2):
 	        	gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
 	                gr.io_signature(0, 0, 0)) # Output signature
 	
-		self.hang_time = 3.5 #500 ms hang time	
+		self.hang_time = 0.5 #500 ms hang time	
 
 		#set globals
 		self.patches = {}
