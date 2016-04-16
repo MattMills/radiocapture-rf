@@ -4,8 +4,10 @@ import zmq
 import random
 import threading
 
+
 class frontend_connector():
-	def __init__(self, dest='127.0.0.1', host='127.0.0.1', port=50000):
+	def __init__(self, dest='10.5.0.23', host='10.5.0.22', port=50000):
+		#temp hack until I have auto-frontend figured out
 	
                 self.thread_lock = threading.Lock()
 		self.dest = dest
@@ -16,9 +18,9 @@ class frontend_connector():
 		self.socket = context.socket(zmq.REQ)
 		self.socket.connect("tcp://%s:%s" % (host, port))
 		self.my_client_id = None
+		self.channel_id = None
+		self.current_port = None
 
-		self.used_ports = []
-		self.channel_id_to_port = {}
 		self.socket.send('connect')
 		data = self.socket.recv()
 
@@ -33,15 +35,16 @@ class frontend_connector():
 		except:
 			pass
 
-	def create_channel(self, channel_rate, freq):
-                self.thread_lock.acquire()
-		while True:
-			spacer = 1000*self.my_client_id
-			port = random.randrange(10000+spacer,10000+spacer+999)
-			if port not in self.used_ports:
-				break
+	def set_port(self, port):
+		self.current_port = port
 
-		self.socket.send('create,%s,%s,%s,%s,%s' % (self.my_client_id, self.dest, port, channel_rate, freq))
+	def create_channel(self, channel_rate, freq):
+		if self.current_port == None:
+			raise Exception('Port not set')
+
+                self.thread_lock.acquire()
+
+		self.socket.send('create,%s,%s,%s,%s,%s' % (self.my_client_id, self.dest, self.current_port, channel_rate, freq))
 		data = self.socket.recv()
 		data = data.strip().split(',')
 
@@ -50,8 +53,7 @@ class frontend_connector():
 			return False
 		elif data[0] == 'create': #succeeded
 			channel_id = data[1]
-			self.used_ports.append(port)
-			self.channel_id_to_port[channel_id] = port
+			self.channel_id = channel_id
 
                         self.thread_lock.release()
 			return channel_id
@@ -59,9 +61,13 @@ class frontend_connector():
                         self.thread_lock.release()
 			return False
                         
-	def release_channel(self, channel_id):
+	def release_channel(self):
+		if self.current_port == None or self.channel_id == None:
+			return False
+		#if we dont have a port set, we can't have a channel.
+
                 self.thread_lock.acquire()
-		self.socket.send('release,%s,%s' % (self.my_client_id,channel_id))
+		self.socket.send('release,%s,%s' % (self.my_client_id, self.channel_id))
                 data = self.socket.recv(1024)
                 data = data.strip().split(',')
 		
@@ -72,11 +78,7 @@ class frontend_connector():
                 elif data[0] == 'release': #succeeded
                         channel_id = data[1]
 
-			port = self.channel_id_to_port[channel_id]
-			del self.channel_id_to_port[channel_id]
-
-                        self.used_ports.remove(port)
-
+			self.channel_id = None
                         self.thread_lock.release()
                         return channel_id
 		else:
