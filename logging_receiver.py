@@ -398,13 +398,16 @@ class logging_receiver(gr.top_block):
 			tags['TPE1'] = '%s' %(cdr['system_user_local'])
 			tags['TALB'] = '%s' % (cdr['system_id'])
 			
-			if(cdr['system_group_local'] in patches):
-				groups = []
-			        for group in patches[cdr['system_group_local']]:
-			        	groups.append(group)
-				tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['timestamp'], groups)
-			else:
-				tags['COMM'] = '%s,%s,%s' % (cdr['system_channel_local'],cdr['timestamp'], [])
+
+			groups = []
+			for patch_group in patches:
+				if(cdr['system_group_local'] in patches[patch_group] or cdr['system_group_local'] == patch_group):
+				        for group in patches[patch_group]:
+				        	groups.append(group)
+					groups.append(patch_group)
+			groups = list(set(groups))
+
+			tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['timestamp'], groups)
 			tags['COMM'] = tags['COMM'].replace(':', '|')
 			os.system('id3v2 -2 --TIT2 "%s" --TPE1 "%s" --TALB "%s" -c "RC":"%s":"English" %s' % (tags['TIT2'], tags['TPE1'], tags['TALB'], tags['COMM'], filename))
 	
