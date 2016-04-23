@@ -15,7 +15,7 @@ class backend_event_publisher():
 		if(host != None):
 			self.host = host
 		else:
-			self.host = '10.5.1.138' #manually set here until there is a better place
+			self.host = '127.0.0.1' #manually set here until there is a better place
 		if(port != None):
 			self.port = port
 		else:
@@ -60,11 +60,10 @@ class backend_event_publisher():
 		except:
 			self.connection_issue = True
 
-	def publish_raw_control(self, location_id, system_id, system_type, item):
-		return None #Disabling for now due to high bandwidth use
+	def publish_raw_control(self, instance_uuid, system_type, item):
 		item['system_type'] = system_type
 
-		self.send_event_lazy('/topic/raw/%s/%s' % (location_id, system_id), item)
+		self.send_event_lazy('/topic/raw_control/%s' % (instance_uuid), item)
 
 	def publish_call(self, location_id, system_id, system_type, group_local, user_local, channel_local, call_type):
 		item = {

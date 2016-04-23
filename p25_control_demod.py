@@ -20,16 +20,22 @@ from p25_cai import p25_cai
 
 from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
+from redis_demod_publisher import redis_demod_publisher
 
 # The P25 receiver
 #
 class p25_control_demod (gr.top_block):
-	def __init__(self, system):
+	def __init__(self, system, site_uuid, overseer_uuid):
 	
 		gr.top_block.__init__(self, "p25 receiver")
 
 		#set globals
 		self.system = system
+		self.instance_uuid = '%s' % uuid.uuid4()
+		self.site_uuid = site_uuid
+		self.overseer_uuid = overseer_uuid
+
+
 		self.channel_rate = 12500
 
 		self.control_channel = system['channels'][system['default_control_channel']]
@@ -45,14 +51,14 @@ class p25_control_demod (gr.top_block):
 		except:
 			self.modulation = 'C4FM'
 
-		self.P25 = {}
-		self.P25['WACN ID'] = None
-		self.P25['System ID'] = None
-		self.P25['Control Channel'] = None
-		self.P25['System Service Class'] = None
-		self.P25['Site ID'] = None
-		self.P25['RF Sub-system ID'] = None
-		self.P25['RFSS Network Connection'] = None
+		self.site_detail = {}
+		self.site_detail['WACN ID'] = None
+		self.site_detail['System ID'] = None
+		self.site_detail['Control Channel'] = None
+		self.site_detail['System Service Class'] = None
+		self.site_detail['Site ID'] = None
+		self.site_detail['RF Sub-system ID'] = None
+		self.site_detail['RFSS Network Connection'] = None
 
 
 	        # Setup receiver attributes
@@ -151,6 +157,7 @@ class p25_control_demod (gr.top_block):
                 ##################################################
 
 		self.backend_event_publisher = backend_event_publisher()
+		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
                 receive_engine = threading.Thread(target=self.receive_engine)
                 receive_engine.daemon = True
@@ -713,20 +720,21 @@ class p25_control_demod (gr.top_block):
 					elif t['name'] == 'U_REG_RSP':
 						pass
 					elif t['name'] == 'NET_STS_BCST':
-						self.P25['WACN ID'] = hex(int(t['WACN ID']))
-						self.P25['System ID'] = hex(int(t['System ID']))
-						self.P25['System Service Class'] = t['System Service Class']
-						self.P25['Control Channel'] = t['Channel']
+						self.site_detail['WACN ID'] = hex(int(t['WACN ID']))
+						self.site_detail['System ID'] = hex(int(t['System ID']))
+						self.site_detail['System Service Class'] = t['System Service Class']
+						self.site_detail['Control Channel'] = t['Channel']
 					elif t['name'] == 'RFSS_STS_BCST':
-						self.P25['Site ID'] = t['Site ID']
-						self.P25['RF Sub-system ID'] = t['RF Sub-system ID']
-						self.P25['RFSS Network Connection'] = t['A']
+						self.site_detail['Site ID'] = t['Site ID']
+						self.site_detail['RF Sub-system ID'] = t['RF Sub-system ID']
+						self.site_detail['RFSS Network Connection'] = t['A']
 					elif t['name'] == 'ADJ_STS_BCST':
 						t['Channel'] = self.get_channel_detail(t['Channel'])
 						del t['lb']
 						del t['crc']
 						del t['mfid']
 						del t['opcode']
+				self.backend_event_publisher.publish_raw_control(self.instance_uuid, self.system['type'], t)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
@@ -738,7 +746,7 @@ class p25_control_demod (gr.top_block):
                 last_bad = 0
                 while True:
                         sleep(10); #only check messages once per 10second
-                        sid = '%s %s-%s %s-%s' % (self.system['id'], self.P25['System ID'], self.P25['WACN ID'], self.P25['RF Sub-system ID'], self.P25['Site ID'])
+                        sid = '%s %s-%s %s-%s' % (self.system['id'], self.site_detail['System ID'], self.site_detail['WACN ID'], self.site_detail['RF Sub-system ID'], self.site_detail['Site ID'])
 			
 			current_packets = self.total_messages-last_total
 			current_packets_bad = self.bad_messages-last_bad

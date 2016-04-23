@@ -12,15 +12,21 @@ import time
 import os
 import random
 import threading
+import uuid
 
 from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
+from redis_demod_publisher import redis_demod_publisher
 
 class edacs_control_demod(gr.top_block):
-	def __init__(self, system):
+	def __init__(self, system, site_uuid, overseer_uuid):
 		gr.top_block.__init__(self, "edacs receiver")
 
 		self.system = system
+		self.instance_uuid = '%s' % uuid.uuid4()
+
+		self.overseer_uuid = overseer_uuid
+		self.site_uuid = site_uuid
 
 		self.audio_rate = audio_rate = 12500
 		self.symbol_rate = symbol_rate = system['symbol_rate']
@@ -36,6 +42,7 @@ class edacs_control_demod(gr.top_block):
 		self.bad_messages = 0
 		self.total_messages = 0
 		self.quality = []
+		self.site_detail = {}
 
 		self.is_locked = False
 
@@ -101,6 +108,7 @@ class edacs_control_demod(gr.top_block):
 		self.patches = {}
 		self.patch_timeout = 3 #seconds
                 self.backend_event_publisher = backend_event_publisher()
+		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
 		control_decode_0 = threading.Thread(target=self.control_decode)
 		control_decode_0.daemon = True
@@ -279,6 +287,7 @@ class edacs_control_demod(gr.top_block):
                 #        print "(%s)[%s] %s" %(time.time(),hex(int(m1, 2)), m)
                 #elif( m != ''):
                 #        print "(%s)[%s][%s] %s" %(time.time(),hex(int(m1, 2)), hex(int(m2,2)), m)
+		self.backend_event_publisher.publish_raw_control(self.instance_uuid, self.system['type'], r)
         def is_double_message(self, m1):
                 if(m1 == -1): return True
                 mta = m1[:3]

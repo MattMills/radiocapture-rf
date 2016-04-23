@@ -11,14 +11,17 @@ from gnuradio import gr
 
 import time
 import threading
+import uuid
 
 from logging_receiver import logging_receiver
 from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
+from redis_demod_publisher import redis_demod_publisher
+ 
 
 class moto_control_demod(gr.top_block):
 
-	def __init__(self, system):
+	def __init__(self, system, site_uuid, overseer_uuid):
 
 		gr.top_block.__init__(self, "moto receiver")
 
@@ -26,6 +29,11 @@ class moto_control_demod(gr.top_block):
 		##################################################
 		# Variables
 		##################################################
+
+		self.instance_uuid = '%s' % uuid.uuid4()
+		self.overseer_uuid = overseer_uuid
+		self.site_uuid = site_uuid
+
 		self.channel_rate = 12500
 
 		self.packets = 0
@@ -33,6 +41,7 @@ class moto_control_demod(gr.top_block):
 		self.patches = {}
 	
 		self.quality = []
+		self.site_detail = {}
 
 		self.symbol_rate = symbol_rate = 3600.0
 		self.control_source = 0
@@ -78,6 +87,7 @@ class moto_control_demod(gr.top_block):
 
 		self.connector = frontend_connector()
 		self.backend_event_publisher = backend_event_publisher()
+		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
 
 		##################################################
@@ -466,7 +476,7 @@ class moto_control_demod(gr.top_block):
 						#if p['type'] != 'System status':
 						#	print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
 
-						self.backend_event_publisher.publish_raw_control('test', self.system['id'], self.system['type'], p)
+						self.backend_event_publisher.publish_raw_control(self.instance_uuid, self.system['type'], p)
 						last_cmd = cmd
 						last_i = individual
 						last_data = lid
