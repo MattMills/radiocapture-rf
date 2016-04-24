@@ -312,12 +312,15 @@ class p25_control_receiver (gr.hier_block2):
 			p = p25_moto()
 		else:
 			#unknown MFID, we cant decode.
+			r['name'] = 'UNKNOWN'
+			r['raw'] = hex(int(bitframe[16:80], 2)).lstrip('0x').rstrip('L').zfill(16)
 			return r
 
                 try:
                         r['name'] = p.tsbk_osp_single[r['opcode']]['name']
                 except:
-                        r['name'] = 'INVALID'
+                        r['name'] = 'UNKNOWN'
+			r['raw'] = hex(int(bitframe[16:80], 2)).lstrip('0x').rstrip('L').zfill(16)
 			return r
 		if(len(bitframe[16:]) < 80): return r
 		bitframe = bitframe[16:]
@@ -878,6 +881,11 @@ class p25_control_receiver (gr.hier_block2):
 
 
 						#print '%s: %s' % (self.thread_id, t)
+					elif t['name'] == 'UNKNOWN':
+						if(t['mfid'] == 0x90 and (t['opcode'] == 0x05 or t['opcode'] == 0x09)):
+							pass
+						else:
+							print '%s: %s' % (self.thread_id, t)
 					#else:
 						#print '%s: %s' % (self.thread_id, t)
 					#print '%s: %s' % (self.thread_id, t)
