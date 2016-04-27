@@ -37,11 +37,15 @@ class redis_demod_publisher():
 		print 'publish_loop()'
 		while self.continue_running:
 			system_type = self.parent_demod.system['type']
-			
+			try:
+				system_uuid = self.parent_demod.system['system_uuid']
+			except:
+				system_uuid = self.parent_demod.instance_uuid
 
 			publish_data = {
 				'instance_uuid': self.parent_demod.instance_uuid,
 				'site_uuid': self.parent_demod.site_uuid,
+				'system_uuid': system_uuid,
 				'overseer_uuid': self.parent_demod.overseer_uuid,
 				'site_detail': self.parent_demod.site_detail,
 				'site_status': self.parent_demod.quality,

@@ -11,6 +11,7 @@ import time
 import uuid
 import sys
 import signal
+import math
 
 from redis_demod_manager import redis_demod_manager
 
@@ -36,7 +37,9 @@ class p25_call_manager():
 		self.subscriptions = {}
 
 
+		self.hang_time = 3
 		self.instance_metadata = {}
+		self.system_metadata = {}
 		
 
                 connection_handler = threading.Thread(target=self.connection_handler)
@@ -66,12 +69,15 @@ class p25_call_manager():
                                 try:
                                         self.init_connection()
                                         self.connection_issue = False
+					for subscription in self.subscriptions:
+						self.subscribe(subscription, resub=True)
+						
                                 except:
                                         pass
                         time.sleep(1)
-	def subscribe(self, queue):
+	def subscribe(self, queue, resub=False):
 		#This needs to exist so we can keep track of what subs we have and re-sub on reconnect
-		if queue in self.subscriptions:
+		if queue in self.subscriptions and not resub:
 			return True #we're already subscribed
 
 		if(self.connection_issue == True):
@@ -118,13 +124,111 @@ class p25_call_manager():
 		print 'Notified of expired demod %s' % (demod_instance_uuid)
 		self.unsubscribe('/topic/raw_control/%s' % (demod_instance_uuid))
 
-	def call_user_to_group(self, instance, channel, group_address, user_address=0):
-		print 'New Call %s %s %s %s' %(instance, channel, group_address, user_address)
+	def get_channel_detail(self, instance, channel):
+                chan_ident = (channel & 0xf000)>>12
+                chan_number = channel & 0x0fff
+                try:
+                        base_freq = self.instance_metadata[instance]['channel_identifier_table'][chan_ident]['Base Frequency']
+                        chan_spacing = self.instance_metadata[instance]['channel_identifier_table'][chan_ident]['Channel Spacing']/1000
+                        slots = self.instance_metadata[instance]['channel_identifier_table'][chan_ident]['Slots']
+			modulation = self.instance_metadata[instance]['channel_identifier_table'][chan_ident]['Type']
+                except KeyError:
+                        return False, False, False, False
+                chan_freq = ((chan_number/slots)*chan_spacing)
+                slot_number = (chan_number % slots)
+                channel_frequency = math.floor((base_freq + chan_freq)*1000000)
+                channel_bandwidth = self.instance_metadata[instance]['channel_identifier_table'][chan_ident]['BW']*1000
+
+                return channel_frequency, channel_bandwidth, slot_number, modulation
+
+	def get_system_from_instance(self, instance_uuid):
+		return self.redis_demod_manager.demods[instance_uuid]['system_uuid']
+
+	def call_user_to_group(self, instance_uuid, channel, group_address, user_address=0):
+		channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
+
+		if channel_frequency == False:
+			return False
+
+		system_uuid = self.get_system_from_instance(instance_uuid)
+
+		sct = self.system_metadata[system_uuid]['call_table']
+		ict = self.instance_metadata[instance_uuid]['call_table']
+
+		for call in ict:
+			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
+				ict[call]['time_activity'] = time.time()
+				return True
+					
+			
+		#Not a continuation, new call
+		call_uuid = None
+		for call in sct:
+			if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
+				call_uuid = sct[call]['call_uuid']
+				break
+
+		if call_uuid == None:
+			#call is new systemwide, assign new UUID
+			call_uuid = '%s' % uuid.uuid4()
+			
+		cdr = {
+			'type': 'p25',
+			'call_uuid': call_uuid,
+	                'system_id': system_uuid,
+			'instance_uuid': instance_uuid,
+                        'system_group_local': group_address,
+                        'system_user_local': user_address,
+                        'system_channel_local': channel,
+                        'type': 'group',
+			'frequency': channel_frequency,
+			'channel_bandwidth': channel_bandwidth,
+			'modulation_type': modulation,
+			'slot': slot,
+                        'hang_time': self.hang_time,
+			'time_open': time.time(),
+			'time_activity': time.time(),
+                        }
+
+		ict[call_uuid] = cdr
+		if call_uuid not in sct:
+			sct[call_uuid] = cdr
+			sct[call_uuid]['instances'] = {instance_uuid: True}
+		else:
+			sct[call_uuid]['instances'][instance_uuid] = True
+			
+		
+
+		#event call open to record subsys
+		self.send_event_lazy('/queue/call_management/new_call', cdr)
+
+		print 'OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']) 
 
 	def publish_loop(self):
 		print 'publish_loop()'
 		print '%s' % self.redis_demod_manager.demods
 		while self.continue_running:
+			for instance in self.instance_metadata:
+				ict = self.instance_metadata[instance]['call_table']
+				system_uuid = self.get_system_from_instance(instance)
+				sct = self.system_metadata[system_uuid]['call_table']
+
+				closed_calls = []
+				for call_uuid in ict:
+					if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
+						closed_calls.append(call_uuid)
+						#event call close to record subsys on call specific queue
+						self.send_event_lazy('/queue/call_management/%s' % call_uuid, 'close')						
+
+						print '%s CLOSE: %s' % (time.time(), ict[call_uuid])
+				for call_uuid in closed_calls:
+					del ict[call_uuid]
+					del sct[call_uuid]['instances'][instance]
+					if len(sct[call_uuid]['instances']) == 0:
+						del sct[call_uuid]
+					
+
+
 			if self.connection_issue == False:
 				try:
 					if not self.client.canRead(0.1):
@@ -134,12 +238,16 @@ class p25_call_manager():
 				        t = json.loads(frame.body)
 					instance_uuid = frame.headers['destination'].replace('/topic/raw_control/', '')
 					instance = self.redis_demod_manager.demods[instance_uuid]
+					system_uuid = self.get_system_from_instance(instance_uuid)
 
 					if instance_uuid not in self.instance_metadata:
-                                                        self.instance_metadata[instance_uuid] = {'channel_identifier_table': {}}
+                                                self.instance_metadata[instance_uuid] = {'channel_identifier_table': {}, 'patches': {}, 'call_table': {}}
 
-					if 'crc' in t and t['crc'] != 0:
-						continue #Don't bother trying to work with bad data
+					if system_uuid not in self.system_metadata:
+						self.system_metadata[system_uuid] = {'call_table': {}}
+
+					#if 'crc' in t and t['crc'] != 0:
+					#	continue #Don't bother trying to work with bad data
 						
                                         if t['name'] == 'IDEN_UP_VU':
 						try:
@@ -178,20 +286,23 @@ class p25_call_manager():
 						except:
 							pass
 					elif t['name'] == 'GRP_V_CH_GRANT' :
+						print 'GRP_V_CH_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
 						self.call_user_to_group(instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
 					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT':
+						print 'MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
 						self.call_user_to_group(instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
-					elif(t['name'] == 'GRP_V_CH_GRANT_UPDT':
+					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
+						print 'GRP_V_CH_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Group Address 0'], t['Channel 1'], t['Group Address 1'])
 						self.call_user_to_group(instance_uuid, t['Channel 0'], t['Group Address 0'])
 						self.call_user_to_group(instance_uuid, t['Channel 1'], t['Group Address 1'])
-					elif(t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
+					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
+						print 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Super Group 0'], t['Channel 1'], t['Super Group 1'])
                                                 self.call_user_to_group(instance_uuid, t['Channel 0'], t['Super Group 0'])
                                                 self.call_user_to_group(instance_uuid, t['Channel 1'], t['Super Group 1'])
 
 				        self.client.ack(frame)
 				except Exception as e:
 					print 'except: %s' % e
-					raise
 					self.connection_issue = True
 
 if __name__ == '__main__':
