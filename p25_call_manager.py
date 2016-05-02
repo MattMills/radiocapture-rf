@@ -40,7 +40,7 @@ class p25_call_manager():
 		self.subscriptions = {}
 
 
-		self.hang_time = 3
+		self.hang_time = 0.5
 		self.instance_metadata = {}
 		self.system_metadata = {}
 		

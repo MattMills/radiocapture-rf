@@ -734,7 +734,7 @@ class p25_control_demod (gr.top_block):
 						del t['crc']
 						del t['mfid']
 						del t['opcode']
-				self.backend_event_publisher.publish_raw_control(self.instance_uuid, self.system['type'], t)
+					self.backend_event_publisher.publish_raw_control(self.instance_uuid, self.system['type'], t)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
