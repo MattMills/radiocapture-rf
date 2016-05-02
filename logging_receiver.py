@@ -21,26 +21,22 @@ from math import pi
 import op25
 import op25_repeater as repeater
 from p25_cai import p25_cai
+from frontend_connector import frontend_connector
 
 class logging_receiver(gr.top_block):
-	def __init__(self, receiver, port, controller):
+	def __init__(self, cdr):
 		self.audio_capture = True;
 
 		gr.top_block.__init__(self, "logging_receiver")
 
-		self.hang_time = 0.2
-		self.channel_id = None
-		self.rlock = threading.RLock()
+		self.cdr = cdr
 
-		self.channel_rate = 12500
-		self.input_rate = self.channel_rate*2
-		
 		self.thread_id = 'logr-' + str(uuid.uuid4())
 
 		self.filename = "/dev/null"
 		self.filepath = "/dev/null"
-		self.receiver = receiver
-		self.controller = controller
+		self.channel_rate = 0
+		self.input_rate = 0
 	
 		#optionall log dat files
 		self.log_dat = False
@@ -48,45 +44,41 @@ class logging_receiver(gr.top_block):
 		#optionally keep wav files around
 		self.log_wav = False
 
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", port, 30000, True)
+		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 30000, False)
 		self.source.set_min_output_buffer(128*1024)
-		#self.lp1_decim = int(self.input_rate/(self.channel_rate*1.6))
-                #self.lp1 = filter.fir_filter_ccc(self.lp1_decim,firdes.low_pass( 1.0, self.input_rate, (self.channel_rate/2), ((self.channel_rate/2)*0.6), firdes.WIN_HAMMING))
 
 		if self.log_dat:
 			self.dat_sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
 			self.connect(self.source, self.dat_sink)
 		self.sink = blocks.wavfile_sink(self.filepath, 1, 8000)
 
-		#self.connect(self.source, self.lp1)
-
-		self.cdr = {}
-                self.last_cdr = {}
-		self.time_open = time.time()
-		self.time_activity = time.time()
-		self.time_last_use = time.time()
-		self.uuid = ''
-		self.freq = 0
-		self.center_freq = 0
-
-		self.source_id = -1
-
 		self.protocol = None
+		self.time_activity = 0
 
 		self.in_use = False
 		self.codec_provoice = False
 		self.codec_p25 = False
 	
-		self.lock_id = False
 		self.destroyed = False
 
-		p25_sensor = threading.Thread(target=self.p25_sensor)
+		p25_sensor = threading.Thread(target=self.p25_sensor, name='p25_sensor')
 		p25_sensor.daemon = True
 		p25_sensor.start()
 
-                debug = threading.Thread(target=self.debug)
+                debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
                 debug.daemon = True
                 debug.start()
+
+		#Setup connector
+		self.connector = frontend_connector()
+		self.connector.set_port(self.source.get_port())
+		self.connector.create_channel(int(cdr['channel_bandwidth']), int(cdr['frequency']))
+
+
+		self.set_rate(int(cdr['channel_bandwidth']))
+		self.configure_blocks(cdr['modulation_type'])
+		self.open()
+		self.start()	
 
 	def configure_blocks(self, protocol):
 		if not (protocol == 'p25' or protocol == 'p25_cqpsk' or protocol == 'provoice' or protocol == 'dsd_p25' or protocol == 'analog' or protocol == 'none'):
@@ -102,9 +94,13 @@ class logging_receiver(gr.top_block):
 			self.resampler = None
 
 		elif self.protocol == 'p25':
-			self.disconnect(self.source, self.prefilter, self.fm_demod)#, (self.subtract,0))
-			self.disconnect(self.fm_demod, self.symbol_filter, self.demod_fsk4, self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
-			self.disconnect(self.slicer, self.decoder2, self.qsink)
+			try:
+				self.disconnect(self.source, self.prefilter, self.fm_demod)#, (self.subtract,0))
+				self.disconnect(self.fm_demod, self.symbol_filter, self.demod_fsk4, self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
+				self.disconnect(self.slicer, self.decoder2, self.qsink)
+			except:
+				raise
+				pass
 			#self.disconnect(self.fm_demod, self.avg, self.mult, (self.subtract,1))
 			self.demod_watcher.keep_running = False
 
@@ -304,8 +300,10 @@ class logging_receiver(gr.top_block):
 
         def debug(self):
             while not self.destroyed:
+		if(time.time()-self.cdr['time_open'] > 120):
+			self.close({})
                 time.sleep(10)
-                print 'DEBUG: %s %s %s %s %s %s' % (time.time(), 0, self.time_open, self.time_activity, self.destroyed, self.in_use)
+                print 'DEBUG: %s %s %s %s %s' % (time.time(), 0, self.time_activity, self.destroyed, self.in_use)
 	def p25_sensor(self):
 		import binascii
 		buf = ''
@@ -376,11 +374,10 @@ class logging_receiver(gr.top_block):
                                         continue
 
 
-        def upload_and_cleanup(self, filename, time_open, uuid, cdr, filepath, patches, codec_provoice, codec_p25, emergency=False):
+        def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, codec_provoice, codec_p25, emergency=False):
                         
                         if not emergency:
                             self.destroy()
-			time.sleep(2)
 			#if codec_provoice:
 			#	os.system('nice -n 19 ./file_to_wav.py -i %s -p -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.input_rate, self.audio_rate))
 			#elif codec_p25:
@@ -392,7 +389,7 @@ class logging_receiver(gr.top_block):
 	                	os.makedirs('/nfs/%s' % (filepath, ))
 	                except:
 	                        pass
-			filename = '%s' % (filepath + uuid + '.mp3', )
+			filename = filename[:-4] + '.mp3'
 			tags = {}
 			tags['TIT2'] = '%s %s' % (cdr['type'],cdr['system_group_local'])
 			tags['TPE1'] = '%s' %(cdr['system_user_local'])
@@ -419,24 +416,22 @@ class logging_receiver(gr.top_block):
 
 	def close(self, patches, emergency=False):
 		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')
-		print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
+		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 
-		self.cdr['time_open'] = self.time_open
 		self.cdr['time_close'] = time.time()
 		if(self.audio_capture):
 			self.sink.close()
 			if self.log_dat:
                                 self.dat_sink.close()
 
-			_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.time_open, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25, emergency])
+			_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25, emergency], name='upload_and_cleanup')
 	        	_thread_0.daemon = True
 			_thread_0.start()
 		#self.time_open = 0
 		self.time_last_use = time.time()
 		self.uuid =''
-                self.last_cdr = self.cdr
-		self.cdr = {}
 		self.in_use = False
+
 	def destroy(self):
                 if self.destroy == True:
                     return True
@@ -445,27 +440,16 @@ class logging_receiver(gr.top_block):
 				self.demod_watcher.keep_running = False
 				self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
 			except:
+				raise
 				pass
-		#self.receiver.ar_lock.acquire()
-		self.receiver.connector.release_channel(self.channel_id)
-		#self.receiver.ar_lock.release()
 
 		self.configure_blocks('none')
-                self.stop()
-                try:
-                    self.source.disconnect()
-                except:
-                    pass
+		self.connector.release_channel()
 
-                try:
-                    self.disconnect(self.source)
-                except:
-                    pass
-                try:
-    		    self.disconnect(self.sink)
-                except:
-                    pass
-			
+		self.connector.exit()
+		self.source.disconnect()
+                self.stop()
+
                 self.source = None
                 self.sink = None
 
@@ -481,36 +465,35 @@ class logging_receiver(gr.top_block):
 			self.configure_blocks('none')
 			self.configure_blocks(proto)
 
-	def open(self, cdr):
+	def open(self):
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
 		try:
 			self.decodequeue.flush()
 		except:
+			raise
 			pass
 		self.in_use = True
-                self.cdr = cdr
-		self.uuid = cdr['uuid'] = str(uuid.uuid4())
+		self.uuid = self.cdr['uuid'] = str(uuid.uuid4())
 
 
-		print "(%s) %s %s" %(time.time(), "Open ", str(self.cdr))
+		#print "(%s) %s %s" %(time.time(), "Open ", str(self.cdr))
 		now = datetime.datetime.utcnow()
 
 		if(self.cdr['type'] == 'group'):
-			self.filepath = filepath = "%s/%s/%s/%s/%s/%s/%s/" % ('audio', now.year, now.month, now.day, now.hour, self.cdr['system_id'], self.cdr['system_group_local'])
+			self.filepath = filepath = "%s/%s/%s/%s/%s/%s/%s" % ('audio', now.year, now.month, now.day, now.hour, self.cdr['instance_uuid'], self.cdr['system_group_local'])
 		elif(self.cdr['type'] == 'individual'):
-			self.filepath = filepath = "%s/%s/%s/%s/%s/%s/%s/" % ('audio', now.year, now.month, now.day, now.hour, self.cdr['system_id'], 'individual')
+			self.filepath = filepath = "%s/%s/%s/%s/%s/%s/%s" % ('audio', now.year, now.month, now.day, now.hour, '%s' % self.cdr['instance_uuid'], 'individual')
 		try: 
 			os.makedirs(filepath)
 		except:
 			pass
-		self.filename = "%s/%s.wav" % (filepath, self.uuid)
+		self.filename = str("%s/%s.wav" % (filepath, self.uuid))
 
 		if(self.audio_capture):
-			self.sink.open(self.filename)
+			self.sink.open('%s' % self.filename)
 			if self.log_dat:
-				self.dat_sink.open("%s/%s.dat" % (filepath, self.uuid))
+				self.dat_sink.open('%s/%s.dat' % (filepath, self.uuid))
 
-		self.time_open = cdr['timestamp'] =  time.time()
 		self.activity()
 	def set_codec_provoice(self,input):
 		self.codec_provoice = input

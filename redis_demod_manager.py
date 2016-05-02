@@ -32,7 +32,11 @@ class redis_demod_manager():
                 manager_loop.start()
 	def init_connection(self):
 		self.client = redis.StrictRedis(host=self.host, port=self.port, db=0)
-
+	def publish_call_table(self, instance_uuid, call_table):
+		pipe = self.client.pipeline()
+                pipe.set('call_table:%s' % instance_uuid, json.dumps(call_table))
+		pipe.expire('call_table:%s' % instance_uuid, 300)
+                result = pipe.execute()
 	def manager_loop(self):
 		print 'manager_loop()'
 		while self.continue_running:
