@@ -299,6 +299,7 @@ class rc_config:
                         9: { #Auraria Campus (Denver Metro)	1	70
                                 'type': 'p25',
                                 'id': 1070,
+				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 769156250,
@@ -343,6 +344,7 @@ class rc_config:
                         11: { #Denver TX (Denver Metro)	1	20
                                 'type': 'p25',
                                 'id': 1020,
+				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 770281250,
@@ -394,6 +396,7 @@ class rc_config:
                         14: { #Lookout Mountain (Denver Metro)	1	8
                                 'type': 'p25',
                                 'id': 1008,
+				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851112500,
@@ -420,6 +423,7 @@ class rc_config:
                         15: { #State Capitol (Denver Metro)	1	71
                                 'type': 'p25',
                                 'id': 1071,
+				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 769306250,
@@ -439,6 +443,7 @@ class rc_config:
 			16: {
 				'type': 'p25',
                                 'id': 10,
+				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
                                 'default_control_channel': 0,
 				'channels': {
 					0: 851250000,
@@ -454,6 +459,7 @@ class rc_config:
 			17: {
                                 'type': 'p25',
                                 'id': 11,
+				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851087500,
@@ -469,6 +475,7 @@ class rc_config:
 			18: {
                                 'type': 'p25',
                                 'id': 12,
+				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851562500,
@@ -485,6 +492,7 @@ class rc_config:
 
                                 'type': 'p25',
                                 'id': 13,
+				'system_uuid': '31a2cf3a-5529-4a1b-8905-089c2a8feec8',  #Westminster P25
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851062500,
@@ -510,14 +518,21 @@ class rc_config:
 		#del self.systems[16]
 		#del self.systems[15]
 		#del self.systems[14]
-		#del self.systems[13]
-		#del self.systems[12]
+		del self.systems[13]
+		del self.systems[12]
 		#del self.systems[11]
-		#del self.systems[10]
+		del self.systems[10]
 		#del self.systems[9]
-		#del self.systems[8]
-		#del self.systems[7]
+		del self.systems[8]
+		del self.systems[7]
 	
+		delete = []
+		for x in self.systems:
+			if self.systems[x]['type'] != 'p25':
+				delete.append(x)
+
+		for x in delete:
+			del self.systems[x]
 		#del self.systems[6]
 		#del self.systems[5]
 		#del self.systems[4]
