@@ -3,7 +3,7 @@
 import zmq
 import random
 import threading
-
+import time
 
 class frontend_connector():
 	def __init__(self, dest='10.5.0.23', host='10.5.0.22', port=50000):
@@ -14,23 +14,27 @@ class frontend_connector():
 
 		#self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		#self.s.connect((host,port))
-		context = zmq.Context()
-		self.socket = context.socket(zmq.REQ)
+		self.context = zmq.Context()
+		self.socket = self.context.socket(zmq.REQ)
 		self.socket.connect("tcp://%s:%s" % (host, port))
 		self.my_client_id = None
 		self.channel_id = None
 		self.current_port = None
+	
+		self.continue_running = True
 
 		self.socket.send('connect')
 		data = self.socket.recv()
 
 		data = data.split(',')
 		self.my_client_id = int(data[1])
+
+		connection_handler = threading.Thread(target=self.connection_handler, name='connection_handler')
+                connection_handler.daemon = True
+                connection_handler.start()
 		
 	def __exit__(self):
 		try:
-			#self.s.send('quit')
-			#self.s.close()
 			self.socket.send('quit,%s' % self.my_client_id)
 		except:
 			pass
@@ -84,6 +88,27 @@ class frontend_connector():
 		else:
                         self.thread_lock.release()
 			return False
+	def exit(self):
+		self.continue_running = False
+
+	def connection_handler(self):
+		time.sleep(0.1)
+		while self.continue_running == True:
+			self.thread_lock.acquire()
+			self.socket.send('hb,%s' % self.my_client_id)
+			data = self.socket.recv(1024)
+			data = data.strip().split(',')
+			self.thread_lock.release()
+			time.sleep(0.25)
+		
+		self.thread_lock.acquire()
+		self.socket.send('quit,%s' % self.my_client_id)
+		self.socket.close()
+		self.context.destroy()
+		
+		self.thread_lock.release()
+		print 'EXIT'
+			
 
 if __name__ == '__main__':
 	test = frontend_connector()
@@ -96,7 +121,6 @@ if __name__ == '__main__':
 	print 'function test pass'
 
 	channels = []
-	import time
 	start = time.time()
 	for i in range(0,100):
 		channels.append(test.create_channel(25000, 855000000))

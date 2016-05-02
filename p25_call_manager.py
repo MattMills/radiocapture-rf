@@ -17,6 +17,9 @@ from redis_demod_manager import redis_demod_manager
 
 class p25_call_manager():
         def __init__(self, host=None, port=None):
+		import logging
+		logging.basicConfig()
+		logging.getLogger().setLevel(logging.INFO)
 		self.demod_type = 'p25'
 
 		self.redis_demod_manager = redis_demod_manager(self)
@@ -80,10 +83,12 @@ class p25_call_manager():
 		if queue in self.subscriptions and not resub:
 			return True #we're already subscribed
 
+		this_uuid = '%s' % uuid.uuid4()
+
 		if(self.connection_issue == True):
+			self.subscriptions[queue] = this_uuid
                         return None	
 	
-		this_uuid = '%s' % uuid.uuid4()
 		try:
 			self.subscriptions[queue] = this_uuid
 			self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, })
@@ -142,7 +147,10 @@ class p25_call_manager():
                 return channel_frequency, channel_bandwidth, slot_number, modulation
 
 	def get_system_from_instance(self, instance_uuid):
-		return self.redis_demod_manager.demods[instance_uuid]['system_uuid']
+		try:
+			return self.redis_demod_manager.demods[instance_uuid]['system_uuid']
+		except:
+			return False
 
 	def call_user_to_group(self, instance_uuid, channel, group_address, user_address=0):
 		channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
@@ -151,6 +159,8 @@ class p25_call_manager():
 			return False
 
 		system_uuid = self.get_system_from_instance(instance_uuid)
+		if system_uuid == False:
+			return False
 
 		sct = self.system_metadata[system_uuid]['call_table']
 		ict = self.instance_metadata[instance_uuid]['call_table']
@@ -173,7 +183,6 @@ class p25_call_manager():
 			call_uuid = '%s' % uuid.uuid4()
 			
 		cdr = {
-			'type': 'p25',
 			'call_uuid': call_uuid,
 	                'system_id': system_uuid,
 			'instance_uuid': instance_uuid,
@@ -183,7 +192,7 @@ class p25_call_manager():
                         'type': 'group',
 			'frequency': channel_frequency,
 			'channel_bandwidth': channel_bandwidth,
-			'modulation_type': modulation,
+			'modulation_type': 'p25',
 			'slot': slot,
                         'hang_time': self.hang_time,
 			'time_open': time.time(),
@@ -201,7 +210,7 @@ class p25_call_manager():
 
 		#event call open to record subsys
 		self.send_event_lazy('/queue/call_management/new_call', cdr)
-
+		self.redis_demod_manager.publish_call_table(instance_uuid, ict)
 		print 'OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']) 
 
 	def publish_loop(self):
@@ -211,6 +220,8 @@ class p25_call_manager():
 			for instance in self.instance_metadata:
 				ict = self.instance_metadata[instance]['call_table']
 				system_uuid = self.get_system_from_instance(instance)
+				if system_uuid == False:
+					continue
 				sct = self.system_metadata[system_uuid]['call_table']
 
 				closed_calls = []
@@ -218,7 +229,7 @@ class p25_call_manager():
 					if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
 						closed_calls.append(call_uuid)
 						#event call close to record subsys on call specific queue
-						self.send_event_lazy('/queue/call_management/%s' % call_uuid, 'close')						
+						self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
 
 						print '%s CLOSE: %s' % (time.time(), ict[call_uuid])
 				for call_uuid in closed_calls:
@@ -226,6 +237,8 @@ class p25_call_manager():
 					del sct[call_uuid]['instances'][instance]
 					if len(sct[call_uuid]['instances']) == 0:
 						del sct[call_uuid]
+				if len(closed_calls) > 0:
+					self.redis_demod_manager.publish_call_table(instance, ict)
 					
 
 
@@ -249,7 +262,7 @@ class p25_call_manager():
 					#if 'crc' in t and t['crc'] != 0:
 					#	continue #Don't bother trying to work with bad data
 						
-                                        if t['name'] == 'IDEN_UP_VU':
+                                        if t['name'] == 'IDEN_UP_VU' and t['crc'] == 0:
 						try:
 	                                               self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
                                                         'BW': t['BW VU'],
@@ -261,7 +274,7 @@ class p25_call_manager():
                                                         }
 						except:
 							pass
-					elif t['name'] == 'IDEN_UP':
+					elif t['name'] == 'IDEN_UP' and t['crc'] == 0:
 						try:
 	                                               self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
                                                         'BW': t['BW'],
@@ -273,7 +286,7 @@ class p25_call_manager():
                                                         }
 						except:
 							pass
-					elif t['name'] == 'IDEN_UP_TDMA':
+					elif t['name'] == 'IDEN_UP_TDMA' and t['crc'] == 0:
 						try:
 	                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
                                                         'BW': t['BW'],
