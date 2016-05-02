@@ -415,7 +415,7 @@ class logging_receiver(gr.top_block):
 				print 'error removing ' + filename[:-4] + '.wav'
 
 	def close(self, patches, emergency=False):
-		if(not self.in_use): raise RuntimeError('attempted to close() a logging receiver not in_use')
+		if(not self.in_use): return False
 		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 
 		self.cdr['time_close'] = time.time()
