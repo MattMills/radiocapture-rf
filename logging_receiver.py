@@ -42,7 +42,7 @@ class logging_receiver(gr.top_block):
 		self.log_dat = False
 
 		#optionally keep wav files around
-		self.log_wav = False
+		self.log_wav = True
 
 		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 30000, False)
 		self.source.set_min_output_buffer(128*1024)
@@ -407,6 +407,7 @@ class logging_receiver(gr.top_block):
 			tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['timestamp'], groups)
 			tags['COMM'] = tags['COMM'].replace(':', '|')
 			os.system('id3v2 -2 --TIT2 "%s" --TPE1 "%s" --TALB "%s" -c "RC":"%s":"English" %s' % (tags['TIT2'], tags['TPE1'], tags['TALB'], tags['COMM'], filename))
+			os.system('mp3gain -q -c -p %s' % (filename))
 	
 			try: 
 				if not self.log_wav:
