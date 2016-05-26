@@ -302,7 +302,10 @@ class moto_control_demod(gr.top_block):
 							'sys': self.system_id,
 							'cmd': hex(cmd),
 							'ind': ind_l,
-							'lid': hex(lid)
+							'lid': hex(lid),
+							'tg': tg,
+							'status': status,
+							
 						}
 
 						if last_cmd == 0x304 or last_cmd == 0x308 or last_cmd == 0x309 or last_cmd == 0x321: 
@@ -466,10 +469,14 @@ class moto_control_demod(gr.top_block):
 
 							if 'force_p25' in self.system.keys() and self.system['force_p25']:
 								call_type = 'd'
+								p['type'] = 'Digital Call'
 
-							user_local = last_data if dual else 0
+							p['user_local'] = last_data if dual else 0
+							p['frequency'] = self.channels[cmd]
 
-										
+							if self.channels[cmd] == self.control_channel:
+								#I dont know what the fuck this is, but moto systems signal calls on their own CC all the time.
+								continue				
 						else:
                                                         p['type'] = 'Unknown OSW'
 

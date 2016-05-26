@@ -468,7 +468,6 @@ class logging_receiver(gr.top_block):
 		try:
 			self.decodequeue.flush()
 		except:
-			raise
 			pass
 		self.in_use = True
 		self.uuid = self.cdr['uuid'] = str(uuid.uuid4())

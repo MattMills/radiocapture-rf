@@ -521,7 +521,7 @@ class rc_config:
 	
 		delete = []
 		for x in self.systems:
-			if self.systems[x]['type'] != 'p25':
+			if self.systems[x]['type'] != 'moto':
 				delete.append(x)
 
 		for x in delete:
