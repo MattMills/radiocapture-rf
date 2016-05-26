@@ -528,11 +528,11 @@ class rc_config:
 	
 		delete = []
 		for x in self.systems:
-			if self.systems[x]['type'] != 'moto':
+			if self.systems[x]['type'] != 'edacs':
 				delete.append(x)
 
-		for x in delete:
-			del self.systems[x]
+		#for x in delete:
+		#	del self.systems[x]
 		#del self.systems[6]
 		#del self.systems[5]
 		#del self.systems[4]
