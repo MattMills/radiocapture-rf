@@ -190,8 +190,14 @@ class edacs_control_demod(gr.top_block):
                 #       print 'Chan Assignment - Emergency Group Voice - ' + str(r)
                 if(mta=='000' or mta == '010' or mta == '011' or mta == '101'):
                         if(m1 == -1 or m2 == -1): return False
+			r['type'] = 'call_assignment_analog'
                         r['logical_id'] = int(m1[3:10] + m2[4:11], 2)
                         r['channel'] = int(m1[11:16],2)
+			try:
+				r['frequency'] = self.system['channels'][r['channel']]
+			except:
+				print 'ERROR BAD CHANNEL %s' % r
+				return False
                         r['tx_trunked'] = bool(int(m1[16:17],2))
                         r['group'] = int(m1[17:28],2 )
 
@@ -204,7 +210,18 @@ class edacs_control_demod(gr.top_block):
                                 #unknown
                         elif(mtb == '011'): #Channel Update
                                 r['mtc'] = int(m1[6:8], 2)
+
+				if r['mtc'] != 3:
+					r['type'] = 'call_continuation_analog'
+				else:
+					r['type'] = 'call_continuation_digital'
+
                                 r['channel'] = int(m1[8:13],2)
+				try:
+					r['frequency'] = self.system['channels'][r['channel']]
+				except:
+					print 'ERROR BAD CHANNEL %s' % r
+					return False
                                 r['individual'] = int(m1[13:14],2)
                                 r['id'] = int(m1[14:28],2)
 
