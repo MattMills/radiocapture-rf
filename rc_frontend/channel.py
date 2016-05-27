@@ -30,7 +30,7 @@ class channel ( gr.hier_block2):
 		taps = firdes.low_pass(1,self.samp_rate,self.channel_rate,self.channel_rate/2)
 		#print 'taps: %s' % len(taps)
 		self.prefilter = filter.freq_xlating_fir_filter_ccc(decim, (taps), offset, samp_rate)
-		self.udp = blocks.udp_sink(gr.sizeof_gr_complex*1, dest, port, 1472, True)
+		self.udp = blocks.udp_sink(gr.sizeof_gr_complex*1, dest, port, 1472, False)
 		
 		self.connect(self, self.prefilter, self.udp)
                 self.init_time = time.time()
