@@ -383,7 +383,7 @@ if __name__ == '__main__':
 	import thread
 	import time
 	clients = []
-	client_hb = []
+	client_hb = {}
 
 	def handler(msg, tb):
 		global clients
@@ -423,13 +423,19 @@ if __name__ == '__main__':
 	                        else:
 					print '%s Released channel %s' % ( time.time(), block_id)
 					clients[c].remove(block_id)
-					return 'release,%s\n' % block_id
-			except:
-				return 'na,%s\n' % block_id
+					return 'release,%s\n'
+                        except Exception as e:
+				return 'na\n'
 		elif data[0] == 'quit':
-			c = data[1]
+			c = int(data[1])
 			for x in clients[c]:
 				tb.release_channel(x)
+
+                        clients[c] = {}
+                        try:
+                            del client_hb[c]
+                        except:
+                            pass
 			return 'quit,%s' % c
 		elif data[0] == 'connect':
 			c = len(clients)
@@ -446,6 +452,17 @@ if __name__ == '__main__':
 	start_time = time.time()
 
 	while 1:
+                deletions = []
+                for client in client_hb:
+                    if time.time()-client_hb[client] > 1:
+                        for x in clients[client]:
+                            tb.release_channel(x)
+                        clients[client] = {}
+
+                        deletions.append(client)
+                for c in deletions:
+                    del client_hb[c]
+
 		msg = socket.recv()
 		resp = handler(msg, tb)
 		socket.send(resp)
