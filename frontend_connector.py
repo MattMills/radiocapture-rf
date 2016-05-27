@@ -6,7 +6,7 @@ import threading
 import time
 
 class frontend_connector():
-	def __init__(self, dest='10.5.0.23', host='10.5.0.22', port=50000):
+	def __init__(self, dest='10.2.0.21', host='127.0.0.1', port=50000):
 		#temp hack until I have auto-frontend figured out
 	
                 self.thread_lock = threading.Lock()
