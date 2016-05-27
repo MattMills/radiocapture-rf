@@ -86,8 +86,8 @@ class rc_config:
                                 'type': 'rtlsdr',
                                 'args': 'rtl=17,buffers=4',
                                 'offset': 1400,
-                                'bb_gain': self.if_gain,
-                                'rf_gain': self.gain,
+                                'bb_gain': 15,
+                                'rf_gain': 20,
                                 'center_freq': 770000000,
 				'samp_rate': self.samp_rate
                         },
@@ -95,8 +95,8 @@ class rc_config:
                                 'type': 'rtlsdr',
                                 'args': 'rtl=18,buffers=4',
                                 'offset': 1120,
-                                'bb_gain': self.if_gain,
-                                'rf_gain': self.gain,
+                                'bb_gain': 15,
+                                'rf_gain': 20,
                                 'center_freq': 772000000,
 				'samp_rate': self.samp_rate
                         },
@@ -104,8 +104,8 @@ class rc_config:
 				'type': 'rtlsdr',
 				'args': 'rtl=19,buffers=4',
 				'offset': 1290,
-				'bb_gain': self.if_gain,
-				'rf_gain': self.gain,
+				'bb_gain': 15,
+				'rf_gain': 20,
 				'center_freq': 774000000,
 				'samp_rate': self.samp_rate
 			},
@@ -497,6 +497,13 @@ class rc_config:
                                 }
                         }
 		}
+		deletions = []
+		for x in self.systems:
+			if(self.systems[x]['type'] != 'p25'):
+				deletions.append(x)
+
+		for x in deletions:
+			del self.systems[x]
 		#del self.systems[19]
 		#del self.systems[18]
 		#del self.systems[17]

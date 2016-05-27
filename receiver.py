@@ -75,7 +75,7 @@ class receiver(gr.top_block):
 			self.build_receiver(system)
 			self.retune_control(system, random.choice(self.systems[system]['channels'].values()))
 		
-		self.backend_controller = backend_controller(self)
+		#self.backend_controller = backend_controller(self)
 
                 offset_correction = threading.Thread(target=self.offset_correction)
                 offset_correction.daemon = True
@@ -218,7 +218,7 @@ if __name__ == '__main__':
 				cdr = receiver.cdr
 				audio_rate = receiver.channel_rate
 				receiver.close(receiver.controller.patches, True)
-				receiver.open(cdr,audio_rate)
+				receiver.open(cdr)
 			#if receiver.in_use == False and time.time()-receiver.time_activity > 120:
 			#	receiver.destroy()
 			if receiver.destroyed == True:

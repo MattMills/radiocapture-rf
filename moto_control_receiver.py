@@ -463,7 +463,7 @@ class moto_control_receiver(gr.hier_block2):
 									continue 
 							
 								allocated_receiver = False
-								self.tb.ar_lock.acquire()
+								#self.tb.ar_lock.acquire()
 								for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
 									if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
 										if dual and receiver.cdr['system_user_local'] != last_data:
@@ -513,7 +513,7 @@ class moto_control_receiver(gr.hier_block2):
 									}
 									allocated_receiver.set_rate(bandwidth)
 									allocated_receiver.open(cdr)
-								self.tb.ar_lock.release()
+								#self.tb.ar_lock.release()
 										
 						else:
                                                         p['type'] = 'Unknown OSW'

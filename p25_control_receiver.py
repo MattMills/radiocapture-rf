@@ -16,6 +16,7 @@ import op25
 from time import sleep,time
 
 from p25_cai import p25_cai
+from p25_moto import p25_moto
 from logging_receiver import logging_receiver
 from backend_event_publisher import backend_event_publisher
 
@@ -29,10 +30,12 @@ class p25_control_receiver (gr.hier_block2):
 	        	gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
 	                gr.io_signature(0, 0, 0)) # Output signature
 	
-		self.hang_time = 3.5 #500 ms hang time	
+		self.hang_time = 0.5 #500 ms hang time	
 
 		#set globals
 		self.patches = {}
+		self.patch_timeout = 3
+
 		self.tb = top_block
 		self.system = system
 		self.block_id = block_id
@@ -301,12 +304,23 @@ class p25_control_receiver (gr.hier_block2):
                 r['p'] = bitframe[1:2] #protected
                 r['opcode'] = int(bitframe[2:8],2)
                 r['mfid'] = int(bitframe[8:16],2)
-		if r['mfid'] != 0x0 and r['mfid'] != 0x1: return r
-		p = p25_cai()
+		if r['mfid'] == 0x0 or r['mfid'] == 0x1: 
+			#CAI MFID
+			p = p25_cai()
+		elif r['mfid'] == 0x90:
+			#Motorola MFID
+			p = p25_moto()
+		else:
+			#unknown MFID, we cant decode.
+			r['name'] = 'UNKNOWN'
+			r['raw'] = hex(int(bitframe[16:80], 2)).lstrip('0x').rstrip('L').zfill(16)
+			return r
+
                 try:
                         r['name'] = p.tsbk_osp_single[r['opcode']]['name']
                 except:
-                        r['name'] = 'INVALID'
+                        r['name'] = 'UNKNOWN'
+			r['raw'] = hex(int(bitframe[16:80], 2)).lstrip('0x').rstrip('L').zfill(16)
 			return r
 		if(len(bitframe[16:]) < 80): return r
 		bitframe = bitframe[16:]
@@ -626,6 +640,24 @@ class p25_control_receiver (gr.hier_block2):
 		wrong_duid_count = 0
 
 		while self.keep_running:
+			for patch in self.patches:
+                                deletes = []
+                                for group in self.patches[patch]:
+                                        if ((time()-self.patches[patch][group]) > self.patch_timeout):
+                                                deletes.append(group)
+                                for group in deletes:
+                                        del self.patches[patch][group]
+
+                        deletes = []
+                        for patch in self.patches:
+                                if len(self.patches[patch]) == 0:
+                                        deletes.append(patch)
+
+                        for patch in deletes:
+                                print 'Patch closed ' + str(patch)
+                                del self.patches[patch]
+
+
 			if loops_locked < -1000 and time()-loop_start > 2:
 				self.tune_next_control_channel()
 
@@ -791,10 +823,17 @@ class p25_control_receiver (gr.hier_block2):
 					elif t['name'] == 'GRP_V_CH_GRANT':
 						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
 						print '[%s]%s: %s' % (time(), self.thread_id, t)
+					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT':
+                                                self.new_call(t['Channel'], t['Super Group'], t['Source Address'])
+                                                print '[%s]%s: %s' % (time(), self.thread_id, t)
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
 						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
 						print '[%s]%s: %s' % (time(), self.thread_id, t)
+					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
+                                                self.new_call(t['Channel 0'], t['Super Group 0'], 0)
+                                                self.new_call(t['Channel 1'], t['Super Group 1'], 0)
+                                                print '[%s]%s: %s' % (time(), self.thread_id, t)
 					elif t['name'] == 'UU_V_CH_GRANT':
 						print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'UU_ANS_REQ':
@@ -820,7 +859,33 @@ class p25_control_receiver (gr.hier_block2):
 						del t['crc']
 						del t['mfid']
 						del t['opcode']
+					elif t['name'] == 'MOT_PAT_GRP_ADD_CMD':
+						for group in [t['Group 1'], t['Group 2'], t['Group 3']]:
+							if(t['Super Group'] in self.patches):
+			                                        self.patches[t['Super Group']][group] = time()
+			                                else:
+			                                        self.patches[t['Super Group']] = {group: time()}
+
+						print '%s: %s' % (self.thread_id, t)
+					elif t['name'] == 'MOT_PAT_GRP_DEL_CMD':
+						#not sure if this is right, but it looks like all 4 groups are the "super" group, so I'll iterate all and teardown any patches in that supergroup
+						for group in [t['Super Group'], t['Group 1'], t['Group 2'], t['Group 3']]:
+							if(group in self.patches):
+								for subgroup in self.patches[group]:
+									pass
+									#do nothing, not sure the timing works out on this, in example dump there is voice activity 1s before deletion
+									#since we take 0.5-3s to timeout a voice call, lets just let the timeout handle patch deletion.
+									#self.patches[group][subgroup] = time()-(self.patch_timeout*2) #time immedietly?
+
+						print '%s: %s' % (self.thread_id, t)
+
+
 						#print '%s: %s' % (self.thread_id, t)
+					elif t['name'] == 'UNKNOWN':
+						if(t['mfid'] == 0x90 and (t['opcode'] == 0x05 or t['opcode'] == 0x09)):
+							pass
+						else:
+							print '%s: %s' % (self.thread_id, t)
 					#else:
 						#print '%s: %s' % (self.thread_id, t)
 					#print '%s: %s' % (self.thread_id, t)
