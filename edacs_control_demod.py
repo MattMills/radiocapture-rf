@@ -59,7 +59,7 @@ class edacs_control_demod(gr.top_block):
 	
 
 		self.channel_rate = 12500
-		self.receive_rate = self.channel_rate*2 #Decimation adds 50% on either side
+		self.receive_rate = self.channel_rate #Decimation adds 50% on either side
 
 		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 147200, False)
                 self.source.set_min_output_buffer(1280*1024)

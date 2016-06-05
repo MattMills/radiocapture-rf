@@ -77,7 +77,7 @@ class p25_control_demod (gr.top_block):
 		self.connector.set_port(self.source.get_port())
 
 	        # channel filter
-	        channel_rate = self.channel_rate*2
+	        channel_rate = self.channel_rate
 	        trans_width = 12.5e3 / 2;
 	        trans_centre = trans_width + (trans_width / 2)
 		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, channel_rate)
@@ -549,7 +549,7 @@ class p25_control_demod (gr.top_block):
 		wrong_duid_count = 0
 
 		while self.keep_running:
-			if loops_locked < -50 and time()-loop_start > 0.1:
+			if loops_locked < -200 and time()-loop_start > 0.1:
 				self.tune_next_control_channel()
 
 				loops_locked = 0
@@ -571,7 +571,8 @@ class p25_control_demod (gr.top_block):
 				if len(frame) < 10: continue
 				frame_sync = binascii.hexlify(frame[0:6])
 				duid = int(ord(frame[7:8])&0xf)
-				nac = int(ord(frame[6:7]) +ord(frame[7:8])&0xf0)
+				nac = int(ord(frame[6:7]) +(ord(frame[7:8])&0xf0))
+				#print 'NAC: %s' % nac
 				self.total_messages = self.total_messages + 3
 				#print 'FSO:%s FSN:%s BS:%s FL:%s - %s - %s' % (fsoffset, fsnext, len(buf), (fsnext-fsoffset), frame_sync, data_unit_ids[duid])
 
@@ -583,7 +584,6 @@ class p25_control_demod (gr.top_block):
 						loop_start = time()
 				                loops_locked = 0
 				                wrong_duid_count = 0
-						
 				try:
 					if duid == 0x0:
 						r = self.procHDU(frame)
