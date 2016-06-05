@@ -29,10 +29,10 @@ for x in config.systems:
 
 import time
 
-p25_cm = p25_call_manager()
-moto_cm = moto_call_manager()
-edacs_cm = edacs_call_manager()
+#p25_cm = p25_call_manager()
+#moto_cm = moto_call_manager()
+#edacs_cm = edacs_call_manager()
 
-call_recorder = call_recorder()
+#call_recorder = call_recorder()
 while 1:
 	time.sleep(1)
