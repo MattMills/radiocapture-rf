@@ -30,6 +30,7 @@ class call_recorder():
                 self.connection_issue = True
 		self.continue_running = True
 		self.subscriptions = {}
+		self.outbound_msg_queue = []
 	
 		self.call_table = {}
 
@@ -37,11 +38,17 @@ class call_recorder():
                 connection_handler = threading.Thread(target=self.connection_handler)
                 connection_handler.daemon = True
                 connection_handler.start()
+		
+		send_event_hopeful_thread = threading.Thread(target=self.send_event_hopeful_thread)
+                send_event_hopeful_thread.daemon = True
+                send_event_hopeful_thread.start()
+
 
 		#time.sleep(0.25)
 		publish_loop = threading.Thread(target=self.publish_loop)
 		publish_loop.daemon = True
 		publish_loop.start()
+	
 
         def init_connection(self):
                 if(self.client != None and self.client.session.state == 'connected'):
@@ -132,6 +139,24 @@ class call_recorder():
 #			'time_open': time.time(),
 #			'time_activity': time.time(),
 #                        }
+	def send_event_hopeful(self, destination, body):
+		self.outbound_msg_queue.append({'destination': destination, 'body': body})
+
+	def send_event_hopeful_thread(self):
+
+		while self.continue_running:
+			time.sleep(0.01)
+			if(self.connection_issue == True):
+				continue
+			while len(self.outbound_msg_queue) > 1 and self.connection_issue == False:
+				try:
+					item = self.outbound_msg_queue.pop(0)
+                	        	self.client.send(item['destination'], json.dumps(item['body']), {'persistent': 'true'})
+					
+	                	except:
+					self.outbound_msg_queue.insert(0,item)
+	        	                self.connection_issue = True
+			
 
 	def publish_loop(self):
 		print 'publish_loop()'
@@ -141,7 +166,7 @@ class call_recorder():
 			if self.connection_issue == False:
 				try:
 					if not self.client.canRead(0.1):
-						print '-'
+						#print '-'
 						continue
 		        		frame = self.client.receiveFrame()
 				        cdr = json.loads(frame.body)
@@ -158,7 +183,7 @@ class call_recorder():
 						self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver(cdr)
 					elif action == 'timeout':
 						try:
-							self.call_table[cdr['instance_uuid']][cdr['call_uuid']].close({})
+							self.call_table[cdr['instance_uuid']][cdr['call_uuid']].close({}, self.send_event_hopeful)
 							del self.call_table[cdr['instance_uuid']][cdr['call_uuid']]
 						except KeyError as e:
 							pass

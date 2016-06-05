@@ -181,6 +181,18 @@ class p25_call_manager():
 		if call_uuid == None:
 			#call is new systemwide, assign new UUID
 			call_uuid = '%s' % uuid.uuid4()
+
+		instance = self.redis_demod_manager.demods[instance_uuid]
+		if modulation == 'FDMA' and instance['system_modulation'] == 'C4FM':
+			modulation_type = 'p25'
+		elif modulation == 'TDMA' and instance['system_modulation'] == 'C4FM':
+			modulation_type = 'p25_tdma'
+		elif modulation == 'FDMA' and instance['system_modulation'] == 'CQPSK':
+			modulation_type = 'p25_cqpsk'
+		elif modulation == 'TDMA' and instance['system_modulation'] == 'CQPSK':
+			modulation_type = 'p25_cqpsk_tdma'
+		else:
+			modulation_type = 'ERROR %s %s' % (modulation, instance['system_modulation'])
 			
 		cdr = {
 			'call_uuid': call_uuid,
@@ -192,12 +204,15 @@ class p25_call_manager():
                         'type': 'group',
 			'frequency': channel_frequency,
 			'channel_bandwidth': channel_bandwidth,
-			'modulation_type': 'p25',
+			'modulation_type': modulation_type,
 			'slot': slot,
                         'hang_time': self.hang_time,
 			'time_open': time.time(),
 			'time_activity': time.time(),
+			'p25_wacn': instance['site_detail']['WACN ID'],
+			'p25_system_id': instance['site_detail']['System ID']
                         }
+	
 
 		ict[call_uuid] = cdr
 		if call_uuid not in sct:
@@ -245,7 +260,7 @@ class p25_call_manager():
 			if self.connection_issue == False:
 				try:
 					if not self.client.canRead(0.1):
-						print '-'
+						#print '-'
 						continue
 		        		frame = self.client.receiveFrame()
 				        t = json.loads(frame.body)
