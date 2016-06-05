@@ -53,6 +53,11 @@ class redis_demod_publisher():
 				'frequency': self.parent_demod.control_channel,
 				'timestamp': time.time(),
 			}
+			
+			try:
+				publish_data['system_modulation'] = self.parent_demod.modulation
+			except:
+				pass
 
 			
 			pipe = self.client.pipeline()
