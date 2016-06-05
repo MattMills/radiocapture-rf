@@ -183,7 +183,7 @@ class logging_receiver(gr.top_block):
 			self.connect(self.source, self.signal_squelch, self.audiodemod, self.high_pass, self.resampler, self.sink)
 		elif protocol == 'p25' or protocol == 'p25_tdma':
 			self.symbol_deviation = symbol_deviation = 600.0
-                        symbol_rate = 6000 #4800
+                        symbol_rate = 4800
                         channel_rate = self.input_rate
 		
 			self.prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, self.input_rate)
