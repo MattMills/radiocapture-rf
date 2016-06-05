@@ -20,6 +20,8 @@ from math import pi
 
 import op25
 import op25_repeater as repeater
+from p25p2_lfsr import p25p2_lfsr
+
 from p25_cai import p25_cai
 from frontend_connector import frontend_connector
 
@@ -42,7 +44,7 @@ class logging_receiver(gr.top_block):
 		self.log_dat = False
 
 		#optionally keep wav files around
-		self.log_wav = True
+		self.log_wav = False
 
 		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 30000, False)
 		self.source.set_min_output_buffer(128*1024)
@@ -61,10 +63,6 @@ class logging_receiver(gr.top_block):
 	
 		self.destroyed = False
 
-		p25_sensor = threading.Thread(target=self.p25_sensor, name='p25_sensor')
-		p25_sensor.daemon = True
-		p25_sensor.start()
-
                 debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
                 debug.daemon = True
                 debug.start()
@@ -77,11 +75,24 @@ class logging_receiver(gr.top_block):
 
 		self.set_rate(int(cdr['channel_bandwidth']))
 		self.configure_blocks(cdr['modulation_type'])
+		if cdr['modulation_type'] == 'p25_tdma' or cdr['modulation_type'] == 'p25_cqpsk_tdma' :
+			try:
+				self.set_p25_xor_chars(p25p2_lfsr(0x4d1,int(cdr['p25_system_id'],0),int(cdr['p25_wacn'],0)).xor_chars)
+			except:
+				raise
+				pass
+			self.set_p25_tdma_slot(cdr['slot'])
+
+		p25_sensor = threading.Thread(target=self.p25_sensor, name='p25_sensor')
+                p25_sensor.daemon = True
+                p25_sensor.start()
+
 		self.open()
 		self.start()	
 
 	def configure_blocks(self, protocol):
-		if not (protocol == 'p25' or protocol == 'p25_cqpsk' or protocol == 'provoice' or protocol == 'dsd_p25' or protocol == 'analog' or protocol == 'none'):
+		print 'configure_blocks(%s)' % protocol
+		if not (protocol == 'p25' or protocol == 'p25_tdma' or protocol == 'p25_cqpsk' or protocol=='p25_cqpsk_tdma' or protocol == 'provoice' or protocol == 'dsd_p25' or protocol == 'analog' or protocol == 'none'):
 			raise Exception('Invalid protocol %s' % protocol)
 		if self.protocol == protocol:
 			return True
@@ -93,16 +104,16 @@ class logging_receiver(gr.top_block):
 			self.high_pass = None
 			self.resampler = None
 
-		elif self.protocol == 'p25':
+		elif self.protocol == 'p25' or 'p25_tdma':
 			try:
 				self.disconnect(self.source, self.prefilter, self.fm_demod)#, (self.subtract,0))
-				self.disconnect(self.fm_demod, self.symbol_filter, self.demod_fsk4, self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
+				self.disconnect(self.fm_demod, self.symbol_filter, self.demod_fsk4, self.slicer, self.decoder, self.float_conversion, self.sink)
 				self.disconnect(self.slicer, self.decoder2, self.qsink)
+				self.demod_watcher.keep_running = False
+
 			except:
-				raise
 				pass
 			#self.disconnect(self.fm_demod, self.avg, self.mult, (self.subtract,1))
-			self.demod_watcher.keep_running = False
 
 			self.prefilter = None
 			self.fm_demod = None
@@ -118,9 +129,9 @@ class logging_receiver(gr.top_block):
 			self.imbe = None
 			self.float_conversion = None
 			self.resampler = None
-		elif self.protocol == 'p25_cqpsk':
+		elif self.protocol == 'p25_cqpsk' or self.protocol == 'p25_cqpsk_tdma':
 			self.disconnect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer)#, (self.subtract,0))
-                        self.disconnect(self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
+                        self.disconnect(self.slicer, self.decoder, self.float_conversion, self.sink)
                         self.disconnect(self.slicer,self.decoder2, self.qsink)
 
                         self.prefilter = None
@@ -170,9 +181,9 @@ class logging_receiver(gr.top_block):
                                         fractional_bw=None,
                         )
 			self.connect(self.source, self.signal_squelch, self.audiodemod, self.high_pass, self.resampler, self.sink)
-		elif protocol == 'p25':
+		elif protocol == 'p25' or protocol == 'p25_tdma':
 			self.symbol_deviation = symbol_deviation = 600.0
-                        symbol_rate = 4800
+                        symbol_rate = 6000 #4800
                         channel_rate = self.input_rate
 		
 			self.prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, self.input_rate)
@@ -202,8 +213,10 @@ class logging_receiver(gr.top_block):
 			self.decodequeue2 = decodequeue2 = gr.msg_queue(10000)
 			self.decodequeue = decodequeue = gr.msg_queue(10000)
 
-			self.demod_watcher = demod_watcher(decodequeue2, self.adjust_channel_offset)
-                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, False, False)
+			self.demod_watcher = None #demod_watcher(decodequeue2, self.adjust_channel_offset)
+
+			
+                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, True, (True if protocol == 'p25_tdma' else False))
 			self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3, False, False)
 
 			self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
@@ -211,36 +224,25 @@ class logging_receiver(gr.top_block):
 			self.float_conversion = blocks.short_to_float(1, 8192)
 	
 			self.connect(self.source, self.prefilter, self.fm_demod)#, (self.subtract,0))
-			self.connect(self.fm_demod, self.symbol_filter, self.demod_fsk4, self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
+			#self.connect(self.fm_demod, self.symbol_filter, self.demod_fsk4, self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
+			self.connect(self.fm_demod, self.symbol_filter, self.demod_fsk4, self.slicer, self.decoder, self.float_conversion, self.sink)
 			self.connect(self.slicer,self.decoder2, self.qsink)
 			#self.connect(self.fm_demod, self.avg, self.mult, (self.subtract,1))
-		elif protocol == 'p25_cqpsk':
+		elif protocol == 'p25_cqpsk' or protocol == 'p25_cqpsk_tdma':
 			self.symbol_deviation = symbol_deviation = 600.0
-                        symbol_rate = 4800
-			channel_rate = self.input_rate
-			
-
-                        self.prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, self.input_rate)
-
-                        samples_per_symbol = self.input_rate // symbol_rate
-                        
-			autotuneq = gr.msg_queue(2)
-			print 'INPUT RATE: %s' % (self.input_rate)
-			#self.resampler = filter.pfb.arb_resampler_ccf(float(48000)/float(self.input_rate))
-			#self.resampler = filter.pfb.arb_resampler_ccf(float(48000)/float(channel_rate))
-			#self.resampler = filter.pfb.arb_resampler_ccf(float(48000))
 			self.resampler = blocks.multiply_const_cc(1.0)
                         self.agc = analog.feedforward_agc_cc(1024,1.0)
                         self.symbol_filter_c = blocks.multiply_const_cc(1.0)
 
                         gain_mu= 0.025
-			omega = float(channel_rate) / float(symbol_rate)
+			symbol_rate = 6000
+			omega = float(self.input_rate) / float(symbol_rate)
                         gain_omega = 0.1  * gain_mu * gain_mu
 
                         alpha = 0.04
                         beta = 0.125 * alpha * alpha
                         fmax = 1200     # Hz
-                        fmax = 2*pi * fmax / channel_rate
+                        fmax = 2*pi * fmax / self.input_rate
 
                         self.clock = repeater.gardner_costas_cc(omega, gain_mu, gain_omega, alpha,  beta, fmax, -fmax)
                         self.diffdec = digital.diff_phasor_cc()
@@ -251,13 +253,13 @@ class logging_receiver(gr.top_block):
                         levels = [ -2.0, 0.0, 2.0, 4.0 ]
                         self.slicer = op25.fsk4_slicer_fb(levels)
 
-                        self.imbe = repeater.vocoder(False, True, 0, "", 0, False)
+                        #self.imbe = repeater.vocoder(False, True, 0, "", 0, False)
                         self.decodequeue3 = decodequeue3 = gr.msg_queue(10000)
                         self.decodequeue2 = decodequeue2 = gr.msg_queue(10000)
                         self.decodequeue = decodequeue = gr.msg_queue(10000)
 
-                        self.demod_watcher = demod_watcher(decodequeue2, self.adjust_channel_offset)
-                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, False, False)
+                        #self.demod_watcher = demod_watcher(decodequeue2, self.adjust_channel_offset)
+                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, True, (False if protocol == 'p25_cqpsk' else True))
                         self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3, False, False)
 
                         self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
@@ -267,8 +269,8 @@ class logging_receiver(gr.top_block):
                         self.connect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer)#, (self.subtract,0))
 			#self.null_sink = blocks.null_sink(8)
 			#self.connect(self.clock, self.null_sink)
-                        self.connect(self.slicer, self.decoder, self.imbe, self.float_conversion, self.sink)
-                        self.connect(self.slicer,self.decoder2, self.qsink)
+                        self.connect(self.slicer, self.decoder, self.float_conversion, self.sink)
+                        self.connect(self.slicer, self.decoder2, self.qsink)
 		elif protocol == 'provoice':
 			fm_demod_gain = 0.6
                         self.fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
@@ -288,6 +290,18 @@ class logging_receiver(gr.top_block):
 
                         self.connect(self.source, self.fm_demod, self.resampler_in, self.dsd, self.sink)
 		self.unlock()
+	def set_p25_tdma_slot(self, slot):
+		if self.protocol != 'p25_tdma' and self.protocol != 'p25_cqpsk_tdma':
+			return False
+
+		self.decoder.set_slotid(slot)
+		self.decoder2.set_slotid(slot)
+	def set_p25_xor_chars(self, xor_chars):
+		pass
+		self.decoder.set_xormask(xor_chars)
+		self.decoder2.set_xormask(xor_chars)
+		#return False
+
 	def adjust_channel_offset(self, delta_hz):
 		print 'adjust channel offset: %s' % (delta_hz)
 
@@ -323,17 +337,19 @@ class logging_receiver(gr.top_block):
 				break
 
 			time.sleep(0.007)
-			if self.protocol != 'p25':
+			if self.protocol != 'p25' and self.protocol != 'p25_cqpsk' and self.protocol != 'p25_tdma' and self.protocol != 'p25_cqpsk_tdma' :
 				continue
+		
 			try:
 				self.decodequeue
 			except:
 				print 'NO DECODEQUEUE'
 				continue
 
-			if self.decodequeue.count():
+			if self.decodequeue.count() > 0:
                                 pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
+
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
                         fsnext   = buf.find(binascii.unhexlify('5575f5ff77ff'), fsoffset+6)
 			if(fsoffset != -1 and fsnext != -1):
@@ -368,22 +384,15 @@ class logging_receiver(gr.top_block):
                                                 r = self.procTLC(frame)
                                         else:
                                                 print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
-					#print r
                                 except Exception as e:
 					if duid == 0x5 or duid == 0xf: pass #print e
                                         continue
 
 
-        def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, codec_provoice, codec_p25, emergency=False):
+        def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):
                         
                         if not emergency:
                             self.destroy()
-			#if codec_provoice:
-			#	os.system('nice -n 19 ./file_to_wav.py -i %s -p -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.input_rate, self.audio_rate))
-			#elif codec_p25:
-			#	os.system('nice -n 19 ./file_to_wav.py -i %s -5 -v -100 -r %s -c %s 2>&1 >/dev/null' % (filename, self.audio_rate, self.audio_rate))
-			#else:
-			#	os.system('nice -n 19 ./file_to_wav.py -i %s -r %s -c %s -s -70 -v -100 2>&1 >/dev/null' % (filename, self.audio_rate*2, self.audio_rate))
 	                os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '.wav' + ' 2>&1 >/dev/null')
 			try:
 	                	os.makedirs('/nfs/%s' % (filepath, ))
@@ -414,20 +423,23 @@ class logging_receiver(gr.top_block):
 					os.remove(filename[:-4] + '.wav')
 			except:
 				print 'error removing ' + filename[:-4] + '.wav'
+			return filename
 
-	def close(self, patches, emergency=False):
+	def close(self, patches, send_event_func, emergency=False):
 		if(not self.in_use): return False
 		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 
 		self.cdr['time_close'] = time.time()
+		print 'CLOSE %s' % self.cdr
 		if(self.audio_capture):
 			self.sink.close()
 			if self.log_dat:
                                 self.dat_sink.close()
-
-			_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.uuid, self.cdr, self.filepath, patches, self.codec_provoice, self.codec_p25, emergency], name='upload_and_cleanup')
-	        	_thread_0.daemon = True
-			_thread_0.start()
+			filename = self.upload_and_cleanup(self.filename, self.uuid, self.cdr, self.filepath, patches, emergency)
+			send_event_func('/queue/call_management/call_complete', {'cdr': self.cdr, 'filename': filename, 'uuid': self.uuid})
+			#_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.uuid, self.cdr, self.filepath, patches, emergency], name='upload_and_cleanup')
+	        	#_thread_0.daemon = True
+			#_thread_0.start()
 		#self.time_open = 0
 		self.time_last_use = time.time()
 		self.uuid =''
@@ -436,12 +448,11 @@ class logging_receiver(gr.top_block):
 	def destroy(self):
                 if self.destroy == True:
                     return True
-		if self.protocol == 'p25' or self.protocol=='p25_cqpsk':
+		if self.protocol == 'p25' or self.protocol=='p25_cqpsk' or self.protocol == 'p25_tdma' or self.protocol == 'p25_cqpsk_tdma':
 			try:
 				self.demod_watcher.keep_running = False
 				self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
 			except:
-				raise
 				pass
 
 		self.configure_blocks('none')
@@ -460,13 +471,14 @@ class logging_receiver(gr.top_block):
 		if(channel_rate != self.channel_rate):
 			print 'System: Adjusting audio rate %s' % (channel_rate)
                         self.channel_rate = channel_rate
-                        self.input_rate = channel_rate*2
+                        self.input_rate = channel_rate
 			proto = self.protocol
 			if proto == None: return True
 			self.configure_blocks('none')
 			self.configure_blocks(proto)
 
 	def open(self):
+		print '%s' % self.cdr
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
 		try:
 			self.decodequeue.flush()
