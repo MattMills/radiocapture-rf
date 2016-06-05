@@ -240,7 +240,7 @@ class edacs_call_manager():
 			if self.connection_issue == False:
 				try:
 					if not self.client.canRead(0.1):
-						print '-'
+						#print '-'
 						continue
 		        		frame = self.client.receiveFrame()
 				        t = json.loads(frame.body)
