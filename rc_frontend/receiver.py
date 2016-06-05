@@ -431,7 +431,7 @@ if __name__ == '__main__':
 			for x in clients[c]:
 				tb.release_channel(x)
 
-                        clients[c] = {}
+                        clients[c] = []
                         try:
                             del client_hb[c]
                         except:
@@ -457,7 +457,7 @@ if __name__ == '__main__':
                     if time.time()-client_hb[client] > 1:
                         for x in clients[client]:
                             tb.release_channel(x)
-                        clients[client] = {}
+                        clients[client] = []
 
                         deletions.append(client)
                 for c in deletions:
