@@ -163,6 +163,7 @@ class moto_call_manager():
 		cdr = {
 			'call_uuid': call_uuid,
 	                'system_id': system_uuid,
+			'transmit_site_uuid': instance['transmit_site_uuid'],
 			'instance_uuid': instance_uuid,
                         'system_group_local': group_address,
                         'system_user_local': user_address,
