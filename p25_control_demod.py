@@ -559,7 +559,16 @@ class p25_control_demod (gr.top_block):
 			if loops_locked > 500:
 				self.is_locked = True
 			else:
-				self.is_locked = False
+                                if self.is_locked == True:
+                                        self.site_detail = {}
+                                        self.site_detail['WACN ID'] = None
+                                        self.site_detail['System ID'] = None
+                                        self.site_detail['Control Channel'] = None
+                                        self.site_detail['System Service Class'] = None
+                                        self.site_detail['Site ID'] = None
+                                        self.site_detail['RF Sub-system ID'] = None
+                                        self.site_detail['RFSS Network Connection'] = None
+       				self.is_locked = False
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
