@@ -30,6 +30,7 @@ class p25_control_demod (gr.top_block):
 		gr.top_block.__init__(self, "p25 receiver")
 
 		#set globals
+		self.is_locked = False
 		self.system = system
 		self.instance_uuid = '%s' % uuid.uuid4()
 		self.site_uuid = site_uuid
@@ -50,6 +51,7 @@ class p25_control_demod (gr.top_block):
 			self.modulation = system['modulation']
 		except:
 			self.modulation = 'C4FM'
+
 
 		self.site_detail = {}
 		self.site_detail['WACN ID'] = None
@@ -554,6 +556,10 @@ class p25_control_demod (gr.top_block):
 
 				loops_locked = 0
 				loop_start = time()
+			if loops_locked > 500:
+				self.is_locked = True
+			else:
+				self.is_locked = False
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
