@@ -25,8 +25,15 @@ class receiver(gr.top_block):
 
 		self.access_lock = threading.RLock()
 		self.access_lock.acquire()
+
 	
 		self.config = config = rc_config()
+
+                try:
+                    self.scan_mode = config.scan_mode
+                except:
+                    self.scan_mode = False
+
                 self.realsources = config.sources
 
 		self.sources = {}
@@ -233,19 +240,24 @@ class receiver(gr.top_block):
 	def connect_channel_xlat(self, channel_rate, freq, dest, port):
 		source_id = None
 
-                for i in self.sources.keys():
+                if self.scan_mode = False:
+                    for i in self.sources.keys():
                         if abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2:
                                 source_id = i
                                 break
-
-                if source_id == None:
+    
+                    if source_id == None:
                         return -1
+                else
+                    source_id = 0
 		
 		source_center_freq = self.sources[source_id]['center_freq']
                 source_samp_rate = self.sources[source_id]['samp_rate']
                 source = self.sources[source_id]['block']
 
 		offset = freq-source_center_freq
+                if freq < 10000000:
+                   offset = freq #scan mode, relative freq 
 
 		#We have all our parameters, lets see if we can re-use an idling channel
                 self.access_lock.acquire()
@@ -291,12 +303,13 @@ class receiver(gr.top_block):
 	
 		source_id = None
 
-		for i in self.sources.keys():
+                if self.scan_mode == False:
+                    for i in self.sources.keys():
 			if abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2:
 				source_id = i
 				break
 
-		if source_id == None:
+		    if source_id == None:
 			return -1
 
 		source_center_freq = self.sources[source_id]['center_freq']
@@ -304,6 +317,9 @@ class receiver(gr.top_block):
 		source = self.sources[source_id]['block']
 
 		offset = freq-source_center_freq
+
+                if freq < 10000000:
+                    offset = freq #scan mode, relative freq
 
 		pfb = self.sources[source_id]['pfb']
 
