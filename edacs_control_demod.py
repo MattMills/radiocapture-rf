@@ -284,6 +284,7 @@ class edacs_control_demod(gr.top_block):
                                         r['auxmain'] = int(m1[22:23], 2)
                                         r['site_id'] = int(m1[23:28], 2)
 
+                                        self.site_detail = r
                                         #m = 'SiteID - ' + str(r)
                                 elif(mtd[:1] == '1'):   #Dynamic regroup
                                         if(m1 == -1 or m2 == -1): return False
