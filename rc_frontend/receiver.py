@@ -443,14 +443,17 @@ if __name__ == '__main__':
                         except Exception as e:
 				return 'na\n'
                 elif data[0] == 'scan_mode_set_freq':
+                    freq = int(data[1])
                     try:
+                        print 'attempting to set center freq to %s' % freq
                         if 'offset' in tb.realsources[0]:
-                            tb.realsources[0]['block'].set_center_freq(freq+self.realsources[0]['offset'], 0)
+                            tb.realsources[0]['block'].set_center_freq(freq+tb.realsources[0]['offset'], 0)
                         else:
                             tb.realsources[0]['block'].set_center_freq(freq, 0)
-
+                        print 'success'
                         return 'success'
                     except:
+                        raise
                         return 'fail'
 
 		elif data[0] == 'quit':

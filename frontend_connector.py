@@ -42,9 +42,14 @@ class frontend_connector():
 	def set_port(self, port):
 		self.current_port = port
         def scan_mode_set_freq(self, freq):
+                print 'scan_mode_set_freq(%s)' % freq
+                self.thread_lock.acquire()
+
                 self.socket.send('scan_mode_set_freq,%s' % (freq))
                 data = self.socket.recv()
 
+                self.thread_lock.release()
+                
                 if data == 'success':
                     return True
                 else:
