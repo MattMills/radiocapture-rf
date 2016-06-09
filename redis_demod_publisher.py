@@ -40,12 +40,17 @@ class redis_demod_publisher():
 			try:
 				system_uuid = self.parent_demod.system['system_uuid']
 			except:
-				system_uuid = self.parent_demod.instance_uuid
+				system_uuid = 'unknown'
+			try:
+				transmit_site_uuid = self.parent_demod.system['transmit_site_uuid']
+			except:
+				transmit_site_uuid = 'unknown'
 
 			publish_data = {
 				'instance_uuid': self.parent_demod.instance_uuid,
 				'site_uuid': self.parent_demod.site_uuid,
 				'system_uuid': system_uuid,
+				'transmit_site_uuid': transmit_site_uuid,
 				'overseer_uuid': self.parent_demod.overseer_uuid,
 				'site_detail': self.parent_demod.site_detail,
 				'site_status': self.parent_demod.quality,
