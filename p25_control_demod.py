@@ -738,7 +738,7 @@ class p25_control_demod (gr.top_block):
 						self.site_detail['WACN ID'] = hex(int(t['WACN ID']))
 						self.site_detail['System ID'] = hex(int(t['System ID']))
 						self.site_detail['System Service Class'] = t['System Service Class']
-						self.site_detail['Control Channel'] = t['Channel']
+						self.site_detail['Control Channel'], null, null = self.get_channel_detail(t['Channel'])
 					elif t['name'] == 'RFSS_STS_BCST':
 						self.site_detail['Site ID'] = t['Site ID']
 						self.site_detail['RF Sub-system ID'] = t['RF Sub-system ID']

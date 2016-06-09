@@ -15,8 +15,8 @@ class rc_config:
                 self.site_uuid = 'none'
 
 		self.samp_rate = 2400000
-		self.gain = 28
-		self.if_gain = 20
+		self.gain = 20
+		self.if_gain = 10
 
 		self.sources = {
 			0:{
@@ -50,8 +50,8 @@ class rc_config:
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-4,buffers=4',
                                 'offset': 210,
-                                'bb_gain': 40,
-                                'rf_gain': self.gain,
+                                'bb_gain': 20,
+                                'rf_gain': 28,
                                 'center_freq': 851200000,
                                 'samp_rate': self.samp_rate
                         },
@@ -59,8 +59,8 @@ class rc_config:
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-5,buffers=4',
                                 'offset': 460,
-                                'bb_gain': 40,
-                                'rf_gain': 40,
+                                'bb_gain': 20,
+                                'rf_gain': 28,
                                 'center_freq': 853400000,
                                 'samp_rate': self.samp_rate
                         },
@@ -68,8 +68,8 @@ class rc_config:
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-6,buffers=4',
                                 'offset': 980,
-                                'bb_gain': 40,
-                                'rf_gain': 40,
+                                'bb_gain': 20,
+                                'rf_gain': 28,
                                 'center_freq': 855600000,
                                 'samp_rate': self.samp_rate
                         },
@@ -77,8 +77,8 @@ class rc_config:
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-7,buffers=4',
                                 'offset': 0,
-                                'bb_gain': 40,
-                                'rf_gain': 40,
+                                'bb_gain': 20,
+                                'rf_gain': 28,
                                 'center_freq': 857800000,
                                 'samp_rate': self.samp_rate
                         },
@@ -86,8 +86,8 @@ class rc_config:
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-8,buffers=4',
                                 'offset': 110,
-                                'bb_gain': 40,
-                                'rf_gain': 40,
+                                'bb_gain': 20,
+                                'rf_gain': 28,
                                 'center_freq': 860000000,
                                 'samp_rate': self.samp_rate
                         },
@@ -96,11 +96,13 @@ class rc_config:
 		}
 
 
-		self.systems = {
+		self.systems = { #Dtown Simulcast
                         0: {
                                 'type': 'p25',
                                 'id': '1-001',
 				'modulation': 'CQPSK',
+				'transmit_site_uuid': '30f9e95e-bfd9-4b65-9f4f-ec313859d693',
+				'system_uuid': 'c4d894fb-99e4-4c12-aeae-3a1314690848',
                                 'default_control_channel': 15,
                                 'channels': {
 					0: 769256250,
@@ -159,20 +161,20 @@ class rc_config:
 			#		5: 774818750,
 			#	}
 			#},
-			#2: {
-			#	'type': 'p25',
-			#	'id': 'peco',
-			#	'modulation': 'C4FM',
-			#	'default_control_channel': 0,
-			#	'channels': {
-			#		0: 854912500,
-			#		1: 856162500,
-			#		2: 857162500,
-			#		3: 858162500,
-			#		4: 859112500,
-			#		5: 860537500,
-			#	}
-			#},
+			2: {
+				'type': 'p25',
+				'id': 'peco',
+				'modulation': 'C4FM',
+				'default_control_channel': 0,
+				'channels': {
+					0: 854912500,
+					1: 856162500,
+					2: 857162500,
+					3: 858162500,
+					4: 859112500,
+					5: 860537500,
+				}
+			},
 			#3: {
 			#	'type': 'moto',
 			#	'id': 'nj-sp',
