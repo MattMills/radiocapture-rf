@@ -6,7 +6,7 @@ import threading
 import time
 
 class frontend_connector():
-	def __init__(self, dest='10.2.0.21', host='127.0.0.1', port=50000):
+	def __init__(self, dest='127.0.0.1', host='127.0.0.1', port=50000):
 		#temp hack until I have auto-frontend figured out
 	
                 self.thread_lock = threading.Lock()
@@ -41,6 +41,14 @@ class frontend_connector():
 
 	def set_port(self, port):
 		self.current_port = port
+        def scan_mode_set_freq(self, freq):
+                self.socket.send('scan_mode_set_freq,%s' % (freq))
+                data = self.socket.recv()
+
+                if data == 'success':
+                    return True
+                else:
+                    return False
 
 	def create_channel(self, channel_rate, freq):
 		if self.current_port == None:

@@ -240,7 +240,7 @@ class receiver(gr.top_block):
 	def connect_channel_xlat(self, channel_rate, freq, dest, port):
 		source_id = None
 
-                if self.scan_mode = False:
+                if self.scan_mode == False:
                     for i in self.sources.keys():
                         if abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2:
                                 source_id = i
@@ -248,7 +248,7 @@ class receiver(gr.top_block):
     
                     if source_id == None:
                         return -1
-                else
+                else:
                     source_id = 0
 		
 		source_center_freq = self.sources[source_id]['center_freq']
@@ -442,6 +442,17 @@ if __name__ == '__main__':
 					return 'release,%s\n'
                         except Exception as e:
 				return 'na\n'
+                elif data[0] == 'scan_mode_set_freq':
+                    try:
+                        if 'offset' in tb.realsources[0]:
+                            tb.realsources[0]['block'].set_center_freq(freq+self.realsources[0]['offset'], 0)
+                        else:
+                            tb.realsources[0]['block'].set_center_freq(freq, 0)
+
+                        return 'success'
+                    except:
+                        return 'fail'
+
 		elif data[0] == 'quit':
 			c = int(data[1])
 			for x in clients[c]:
