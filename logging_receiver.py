@@ -79,7 +79,6 @@ class logging_receiver(gr.top_block):
 			try:
 				self.set_p25_xor_chars(p25p2_lfsr(0x4d1,int(cdr['p25_system_id'],0),int(cdr['p25_wacn'],0)).xor_chars)
 			except:
-				raise
 				pass
 			self.set_p25_tdma_slot(cdr['slot'])
 
