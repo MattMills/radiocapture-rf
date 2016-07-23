@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from edacs_control_demod import edacs_control_demod
 from p25_control_demod import p25_control_demod
 from moto_control_demod import moto_control_demod
