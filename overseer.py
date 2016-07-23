@@ -12,7 +12,7 @@ from config import rc_config
 import uuid
 
 overseer_uuid = '%s' % uuid.uuid4()
-site_uuid = '876c1a54-8183-4134-a41c-67a5b6121fcd'
+site_uuid = '9218d5c0-98e5-4592-9859-f18acac2e639'
 
 config = rc_config()                           
 
