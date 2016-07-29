@@ -12,14 +12,13 @@ import uuid
 import sys
 import signal
 import math
-
+import logging
 from redis_demod_manager import redis_demod_manager
 
 class p25_call_manager():
         def __init__(self, host=None, port=None):
-		import logging
-		logging.basicConfig()
-		logging.getLogger().setLevel(logging.INFO)
+                self.log = logging.getLogger('overseer.p25_call_manager')
+                self.log.info('Initializing p25_call_manager'))
 		self.demod_type = 'p25'
 
 		self.redis_demod_manager = redis_demod_manager(self)
@@ -55,6 +54,7 @@ class p25_call_manager():
 		publish_loop.start()
 
         def init_connection(self):
+                self.log.info('init_connection() (activemq) to tcp://%s/:%s' % (self.host, self.port))
                 if(self.client != None and self.client.session.state == 'connected'):
                         try:
                                 self.client.disconnect()
@@ -66,6 +66,7 @@ class p25_call_manager():
                 self.client.connect(heartBeats=(30000, 0), connectTimeout=1, connectedTimeout=1)
 
         def connection_handler(self):
+                self.log.info('connection_handler() startup')
                 #This func will just try to reconnect repeatedly in a thread if we're flagged as having an issue.
                 while(True):
                         if(self.connection_issue == True):
@@ -93,7 +94,7 @@ class p25_call_manager():
 			self.subscriptions[queue] = this_uuid
 			self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, })
 		except Exception as e:
-			print '%s' % e
+			self.log.fatal('%s' % e)
 			self.connection_issue = True
 
 
@@ -108,7 +109,7 @@ class p25_call_manager():
                         self.client.unsubscribe(self.subscriptions[queue], {StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL})
 			del self.subscriptions[queue]
                 except Exception as e:
-			print '%s' % e
+			self.log.fatal('%s' % e)
                         self.connection_issue = True
 
         def send_event_lazy(self, destination, body):
@@ -122,11 +123,11 @@ class p25_call_manager():
                         self.connection_issue = True
 
 	def notify_demod_new(self, demod_instance_uuid):
-		print 'Notified of new demod %s' % (demod_instance_uuid)
+		self.log.info('Notified of new demod %s' % (demod_instance_uuid))
 		self.subscribe('/topic/raw_control/%s' % (demod_instance_uuid))
 
 	def notify_demod_expire(self, demod_instance_uuid):
-		print 'Notified of expired demod %s' % (demod_instance_uuid)
+		self.log.info('Notified of expired demod %s' % (demod_instance_uuid))
 		self.unsubscribe('/topic/raw_control/%s' % (demod_instance_uuid))
 
 	def get_channel_detail(self, instance, channel):
@@ -227,11 +228,10 @@ class p25_call_manager():
 		#event call open to record subsys
 		self.send_event_lazy('/queue/call_management/new_call', cdr)
 		self.redis_demod_manager.publish_call_table(instance_uuid, ict)
-		print 'OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']) 
+		self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']))
 
 	def publish_loop(self):
-		print 'publish_loop()'
-		print '%s' % self.redis_demod_manager.demods
+		self.log.info('publish_loop() startup')
 		while self.continue_running:
 			for instance in self.instance_metadata:
 				ict = self.instance_metadata[instance]['call_table']
@@ -247,7 +247,7 @@ class p25_call_manager():
 						#event call close to record subsys on call specific queue
 						self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
 
-						print '%s CLOSE: %s' % (time.time(), ict[call_uuid])
+						self.log.info('%s CLOSE: %s' % (time.time(), ict[call_uuid]))
 				for call_uuid in closed_calls:
 					del ict[call_uuid]
 					del sct[call_uuid]['instances'][instance]
@@ -261,7 +261,6 @@ class p25_call_manager():
 			if self.connection_issue == False:
 				try:
 					if not self.client.canRead(0.1):
-						#print '-'
 						continue
 		        		frame = self.client.receiveFrame()
 				        t = json.loads(frame.body)
@@ -315,23 +314,23 @@ class p25_call_manager():
 						except:
 							pass
 					elif t['name'] == 'GRP_V_CH_GRANT' :
-						print 'GRP_V_CH_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
+						self.log.debug('GRP_V_CH_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Group Address'], t['Source Address']))
 						self.call_user_to_group(instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
 					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT':
-						print 'MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
+						self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address']))
 						self.call_user_to_group(instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
-						print 'GRP_V_CH_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Group Address 0'], t['Channel 1'], t['Group Address 1'])
+						self.log.debug('GRP_V_CH_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Group Address 0'], t['Channel 1'], t['Group Address 1']))
 						self.call_user_to_group(instance_uuid, t['Channel 0'], t['Group Address 0'])
 						self.call_user_to_group(instance_uuid, t['Channel 1'], t['Group Address 1'])
 					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
-						print 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Super Group 0'], t['Channel 1'], t['Super Group 1'])
+						self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Super Group 0'], t['Channel 1'], t['Super Group 1']))
                                                 self.call_user_to_group(instance_uuid, t['Channel 0'], t['Super Group 0'])
                                                 self.call_user_to_group(instance_uuid, t['Channel 1'], t['Super Group 1'])
 
 				        self.client.ack(frame)
 				except Exception as e:
-					print 'except: %s' % e
+					self.log.fatal('except: %s' % e)
 					self.connection_issue = True
 
 if __name__ == '__main__':
