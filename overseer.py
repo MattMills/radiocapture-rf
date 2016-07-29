@@ -12,14 +12,28 @@ from call_recorder import call_recorder
 
 from config import rc_config
 import uuid
+import logging
+import logging.config
+import json
+
+with open('config.logging.json', 'rt') as f:
+    config = json.load(f)
+
+logging.config.dictConfig(config)
+
+
+logger = logging.getLogger('overseer')
 
 overseer_uuid = '%s' % uuid.uuid4()
 site_uuid = '9218d5c0-98e5-4592-9859-f18acac2e639'
 
-config = rc_config()                           
+logger.info('Overseer %s initializing' % (overseer_uuid))
+logger.info('Site UUID: %s' % site_uuid)
+config = rc_config()       
 
 demods = {}
 for x in config.systems:
+        logger.info('Initializing %s demodulator. System configuration: %s' % (config.systems[x]['type'], config.systems[x]))
 	if config.systems[x]['type'] == 'edacs':
 		demods[x] = edacs_control_demod(config.systems[x], site_uuid, overseer_uuid)
 	elif config.systems[x]['type'] == 'moto':
@@ -31,10 +45,15 @@ for x in config.systems:
 
 import time
 
+logger.info('Initializing call managers')
 #p25_cm = p25_call_manager()
 #moto_cm = moto_call_manager()
 #edacs_cm = edacs_call_manager()
 
+logger.info('Initializing call recorder')
+
 #call_recorder = call_recorder()
+
+logger.info('Overseer %s initialization complete' % overseer_uuid)
 while 1:
 	time.sleep(1)
