@@ -33,6 +33,10 @@ class p25_control_demod (gr.top_block):
 		self.is_locked = False
 		self.system = system
 		self.instance_uuid = '%s' % uuid.uuid4()
+
+                self.log = logging.getLogger('overseer.p25_control_demod.%s' % self.instance_uuid)
+                self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
+
 		self.site_uuid = site_uuid
 		self.overseer_uuid = overseer_uuid
 
@@ -179,7 +183,7 @@ class p25_control_demod (gr.top_block):
 	        delta_hz = max(delta_hz, -max_delta_hz)
 	        delta_hz = min(delta_hz, max_delta_hz)
 	        self.control_prefilter.set_center_freq(0 + delta_hz)
-		print 'adjust control %s' % (delta_hz)
+		self.log.info('adjust control deltz_hz = %s' % (delta_hz))
         def tune_next_control_channel(self):
                 self.control_channel_i += 1
                 if(self.control_channel_i >= len(self.system['channels'])):
@@ -430,7 +434,8 @@ class p25_control_demod (gr.top_block):
 			else:
 				match = False
 			if not match and not previous_match:
-				print "Trellis failure at length: %i" % len(output)
+				#print "Trellis failure at length: %i" % len(output)
+                                self.log.warning('Trellis failure at length %i' % len(output))
 				#raise Exception('Irrecoverable error in Trellis encoding.')
 				return output
 					
@@ -501,7 +506,7 @@ class p25_control_demod (gr.top_block):
 		return output
 	def int_to_bit(self, input):
 		output = ''
-		print input
+		#print input
 		for i in range(0, len(input)):
                         output += bin(input[i])[2:].zfill(8)
                 return output
@@ -533,7 +538,7 @@ class p25_control_demod (gr.top_block):
 		return channel_frequency, channel_bandwidth, slot_number
 
 	def receive_engine(self):
-		print 'Receive_engine() start'
+                self.log.info('receive_engine() initializing')
 		buf = ''
 		data_unit_ids = {
 				0x0: 'Header Data Unit',
@@ -766,7 +771,8 @@ class p25_control_demod (gr.top_block):
 			current_packets = self.total_messages-last_total
 			current_packets_bad = self.bad_messages-last_bad
 
-                        print 'System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel)
+                        self.log.debug('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel))
+                        
 			if len(self.quality) >= 60:
                                 self.quality.pop(0)
 
@@ -792,7 +798,7 @@ class demod_watcher(threading.Thread):
             frequency_correction = msg.arg1()
 	    if frequency_correction == 0.0:
 		continue
-	    print '%s' % (msg.arg2())
+	    #print '%s' % (msg.arg2())
             print 'Freq correction %s' % (frequency_correction)
             self.callback(frequency_correction)
 
