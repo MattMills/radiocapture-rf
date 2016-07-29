@@ -12,14 +12,14 @@ import uuid
 import sys
 import signal
 import math
+import logging
 
 from redis_demod_manager import redis_demod_manager
 
 class moto_call_manager():
         def __init__(self, host=None, port=None):
-		import logging
-		logging.basicConfig()
-		logging.getLogger().setLevel(logging.INFO)
+                self.log = logging.getLogger('overseer.moto_call_manager')
+                self.log.info('Initializing moto_call_manager'))
 		self.demod_type = 'moto'
 
 		self.redis_demod_manager = redis_demod_manager(self)
@@ -93,7 +93,7 @@ class moto_call_manager():
 			self.subscriptions[queue] = this_uuid
 			self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, })
 		except Exception as e:
-			print '%s' % e
+			self.log.fatal('%s' % e)
 			self.connection_issue = True
 
 
@@ -108,7 +108,7 @@ class moto_call_manager():
                         self.client.unsubscribe(self.subscriptions[queue], {StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL})
 			del self.subscriptions[queue]
                 except Exception as e:
-			print '%s' % e
+			self.log.fatal('%s' % e)
                         self.connection_issue = True
 
         def send_event_lazy(self, destination, body):
@@ -122,11 +122,11 @@ class moto_call_manager():
                         self.connection_issue = True
 
 	def notify_demod_new(self, demod_instance_uuid):
-		print 'Notified of new demod %s' % (demod_instance_uuid)
+		self.log.info('Notified of new demod %s' % (demod_instance_uuid))
 		self.subscribe('/topic/raw_control/%s' % (demod_instance_uuid))
 
 	def notify_demod_expire(self, demod_instance_uuid):
-		print 'Notified of expired demod %s' % (demod_instance_uuid)
+		self.log.info('Notified of expired demod %s' % (demod_instance_uuid))
 		self.unsubscribe('/topic/raw_control/%s' % (demod_instance_uuid))
 
 	def get_system_from_instance(self, instance_uuid):
@@ -189,11 +189,10 @@ class moto_call_manager():
 		#event call open to record subsys
 		self.send_event_lazy('/queue/call_management/new_call', cdr)
 		self.redis_demod_manager.publish_call_table(instance_uuid, ict)
-		print 'OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']) 
+		self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']) )
 
 	def publish_loop(self):
-		print 'publish_loop()'
-		print '%s' % self.redis_demod_manager.demods
+		self.log.info('publish_loop()')
 		while self.continue_running:
 			for instance in self.instance_metadata:
 				ict = self.instance_metadata[instance]['call_table']
@@ -209,7 +208,7 @@ class moto_call_manager():
 						#event call close to record subsys on call specific queue
 						self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
 
-						print '%s CLOSE: %s' % (time.time(), ict[call_uuid])
+						self.log.info('%s CLOSE: %s' % (time.time(), ict[call_uuid]))
 				for call_uuid in closed_calls:
 					del ict[call_uuid]
 					del sct[call_uuid]['instances'][instance]
@@ -223,7 +222,6 @@ class moto_call_manager():
 			if self.connection_issue == False:
 				try:
 					if not self.client.canRead(0.1):
-						#print '-'
 						continue
 		        		frame = self.client.receiveFrame()
 				        t = json.loads(frame.body)
@@ -279,19 +277,17 @@ class moto_call_manager():
 					elif t['type'] == 'Analog Call' :
 						#{u'lid': u'0x510', u'status': 0, u'cmd': u'0x18c', u'sys': 15143, u'frequency': 860912500, u'system_type': u'moto', u'dual': True, u'ind': u'I', u'tg': 1296, u'type': u'Analog Call', u'user_local': 20974}
 						#{u'lid': u'0x5f0', u'status': 0, u'cmd': u'0x188', u'sys': 15143, u'frequency': 860812500, u'system_type': u'moto', u'dual': False, u'ind': u'I', u'tg': 1520, u'type': u'Call Continuation', u'user_local': 0}
-						print 'ANALOG CALL %s %s %s %s' % (instance_uuid, t['frequency'], t['tg'], t['user_local'])
+						self.log.debug('ANALOG CALL %s %s %s %s' % (instance_uuid, t['frequency'], t['tg'], t['user_local']))
 						self.call_user_to_group(instance_uuid, t['frequency'], t['tg'], t['user_local'])
 					elif t['type'] == 'Digital Call':
-						#print '%s' % t
-						print 'DIGITAL CALL %s %s %s %s' % (instance_uuid, t['frequency'], t['tg'], t['user_local'])
+						self.log.debug('DIGITAL CALL %s %s %s %s' % (instance_uuid, t['frequency'], t['tg'], t['user_local']))
                                                 self.call_user_to_group(instance_uuid, t['frequency'], t['tg'], t['user_local'], digital=True)
 					elif t['type'] == 'Call Continuation':
-						#print '%s' % t
-						print 'Call Continuation %s %s %s %s' % (instance_uuid, t['frequency'], t['tg'], t['user_local'])
+						self.log.debug('Call Continuation %s %s %s %s' % (instance_uuid, t['frequency'], t['tg'], t['user_local']))
                                                 self.call_user_to_group(instance_uuid, t['frequency'], t['tg'], t['user_local'])
 				        self.client.ack(frame)
 				except Exception as e:
-					print 'except: %s' % e
+					self.log.fatal('except: %s' % e)
 					self.connection_issue = True
 
 if __name__ == '__main__':
