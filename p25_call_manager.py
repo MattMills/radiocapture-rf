@@ -40,7 +40,7 @@ class p25_call_manager():
 		self.subscriptions = {}
 
 
-		self.hang_time = 0.5
+		self.hang_time = 5
 		self.instance_metadata = {}
 		self.system_metadata = {}
 		
@@ -165,11 +165,28 @@ class p25_call_manager():
 		sct = self.system_metadata[system_uuid]['call_table']
 		ict = self.instance_metadata[instance_uuid]['call_table']
 
+		closed_calls = []
+
 		for call in ict:
 			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
 				ict[call]['time_activity'] = time.time()
 				return True
-					
+
+			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] != group_address:
+				#different group, kill existing
+				closed_calls.append(call)
+			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and user_address != 0 and ict[call]['system_user_local'] != 0 and ict[call]['system_user_local'] != user_address:
+				#different user on same group, and neither new or old user = 0, kill existing
+				closed_calls.append(call)
+
+		pass
+		for call_uuid in closed_calls:
+			self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
+			print '%s CLOSE: %s' % (time.time(), ict[call_uuid])
+	                del ict[call_uuid]
+                        del sct[call_uuid]['instances'][instance_uuid]
+                        if len(sct[call_uuid]['instances']) == 0:
+        	                del sct[call_uuid]					
 			
 		#Not a continuation, new call
 		call_uuid = None
