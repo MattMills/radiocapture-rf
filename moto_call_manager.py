@@ -19,7 +19,7 @@ from redis_demod_manager import redis_demod_manager
 class moto_call_manager():
         def __init__(self, host=None, port=None):
                 self.log = logging.getLogger('overseer.moto_call_manager')
-                self.log.info('Initializing moto_call_manager'))
+                self.log.info('Initializing moto_call_manager')
 		self.demod_type = 'moto'
 
 		self.redis_demod_manager = redis_demod_manager(self)

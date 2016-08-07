@@ -19,7 +19,7 @@ from redis_demod_manager import redis_demod_manager
 class edacs_call_manager():
         def __init__(self, host=None, port=None):
                 self.log = logging.getLogger('overseer.p25_call_manager')
-                self.log.info('Initializing edacs_call_manager'))
+                self.log.info('Initializing edacs_call_manager')
 		self.demod_type = 'edacs'
 
 		self.redis_demod_manager = redis_demod_manager(self)
@@ -266,7 +266,7 @@ class edacs_call_manager():
                                                 self.log.info('call_continuation_analog: %s' % t)
 						self.call_user_to_group(instance_uuid, t['frequency'], t['id'])
 					elif t['type'] == 'call_continuation_digital':
-                                            self.log.info('call_continuation_digital: %s' % t)
+                                                self.log.info('call_continuation_digital: %s' % t)
 						self.call_user_to_group(instance_uuid, t['frequency'], t['id'], 0, True)
 
 				        self.client.ack(frame)

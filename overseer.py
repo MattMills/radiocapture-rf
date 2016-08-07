@@ -46,13 +46,13 @@ for x in config.systems:
 import time
 
 logger.info('Initializing call managers')
-#p25_cm = p25_call_manager()
-#moto_cm = moto_call_manager()
-#edacs_cm = edacs_call_manager()
+p25_cm = p25_call_manager()
+moto_cm = moto_call_manager()
+edacs_cm = edacs_call_manager()
 
 logger.info('Initializing call recorder')
 
-#call_recorder = call_recorder()
+call_recorder = call_recorder()
 
 logger.info('Overseer %s initialization complete' % overseer_uuid)
 while 1:

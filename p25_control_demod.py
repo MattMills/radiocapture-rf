@@ -22,6 +22,8 @@ from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
 
+import logging
+
 # The P25 receiver
 #
 class p25_control_demod (gr.top_block):
