@@ -19,7 +19,7 @@ from logging_receiver import logging_receiver
 class call_recorder():
         def __init__(self, host=None, port=None):
                 self.log = logging.getLogger('overseer.call_recorder')
-                self.log.info('Initializing call_recorder'))
+                self.log.info('Initializing call_recorder')
                 if(host != None):
                         self.host = host
                 else:

@@ -18,7 +18,7 @@ from redis_demod_manager import redis_demod_manager
 class p25_call_manager():
         def __init__(self, host=None, port=None):
                 self.log = logging.getLogger('overseer.p25_call_manager')
-                self.log.info('Initializing p25_call_manager'))
+                self.log.info('Initializing p25_call_manager')
 		self.demod_type = 'p25'
 
 		self.redis_demod_manager = redis_demod_manager(self)
