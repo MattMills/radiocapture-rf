@@ -86,6 +86,8 @@ class rc_config:
 			0: { #DTRS - Templeton Gap (04-22
                                 'type': 'p25',
                                 'id': '04022',
+				'transmit_site_uuid': '',
+				'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
                                 'default_control_channel': 6,
 				'modulation': 'C4FM',
                                 'channels': {
@@ -103,6 +105,8 @@ class rc_config:
 			6: { #DTRS - Fountain Valley - 04-011
                                 'type': 'p25',
                                 'id': '04011',
+				'transmit_site_uuid': '',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
                                 'default_control_channel': 7,
                                 'modulation': 'C4FM',
                                 'channels': {
@@ -119,6 +123,8 @@ class rc_config:
 			7: { #DTRS - Ski Summit - 04-013
                                 'type': 'p25',
                                 'id': '04013',
+				'transmit_site_uuid': '1b61e8b3-3a03-4c11-ae3c-2e6766da5906',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
                                 'default_control_channel': 0,
                                 'modulation': 'C4FM',
                                 'channels': {
@@ -141,6 +147,8 @@ class rc_config:
 			8: { #DTRS - Peterson Air Force BAse - 04-017
 				'type': 'p25',
 				'id': '04017',
+				'transmit_site_uuid': '869e44ae-27e1-4b8e-933d-00108f9270cd',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
 				'default_control_channel': 0,
 				'modulation': 'C4FM',
 				'channels': {
@@ -158,6 +166,8 @@ class rc_config:
 			10: { #DTRS - Cedar Heights - 04-024
                                 'type': 'p25',
                                 'id': '04024',
+				'transmit_site_uuid': '',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
                                 'default_control_channel': 11,
                                 'modulation': 'C4FM',
                                 'channels': {
@@ -178,6 +188,8 @@ class rc_config:
 			11: { #DTRS - Stanley Canyon - 04-012
                                 'type': 'p25',
                                 'id': '04012',
+				'transmit_site_uuid': '7caa9228-ff85-45ba-8842-1b009c9fe10f',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
                                 'default_control_channel': 10,
                                 'modulation': 'C4FM',
                                 'channels': {
@@ -197,6 +209,8 @@ class rc_config:
 			12: { #DTRS - Cheyenne Mountain - 06-048
                                 'type': 'p25',
                                 'id': '06048',
+				'transmit_site_uuid': '23ef7d94-9034-4cb8-be60-147078d696ca',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
                                 'default_control_channel': 4,
                                 'modulation': 'C4FM',
                                 'channels': {
