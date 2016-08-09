@@ -31,6 +31,8 @@ class moto_control_demod(gr.top_block):
 		##################################################
 
 		self.instance_uuid = '%s' % uuid.uuid4()
+                self.log = logging.getLogger('overseer.moto_control_demod.%s' % self.instance_uuid)
+                self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
 		self.overseer_uuid = overseer_uuid
 		self.site_uuid = site_uuid
 
@@ -151,7 +153,8 @@ class moto_control_demod(gr.top_block):
                 self.connector.create_channel(self.channel_rate, self.control_channel)
 
 
-		print 'CC Change - %s' % (self.control_channel)
+		self.log.info('Control Channel retuned to %s' % (self.control_channel))
+                
 		self.control_msg_sink_msgq.flush()
 
         def quality_check(self):
@@ -170,7 +173,7 @@ class moto_control_demod(gr.top_block):
                         sid = self.system['id']
 			current_packets = self.packets-last_total
 			current_packets_bad = self.packets_bad-last_bad
-                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel)
+                        self.log.debug('System: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.packets, self.packets_bad, self.control_channel))
 
 			if len(self.quality) >= 60:
 				self.quality.pop(0)
@@ -198,7 +201,7 @@ class moto_control_demod(gr.top_block):
 	         return True
 ####################################################################################################
 	def receive_engine(self):
-		print self.thread_id + ': receive_engine() startup'
+		self.log.info('receive_engine() startup')
 
 		frame_len = 76 #bits
 		frame_sync = '10101100'
@@ -213,7 +216,7 @@ class moto_control_demod(gr.top_block):
 
 		while self.keep_running:
 			if(sync_loops < -10):
-				print 'NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]])
+				self.log.warning('NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]]))
 				#print 'b/p: %s %s' % (packets, packets_bad)
 				sync_loops = 0
 				self.tune_next_control()
@@ -227,7 +230,7 @@ class moto_control_demod(gr.top_block):
 				fs_next_loc = buf[fs_loc+fs_len:].find(frame_sync)+fs_loc+fs_len
 				if locked > 2 or (fs_loc > -1 and fs_next_loc > -1 and fs_next_loc-fs_loc == frame_len+fs_len):
 					if fs_loc != 0:
-						print 'Packet jump %s - %s' % (fs_loc, buf[:fs_loc])
+						self.log.warning('Packet jump %s - %s' % (fs_loc, buf[:fs_loc]))
 						locked -= 1
 					elif locked < 5:
 						locked += 1
@@ -244,7 +247,7 @@ class moto_control_demod(gr.top_block):
 						pkt = buf[fs_len:fs_len+frame_len]
 						buf = buf[fs_len+frame_len:]
 					else:
-						print '--- no lock ---'
+						self.log.warning('--- no lock ---')
 						pkt = buf[fs_loc+fs_len:fs_loc+fs_len+frame_len]
 						buf = buf[fs_loc+fs_len+frame_len:]
 

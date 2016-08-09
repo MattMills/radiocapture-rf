@@ -13,6 +13,7 @@ import os
 import random
 import threading
 import uuid
+import logging
 
 from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
@@ -21,9 +22,12 @@ from redis_demod_publisher import redis_demod_publisher
 class edacs_control_demod(gr.top_block):
 	def __init__(self, system, site_uuid, overseer_uuid):
 		gr.top_block.__init__(self, "edacs receiver")
+                self.log = logging.getLogger('overseer.edacs_control_demod')
 
 		self.system = system
 		self.instance_uuid = '%s' % uuid.uuid4()
+                self.log = logging.getLogger('overseer.edacs_control_demod.%s' % self.instance_uuid)
+                self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
 
 		self.overseer_uuid = overseer_uuid
 		self.site_uuid = site_uuid
@@ -132,7 +136,7 @@ class edacs_control_demod(gr.top_block):
 		self.connector.release_channel()
                 self.connector.create_channel(self.channel_rate, self.control_channel)
 	
-                print 'CC Change - %s' % (self.control_channel)
+                self.log.info('CC Change - %s' % (self.control_channel))
                 self.control_msg_queue.flush()
 
 
@@ -196,7 +200,7 @@ class edacs_control_demod(gr.top_block):
 			try:
 				r['frequency'] = self.system['channels'][r['channel']]
 			except:
-				print 'ERROR BAD CHANNEL %s' % r
+				self.log.warning('ERROR BAD CHANNEL %s' % r)
 				return False
                         r['tx_trunked'] = bool(int(m1[16:17],2))
                         r['group'] = int(m1[17:28],2 )
@@ -220,7 +224,7 @@ class edacs_control_demod(gr.top_block):
 				try:
 					r['frequency'] = self.system['channels'][r['channel']]
 				except:
-					print 'ERROR BAD CHANNEL %s' % r
+					self.log.warning('ERROR BAD CHANNEL %s' % r)
 					return False
                                 r['individual'] = int(m1[13:14],2)
                                 r['id'] = int(m1[14:28],2)
@@ -337,8 +341,7 @@ class edacs_control_demod(gr.top_block):
 			current_packets = self.total_messages-last_total
 			current_packets_bad = self.bad_messages-last_bad
 
-                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel)
-			print 'System: %s %s' % (sid, self.probe.level())
+                        self.log.debug('System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel))
 
 			if len(self.quality) >= 60:
                                 self.quality.pop(0)
@@ -393,13 +396,13 @@ class edacs_control_demod(gr.top_block):
                                 self.failed_loops = 0
                                 self.loop_start = time.time()
 
-                                print 'Cant get framesync lock, SYS: %s trying next control ' % (self.system['id'])
+                                self.log.info('Cant get framesync lock, SYS: %s trying next control ' % (self.system['id']))
 				self.is_locked = False
                                 self.tune_next_control_channel()
                                 buf = ''
                         return (buf, False)
                 if(len(frame) < 240):
-                        print 'Buffer Underrun in Framer: ' + str(len(frame))
+                        self.log.warning('Buffer Underrun in Framer! Length: %s '% len(frame))
                 if(self.failed_loops > -1000):
                         self.failed_loops = self.failed_loops - 10
 		else: # if their have been >100 non failed loops we should signify a signal lock for freq tuning
@@ -497,7 +500,7 @@ class edacs_control_demod(gr.top_block):
 ############################################################################################################
 
 	def control_decode(self):
-		print self.thread_id + ': control_decode() start'
+		self.log.info('%s: control_decode() start' % self.thread_id)
 	        self.framesync = framesync = '010101010101010101010111000100100101010101010101'
 	        self.buf = buf = ''
 		self.total_messages = total_messages = 0
@@ -522,14 +525,14 @@ class edacs_control_demod(gr.top_block):
 					deletes.append(patch)
 
 			for patch in deletes:
-				print 'Patch closed ' + str(patch)
+				self.log.info('Patch closed %s' % patch)
 				del self.patches[patch]
 
                         pkt = self.recv_pkt()
                         for b in pkt:
                                 buf = buf + str("{0:08b}" . format(ord(b)))
                         if(len(buf) > 288*8):
-                                print 'Buffer Overflow ' + str(len(buf))
+                                self.log.warning('Buffer Overflow! Length: %s ' % len(buf))
                         while(len(buf) > 288*3): #frame+framesync len in binary is 288; buffer 4 frames
                                 buf, frame = self.get_next_frame(system, buf)
                                 if(frame == False): continue #Failed to get packet

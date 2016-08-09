@@ -12,11 +12,14 @@ import uuid
 import sys
 import signal
 import math
+import logging
 
 from logging_receiver import logging_receiver
 
 class call_recorder():
         def __init__(self, host=None, port=None):
+                self.log = logging.getLogger('overseer.call_recorder')
+                self.log.info('Initializing call_recorder')
                 if(host != None):
                         self.host = host
                 else:
@@ -93,8 +96,8 @@ class call_recorder():
 			self.subscriptions[queue] = this_uuid
 			self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, })
 		except Exception as e:
-			raise
-			print '%s' % e
+			self.log.fatal('%s' % e)
+                        raise
 			self.connection_issue = True
 
 
@@ -109,7 +112,7 @@ class call_recorder():
                         self.client.unsubscribe(self.subscriptions[queue], {StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL})
 			del self.subscriptions[queue]
                 except Exception as e:
-			print '%s' % e
+			self.log.error('%s' % e)
                         self.connection_issue = True
 
         def send_event_lazy(self, destination, body):
@@ -159,14 +162,13 @@ class call_recorder():
 			
 
 	def publish_loop(self):
-		print 'publish_loop()'
+		self.log.info('publish_loop()')
 		self.subscribe('/queue/call_management/new_call')
 		self.subscribe('/queue/call_management/timeout')
 		while self.continue_running:
 			if self.connection_issue == False:
 				try:
 					if not self.client.canRead(0.1):
-						#print '-'
 						continue
 		        		frame = self.client.receiveFrame()
 				        cdr = json.loads(frame.body)
@@ -195,8 +197,8 @@ class call_recorder():
 
 				        self.client.ack(frame)
 				except Exception as e:
-					raise
-					print 'except: %s' % e
+					self.log.fatal('except: %s' % e)
+                                        raise
 					self.connection_issue = True
 
 if __name__ == '__main__':
@@ -205,5 +207,5 @@ if __name__ == '__main__':
 	while True:
 		time.sleep(100)
 		for t in threading.enumerate():
-			print '%s' % t
+			main.log.debug('%s' % t)
 		
