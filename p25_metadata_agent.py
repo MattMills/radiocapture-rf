@@ -253,21 +253,33 @@ class p25_metadata_agent():
                                                 to_check.append({'parameter': 'WACN ID', 'value': hex(int(t['WACN ID']))})
                                                 to_check.append({'parameter': 'System ID', 'value': hex(int(t['System ID']))})
                                                 to_check.append({'parameter': 'System Service Class', 'value':  t['System Service Class']})
-                                                control_channel, null, null = self.get_channel_detail(instance_uuid, t['Channel'])       
-                                                to_check.append({'parameter': 'Control Channel', 'value': control_channel})
+						
+                                                frequency, bandwidth, slot_number, modulation = self.get_channel_detail(instance_uuid, t['Channel'])       
+						if frequency != False:
+ 	                                               to_check.append({'parameter': 'Control Channel', 'value': {'frequency': frequency, 'bandwidth': bandwidth}})
                                         elif t['name'] == 'RFSS_STS_BCST':
                                                 to_check.append({'parameter': 'Site ID', 'value': t['Site ID']})
                                                 to_check.append({'parameter': 'RF Sub-system ID', 'value':  t['RF Sub-system ID']})
                                                 to_check.append({'parameter': 'RFSS Network Connection', 'value':  t['A']})
                                         elif t['name'] == 'ADJ_STS_BCST':
+						print '%s' % t
                                                 pass
                                         for d in to_check:
                                             if self.is_updated(instance_uuid, d['parameter'], d['value']):
                                                 print 'Updated! %s %s %s' % (instance_uuid, d['parameter'], d['value'])
+						message =	{
+									'transmit_site_uuid': self.redis_demod_manager.demods[instance_uuid]['transmit_site_uuid'],
+									'receive_site_uuid': self.redis_demod_manager.demods[instance_uuid]['site_uuid'],
+									'parameter': d['parameter'],
+									'value': d['value'],
+								}
+							
+						self.send_event_lazy('/queue/metadata/site_update', message)
 
 				        self.client.ack(frame)
 				except Exception as e:
 					self.log.fatal('except: %s' % e)
+					raise
 					self.connection_issue = True
 
 if __name__ == '__main__':
