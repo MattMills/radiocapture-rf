@@ -174,7 +174,7 @@ class moto_control_demod(gr.top_block):
                         sid = self.system['id']
 			current_packets = self.packets-last_total
 			current_packets_bad = self.packets_bad-last_bad
-                        self.log.debug('System: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.packets, self.packets_bad, self.control_channel))
+                        self.log.info('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.packets, self.packets_bad, self.control_channel))
 
 			if len(self.quality) >= 60:
 				self.quality.pop(0)
