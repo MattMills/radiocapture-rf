@@ -505,22 +505,15 @@ class rc_config:
                                 }
                         }
 		}
-		deletions = []
-		for x in self.systems:
-			if(self.systems[x]['type'] != 'p25'):
-				deletions.append(x)
-
-		for x in deletions:
-			del self.systems[x]
-		#del self.systems[19]
-		#del self.systems[18]
-		#del self.systems[17]
-		#del self.systems[16]
-		#del self.systems[15]
-		#del self.systems[14]
-		#del self.systems[13]
-		#del self.systems[12]
-		#del self.systems[11]
+		del self.systems[19]
+		del self.systems[18]
+		del self.systems[17]
+		del self.systems[16]
+		del self.systems[15]
+		del self.systems[14]
+		del self.systems[13]
+		del self.systems[12]
+		del self.systems[11]
 		#del self.systems[10]
 		#del self.systems[9]
 		#del self.systems[8]

@@ -7,7 +7,7 @@ import time
 import logging
 
 class frontend_connector():
-	def __init__(self, dest='127.0.0.1', host='127.0.0.1', port=50000):
+	def __init__(self, dest='10.5.0.128', host='10.5.0.129', port=50000):
 		#temp hack until I have auto-frontend figured out
 
                 self.log = logging.getLogger('overseer.frontend_connector')
