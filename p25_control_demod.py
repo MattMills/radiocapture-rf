@@ -79,7 +79,7 @@ class p25_control_demod (gr.top_block):
 		self.keep_running = True
 	
 	      
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 147200, False)
+		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 1472, False)
 		self.source.set_min_output_buffer(1280*1024)
 
 		self.connector.set_port(self.source.get_port())
@@ -558,7 +558,7 @@ class p25_control_demod (gr.top_block):
 		wrong_duid_count = 0
 
 		while self.keep_running:
-			if loops_locked < -200 and time()-loop_start > 0.1:
+			if loops_locked < -50 and time()-loop_start > 0.1:
 				self.tune_next_control_channel()
 
 				loops_locked = 0
@@ -601,6 +601,7 @@ class p25_control_demod (gr.top_block):
 				if duid != 0x7:
 					wrong_duid_count = wrong_duid_count +1
 					if wrong_duid_count > 50:
+						self.log.warning('Hit wrong DUID count on control channel')
 						self.tune_next_control_channel()
 
 						loop_start = time()
@@ -773,7 +774,7 @@ class p25_control_demod (gr.top_block):
 			current_packets = self.total_messages-last_total
 			current_packets_bad = self.bad_messages-last_bad
 
-                        self.log.debug('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel))
+                        self.log.info('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel))
                         
 			if len(self.quality) >= 60:
                                 self.quality.pop(0)
