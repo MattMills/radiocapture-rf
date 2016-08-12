@@ -17,27 +17,27 @@ class frontend_connector():
 
 		#self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		#self.s.connect((host,port))
-                self.log.info('Initializing Frontend Connector')
+                self.log.debug('Initializing Frontend Connector')
 
 		self.context = zmq.Context()
 		self.socket = self.context.socket(zmq.REQ)
-                self.log.info('Attempting ZMQ socket connection to tcp://%s:%s' % (host, port))
+                self.log.debug('Attempting ZMQ socket connection to tcp://%s:%s' % (host, port))
 
 		self.socket.connect("tcp://%s:%s" % (host, port))
-                self.log.info('Successful ZMQ socket connection to tcp://%s:%s' % (host, port))
+                self.log.debug('Successful ZMQ socket connection to tcp://%s:%s' % (host, port))
 		self.my_client_id = None
 		self.channel_id = None
 		self.current_port = None
 	
 		self.continue_running = True
 
-                self.log.info('Sending connect command')
+                self.log.debug('Sending connect command')
 		self.socket.send('connect')
 		data = self.socket.recv()
 
 		data = data.split(',')
 		self.my_client_id = int(data[1])
-                self.log.info('Received client ID %s' % self.my_client_id)
+                self.log.debug('Received client ID %s' % self.my_client_id)
 
 		connection_handler = threading.Thread(target=self.connection_handler, name='connection_handler')
                 connection_handler.daemon = True
@@ -50,10 +50,10 @@ class frontend_connector():
 			pass
 
 	def set_port(self, port):
-                self.log.info('Setting port to %s' % port)
+                self.log.debug('Setting port to %s' % port)
 		self.current_port = port
         def scan_mode_set_freq(self, freq):
-                self.log.info('scan_mode_set_freq(freq = %s)' % freq)
+                self.log.debug('scan_mode_set_freq(freq = %s)' % freq)
                 self.thread_lock.acquire()
 
                 self.socket.send('scan_mode_set_freq,%s' % (freq))
@@ -116,11 +116,11 @@ class frontend_connector():
                         self.thread_lock.release()
 			return False
 	def exit(self):
-                self.log.info('exit() called')
+                self.log.debug('exit() called')
 		self.continue_running = False
 
 	def connection_handler(self):
-                self.log.info('connection_handler() init')
+                self.log.debug('connection_handler() init')
 		time.sleep(0.1)
 		while self.continue_running == True:
 			self.thread_lock.acquire()
@@ -132,13 +132,13 @@ class frontend_connector():
 			time.sleep(0.25)
 		
 		self.thread_lock.acquire()
-                self.log.info('Sending quit command to ZMQ socket')
+                self.log.debug('Sending quit command to ZMQ socket')
 		self.socket.send('quit,%s' % self.my_client_id)
 		self.socket.close()
 		self.context.destroy()
 		
 		self.thread_lock.release()
-		self.log.info('connection_handler() exit')
+		self.log.debug('connection_handler() exit')
 			
 
 if __name__ == '__main__':

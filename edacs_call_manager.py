@@ -177,7 +177,7 @@ class edacs_call_manager():
 		if call_uuid == None:
 			#call is new systemwide, assign new UUID
 			call_uuid = '%s' % uuid.uuid4()
-			
+		instance = self.redis_demod_manager.demods[instance_uuid]
 		cdr = {
 			'call_uuid': call_uuid,
 	                'system_id': system_uuid,

@@ -12,6 +12,7 @@ from gnuradio import gr
 import time
 import threading
 import uuid
+import logging
 
 from logging_receiver import logging_receiver
 from backend_event_publisher import backend_event_publisher
@@ -96,7 +97,7 @@ class moto_control_demod(gr.top_block):
 		# Blocks
 		##################################################
 
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 147200, False)
+		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 1472, False)
                 self.source.set_min_output_buffer(1280*1024)
 
 		self.connector.set_port(self.source.get_port())
