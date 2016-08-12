@@ -518,18 +518,19 @@ class rc_config:
 		#del self.systems[16]
 		#del self.systems[15]
 		#del self.systems[14]
-		del self.systems[13]
-		del self.systems[12]
+		#del self.systems[13]
+		#del self.systems[12]
 		#del self.systems[11]
-		del self.systems[10]
+		#del self.systems[10]
 		#del self.systems[9]
-		del self.systems[8]
-		del self.systems[7]
+		#del self.systems[8]
+		#del self.systems[7]
+		del self.systems[1]
 	
-		delete = []
-		for x in self.systems:
-			if self.systems[x]['type'] != 'edacs':
-				delete.append(x)
+		#delete = []
+		#for x in self.systems:
+	#		if self.systems[x]['type'] != 'edacs':
+	#			delete.append(x)
 
 		#for x in delete:
 		#	del self.systems[x]
