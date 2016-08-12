@@ -15,14 +15,14 @@ class rc_config:
                 self.site_uuid = 'none'
 
 		self.samp_rate = 2400000
-		self.gain = 20
-		self.if_gain = 10
+		self.gain = 40
+		self.if_gain = 20
 
 		self.sources = {
 			0:{
 				'type': 'rtlsdr', 
 				'args': 'rtl=3-1,buffers=4',
-				'offset': 1040,
+				'offset': 1030,
 				'bb_gain': self.if_gain,
 				'rf_gain': self.gain,
 				'center_freq': 770000000, 
@@ -31,16 +31,16 @@ class rc_config:
 			1:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-2,buffers=4',
-				'offset': 1350,
+				'offset': 1290,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
-                                'center_freq': 772000000,
+                                'center_freq': 772010000,
                                 'samp_rate': self.samp_rate
                         },
                         2:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-3,buffers=4',
-				'offset': 827,
+				'offset': 639,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 774000000,
@@ -49,51 +49,59 @@ class rc_config:
 			3:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-4,buffers=4',
-                                'offset': 210,
-                                'bb_gain': 20,
-                                'rf_gain': 28,
-                                'center_freq': 851200000,
+                                'offset': 682,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 772000000,
                                 'samp_rate': self.samp_rate
                         },
                         4:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-5,buffers=4',
-                                'offset': 460,
-                                'bb_gain': 20,
-                                'rf_gain': 28,
+                                'offset': 544,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
                                 'center_freq': 853400000,
                                 'samp_rate': self.samp_rate
                         },
                         5:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-6,buffers=4',
-                                'offset': 980,
-                                'bb_gain': 20,
-                                'rf_gain': 28,
+                                'offset': 990,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
                                 'center_freq': 855600000,
                                 'samp_rate': self.samp_rate
                         },
                         6:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-7,buffers=4',
-                                'offset': 0,
-                                'bb_gain': 20,
-                                'rf_gain': 28,
+                                'offset': 510,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
                                 'center_freq': 857800000,
                                 'samp_rate': self.samp_rate
                         },
                         7:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=3-8,buffers=4',
-                                'offset': 110,
-                                'bb_gain': 20,
-                                'rf_gain': 28,
+                                'offset': 442,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
                                 'center_freq': 860000000,
                                 'samp_rate': self.samp_rate
                         },
 			
 
 		}
+		del self.sources[7]
+		del self.sources[1]
+		del self.sources[4]
+		del self.sources[5]
+		#self.sources[3]['center_freq'] = 770000000
+		#self.sources[4]['center_freq'] = 772010000
+		#self.sources[5]['center_freq'] = 774000000
+		del self.sources[6]
 
 
 		self.systems = { #Dtown Simulcast
@@ -131,66 +139,22 @@ class rc_config:
 					23: 774668750,
                                 }
                         },
-			#1: {
-			#	'type': 'moto',
-			#	'id': 0xa812,
-			#	'channels': {
-			#		10: 851262500,
-			#		25: 851637500,
-			#		35: 851887500,
-			#		50: 852262500,
-			#		110: 853762500,
-			#		#854962500
-			#		169: 855237500,
-			#		197: 855937500,
-			#		229: 856737500,
-			#		494: 852375000,
-			#	}
-			#}
-			#1: {	#NJCIS, hunterdon Simulcast
-			#	'type': 'p25',
-			#	'id': 'ngcis',
-			#	'modulation': 'C4FM',
-			#	'default_control_channel': 0,
-			#	'channels': {
-			#		0: 769206250,
-			#		1: 770193750,
-			#		2: 773031250,
-			#		3: 773593750,
-			#		4: 773831250,
-			#		5: 774818750,
-			#	}
-			#},
-			#2: {
-			#	'type': 'p25',
-			#	'id': 'peco',
-			#	'modulation': 'C4FM',
-			#	'default_control_channel': 0,
-			#	'channels': {
-			#		0: 854912500,
-			#		1: 856162500,
-			#		2: 857162500,
-			#		3: 858162500,
-			#		4: 859112500,
-			#		5: 860537500,
-			#	}
-			#},
-			#3: {
-			#	'type': 'moto',
-			#	'id': 'nj-sp',
-			#	'channels': {
-			#		0: 851012500,
-			#		48: 852212500,
-			#		85: 853137500,
-			#		228: 856712500,
-			#		248: 857212500,
-			#		268: 857717500,
-			#		288: 858212500,
-			#		308: 858712500,
-			#		328: 859212500,
-			#		348: 859712500,
-			#		368: 860212500,
-			#		388: 860712500,
-			#	}
-			#}
+			4: {
+				'type': 'moto',
+				'id': 'nj-sp',
+				'channels': {
+					0: 851012500,
+					48: 852212500,
+					85: 853137500,
+					228: 856712500,
+					248: 857212500,
+					268: 857717500,
+					288: 858212500,
+					308: 858712500,
+					328: 859212500,
+					348: 859712500,
+					368: 860212500,
+					388: 860712500,
+				}
+			}
 		}
