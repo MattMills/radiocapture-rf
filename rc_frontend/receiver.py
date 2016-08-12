@@ -153,7 +153,7 @@ class receiver(gr.top_block):
 
                                 this_dev.set_dc_offset_mode(1, 0)
                                 this_dev.set_iq_balance_mode(1, 0)
-                                this_dev.set_gain_mode(0, 0)
+                                this_dev.set_gain_mode(False, 0)
                                 this_dev.set_gain(self.realsources[source]['rf_gain'], 0)
 				this_dev.set_if_gain(30, 0)
                                 this_dev.set_bb_gain(self.realsources[source]['bb_gain'], 0)
