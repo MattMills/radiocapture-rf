@@ -239,12 +239,14 @@ class receiver(gr.top_block):
 
 	def connect_channel_xlat(self, channel_rate, freq, dest, port):
 		source_id = None
+		source_distance = None
 
                 if self.scan_mode == False:
                     for i in self.sources.keys():
                         if abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2:
-                                source_id = i
-                                break
+				if source_distance == None or abs(freq-self.sources[i]['center_freq']) < source_distance:
+	                                source_id = i
+					source_distance = abs(freq-self.sources[i]['center_freq'])
     
                     if source_id == None:
                         return -1
