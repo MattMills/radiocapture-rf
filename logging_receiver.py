@@ -46,7 +46,7 @@ class logging_receiver(gr.top_block):
 		#optionally keep wav files around
 		self.log_wav = False
 
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 30000, False)
+		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 1472, False)
 		self.source.set_min_output_buffer(128*1024)
 
 		if self.log_dat:
@@ -344,7 +344,6 @@ class logging_receiver(gr.top_block):
 			except:
 				print 'NO DECODEQUEUE'
 				continue
-
 			if self.decodequeue.count() > 0:
                                 pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
@@ -366,6 +365,7 @@ class logging_receiver(gr.top_block):
 				#	self.close({})
 				#print '%s %s' % (hex(duid), hex(nac))
 				last_duid = duid
+				r = {}
                                 try:
                                         if duid == 0x0:
                                                 r = self.procHDU(frame)
@@ -386,6 +386,7 @@ class logging_receiver(gr.top_block):
                                 except Exception as e:
 					if duid == 0x5 or duid == 0xf: pass #print e
                                         continue
+				print '%s' % r
 
 
         def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):
@@ -415,7 +416,7 @@ class logging_receiver(gr.top_block):
 			tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['timestamp'], groups)
 			tags['COMM'] = tags['COMM'].replace(':', '|')
 			os.system('id3v2 -2 --TIT2 "%s" --TPE1 "%s" --TALB "%s" -c "RC":"%s":"English" %s' % (tags['TIT2'], tags['TPE1'], tags['TALB'], tags['COMM'], filename))
-			os.system('mp3gain -q -c -p %s' % (filename))
+			#os.system('mp3gain -q -c -p %s' % (filename))
 	
 			try: 
 				if not self.log_wav:
