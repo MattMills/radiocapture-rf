@@ -10,6 +10,8 @@ from edacs_call_manager import edacs_call_manager
 
 from call_recorder import call_recorder
 
+from p25_metadata_agent import p25_metadata_agent
+
 from config import rc_config
 import uuid
 import logging
@@ -47,8 +49,10 @@ import time
 
 logger.info('Initializing call managers')
 p25_cm = p25_call_manager()
-moto_cm = moto_call_manager()
-edacs_cm = edacs_call_manager()
+#moto_cm = moto_call_manager()
+#edacs_cm = edacs_call_manager()
+
+p25_md_agent = p25_metadata_agent()
 
 logger.info('Initializing call recorder')
 
