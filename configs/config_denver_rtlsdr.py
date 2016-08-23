@@ -482,6 +482,7 @@ class rc_config:
 					7: 852775000,
                                         5: 852375000,
                                         6: 851562500
+				}
 			},
 			21: { #DTRS - 1-002
 				'type': 'p25',
@@ -628,6 +629,7 @@ class rc_config:
 					5: 773693750,
                                 }
                         }
+		}
 		#del self.systems[19]
 		#del self.systems[18]
 		#del self.systems[17]
@@ -641,15 +643,6 @@ class rc_config:
 		#del self.systems[9]
 		#del self.systems[8]
 		#del self.systems[7]
-		#del self.systems[1]
-	
-		#delete = []
-		#for x in self.systems:
-	#		if self.systems[x]['type'] != 'edacs':
-	#			delete.append(x)
-
-		#for x in delete:
-		#	del self.systems[x]
 		#del self.systems[6]
 		#del self.systems[5]
 		#del self.systems[4]
