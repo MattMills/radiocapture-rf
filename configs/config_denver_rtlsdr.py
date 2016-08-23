@@ -21,8 +21,8 @@ class rc_config:
 		self.sources = {
 			0:{
 				'type': 'rtlsdr', 
-				'args': 'rtl=10,buffers=4',
-				'offset': 1280,
+				'args': 'rtl=4-0,buffers=4',
+				'offset': 307,
 				'bb_gain': self.if_gain,
 				'rf_gain': self.gain,
 				'center_freq': 855050000,
@@ -30,8 +30,8 @@ class rc_config:
 			},
 			1:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=11,buffers=4',
-				'offset': 880,
+                                'args': 'rtl=4-1,buffers=4',
+				'offset': 290,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 857450000,
@@ -39,8 +39,8 @@ class rc_config:
                         },
                         2:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=12,buffers=4',
-				'offset': 1110,
+                                'args': 'rtl=4-2,buffers=4',
+				'offset': 377,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 859850000,
@@ -48,8 +48,8 @@ class rc_config:
                         },
                         3:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=13,buffers=4',
-				'offset': 1190,
+                                'args': 'rtl=4-3,buffers=4',
+				'offset': 647,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 852200000,
@@ -57,8 +57,8 @@ class rc_config:
                         },
                         4:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=14,buffers=4',
-				'offset': 1000,
+                                'args': 'rtl=4-4,buffers=4',
+				'offset': -80,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 853850000,
@@ -66,8 +66,8 @@ class rc_config:
                         },
 			5:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=15,buffers=4',
-                                'offset': 1000,
+                                'args': 'rtl=4-5,buffers=4',
+                                'offset': 231,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 407500000,
@@ -75,8 +75,8 @@ class rc_config:
                         },
 			6:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=16,buffers=4',
-                                'offset': 1080,
+                                'args': 'rtl=4-6,buffers=4',
+                                'offset': 303,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 409500000,
@@ -84,28 +84,28 @@ class rc_config:
                         },
 			7:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=17,buffers=4',
-                                'offset': 1400,
-                                'bb_gain': 15,
-                                'rf_gain': 20,
+                                'args': 'rtl=4-7,buffers=4',
+                                'offset': 170,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
                                 'center_freq': 770000000,
 				'samp_rate': self.samp_rate
                         },
 			8:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=18,buffers=4',
-                                'offset': 1120,
-                                'bb_gain': 15,
-                                'rf_gain': 20,
+                                'args': 'rtl=4-8,buffers=4',
+                                'offset': 444,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
                                 'center_freq': 772000000,
 				'samp_rate': self.samp_rate
                         },
 			9:{
 				'type': 'rtlsdr',
-				'args': 'rtl=19,buffers=4',
-				'offset': 1290,
-				'bb_gain': 15,
-				'rf_gain': 20,
+				'args': 'rtl=4-9,buffers=4',
+				'offset': 612,
+				'bb_gain': self.if_gain,
+				'rf_gain': self.gain,
 				'center_freq': 774000000,
 				'samp_rate': self.samp_rate
 			},
@@ -141,34 +141,6 @@ class rc_config:
 	                                18: 859487500,
 	                                19: 854062500,
 	                                20: 854562500
-				}
-			},
-			1: { #Aurora City - EDACS
-				'type': 'edacs',
-                                'id': 1,
-                                'symbol_rate': 9600.0,
-                                'esk': False,
-                                'channels': {
-	                                1: 856762500,
-	                                2: 856937500,
-	                                3: 856962500,
-	                                4: 856987500,
-	                                5: 857762500,
-	                                6: 857937500,
-	                                7: 857962500,
-	                                8: 857987500,
-	                                9: 858762500,
-	                                10: 858937500,
-	                                11: 858962500,
-	                                12: 858987500,
-	                                13: 859762500,
-	                                14: 859937500,
-	                                15: 859962500,
-	                                16: 859987500,
-	                                17: 860762500,
-	                                18: 860937500,
-	                                19: 860962500,
-	                                20: 860987500
 				}
 			},
 			2: { #DIA - EDACS
@@ -258,9 +230,9 @@ class rc_config:
                                         0x25a: 408775000,
                                 }
                         },
-                        7: { #Adams County Simulcast (Denver Metro)	3	22
+                        7: { #Adams County Simulcast (FRCC)
                                 'type': 'p25',
-                                'id': 3022,
+                                'id': 7,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 770106250,
@@ -270,7 +242,7 @@ class rc_config:
 					4: 771481250,
 					5: 771731250,
 					6: 772156250,
-					7: 772493750,
+					7: 772481250,
 					8: 772731250,
 					9: 772743750,
 					10: 772981250,
@@ -279,7 +251,7 @@ class rc_config:
                         },
                         8: { #Arapahoe Admin (Denver Metro)	1	1
                                 'type': 'p25',
-                                'id': 1001,
+                                'id': 8,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851225000,
@@ -298,7 +270,7 @@ class rc_config:
                         },
                         9: { #Auraria Campus (Denver Metro)	1	70
                                 'type': 'p25',
-                                'id': 1070,
+                                'id': 9,
 				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
@@ -319,7 +291,7 @@ class rc_config:
                         },
                         10: { #Chevron Plaza Tower (Denver Metro)	1	64
                                 'type': 'p25',
-                                'id': 1064,
+                                'id': 10,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 769256250,
@@ -329,6 +301,8 @@ class rc_config:
 					4: 773131250,
 					5: 773681250,
 					6: 851787500,
+					16: 852175000,
+					17: 852600000,
 					7: 852875000,
 					8: 853837500,
 					9: 857687500,
@@ -343,7 +317,7 @@ class rc_config:
                         },
                         11: { #Denver TX (Denver Metro)	1	20
                                 'type': 'p25',
-                                'id': 1020,
+                                'id': 11,
 				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
@@ -362,23 +336,9 @@ class rc_config:
 
                                 }
                         },
-                        12: { #DRDC CF	1	9
+                        13: { #Fort Lupton (FRCC)
                                 'type': 'p25',
-                                'id': 1009,
-                                'default_control_channel': 0,
-                                'channels': {
-					0: 851150000,
-					1: 851950000,
-					2: 852700000,
-					3: 853475000,
-					4: 853675000,
-					5: 853962500
-
-                                }
-                        },
-                        13: { #Fort Lupton	3	55
-                                'type': 'p25',
-                                'id': 3055,
+                                'id': 13,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 770256250,
@@ -395,7 +355,7 @@ class rc_config:
                         },
                         14: { #Lookout Mountain (Denver Metro)	1	8
                                 'type': 'p25',
-                                'id': 1008,
+                                'id': 14,
 				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
@@ -422,7 +382,7 @@ class rc_config:
                         },
                         15: { #State Capitol (Denver Metro)	1	71
                                 'type': 'p25',
-                                'id': 1071,
+                                'id': 15,
 				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
@@ -440,9 +400,9 @@ class rc_config:
 					11: 774906250
                                 }
                         },
-			16: {
+			16: { #MARC 1-001
 				'type': 'p25',
-                                'id': 10,
+                                'id': 16,
 				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
                                 'default_control_channel': 0,
 				'channels': {
@@ -456,9 +416,9 @@ class rc_config:
 					7: 853537500
 				}
 			},
-			17: {
+			17: {	#MARC 2-002
                                 'type': 'p25',
-                                'id': 11,
+                                'id': 17,
 				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
                                 'default_control_channel': 0,
                                 'channels': {
@@ -472,26 +432,31 @@ class rc_config:
 					7: 856612500
 				}
 			},
-			18: {
+			18: { #MARC - 6-006
                                 'type': 'p25',
-                                'id': 12,
+                                'id': 18,
 				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851562500,
+					8: 852125000,
 					1: 852375000,
 					2: 852775000,
+					9: 853062500,
 					3: 853150000,
 					4: 853275000,
 					5: 853425000,
 					6: 853725000,
-					7: 853862500
+					7: 853862500,
+					10: 857062500,
+					11: 858137500,
+					12: 859612500
 				}
 			},
 			19: {
 
                                 'type': 'p25',
-                                'id': 13,
+                                'id': 19,
 				'system_uuid': '31a2cf3a-5529-4a1b-8905-089c2a8feec8',  #Westminster P25
                                 'default_control_channel': 0,
                                 'channels': {
@@ -503,22 +468,180 @@ class rc_config:
 					5: 856037500,
 					6: 859387500
                                 }
+                        },
+			20: { #City and Coutny of Denver - P25
+				'type': 'p25',
+                                'id': 20,
+                                'default_control_channel': 0,
+                                'channels': {
+                                        0: 853862500,
+                                        1: 853725000,
+                                        2: 853425000,
+                                        3: 853275000,
+                                        4: 853150000,
+					7: 852775000,
+                                        5: 852375000,
+                                        6: 851562500
+			}
+			21: { #DTRS - 1-002
+				'type': 'p25',
+                                'id': 21,
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851350000,
+					1: 851600000,
+					2: 851925000,
+					3: 852175000,
+					4: 852587500,
+					5: 852737500,
+					6: 853175000,
+					7: 853337500,
+					8: 853587500,
+					9: 853912500,
+					10: 854137500,
+					11: 854762500,
+					12: 856912500,
+					13: 857162500,
+					14: 858012500,
+				}
+			}
+			22: { #DTRS - 1-005
+                                'type': 'p25',
+                                'id': 22,
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851125000,
+					1: 851625000,
+					2: 851800000,
+					3: 852087500,
+					4: 852237500,
+					5: 852662500,
+					6: 852987500,
+					7: 853162500,
+					8: 853337500,
+					9: 853550000,
+					10: 853975000,
+					11: 854712500,
+					12: 855587500,
+					13: 856012500,
+                                }
                         }
-		}
-		del self.systems[19]
-		del self.systems[18]
-		del self.systems[17]
-		del self.systems[16]
-		del self.systems[15]
-		del self.systems[14]
-		del self.systems[13]
-		del self.systems[12]
-		del self.systems[11]
+			24: { #DTRS - 1-006
+                                'type': 'p25',
+                                'id': 24,
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851162500,
+					1: 851475000,
+					2: 851637500,
+					3: 851862500,
+					4: 852187500,
+					5: 852450000,
+					6: 852625000,
+					7: 852950000,
+					8: 853112500,
+					9: 853450000,
+					10: 853612500,
+					11: 853850000,
+					12: 854812500,
+					13: 855612500,
+					14: 856562500,
+					15: 857612500,
+                                }
+                        }
+			25: { #DTRS - 1-007
+                                'type': 'p25',
+                                'id': 25,
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540',
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851112500,
+					1: 851275000,
+					2: 851450000,
+					3: 851737500,
+					4: 852150000,
+					5: 852287500,
+					6: 852475000,
+					7: 852712500,
+					8: 853175000,
+					9: 853400000,
+					10: 853625000,
+					11: 853875000,
+					12: 857037500,
+					13: 857512500,
+					14: 769581250,
+					15: 770856250,
+					16: 771856250,
+					17: 772756250,
+					18: 773668750,
+                                }
+                        }
+			26: { #DTRS - 1-052
+                                'type': 'p25',
+                                'id': 26,
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851300000,
+					1: 851825000,
+					2: 852387500,
+					3: 852925000,
+					4: 853525000,
+					5: 853900000,
+					6: 855312500,
+					7: 857337500,
+					8: 857587500,
+					9: 858587500,
+					10: 859337500,
+					11: 859687500,
+                                }
+                        }
+			27: { #DTRS - 1-068
+                                'type': 'p25',
+                                'id': 27,
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 770593750,
+					1: 771287500,
+					2: 771718750,
+					3: 772143750,
+					4: 772406250,
+					5: 773493750,
+		
+                                }
+                        }
+			28: { #DTRS - 1-069
+                                'type': 'p25',
+                                'id': 28,
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 771206250,
+					1: 771468750,
+					2: 772131250,
+					3: 772418750,
+					4: 773243750,
+					5: 773693750,
+                                }
+                        }
+		#del self.systems[19]
+		#del self.systems[18]
+		#del self.systems[17]
+		#del self.systems[16]
+		#del self.systems[15]
+		#del self.systems[14]
+		#del self.systems[13]
+		#del self.systems[12]
+		#del self.systems[11]
 		#del self.systems[10]
 		#del self.systems[9]
 		#del self.systems[8]
 		#del self.systems[7]
-		del self.systems[1]
+		#del self.systems[1]
 	
 		#delete = []
 		#for x in self.systems:
