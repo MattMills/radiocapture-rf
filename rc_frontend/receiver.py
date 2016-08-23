@@ -270,7 +270,7 @@ class receiver(gr.top_block):
                                 block = c
                                 block_id = c.block_id
                                 block.set_offset(offset)
-                                block.udp.disconnect()
+                                block.sink.disconnect()
                                 #TODO: move UDP output
                                 break
 
@@ -295,7 +295,7 @@ class receiver(gr.top_block):
                         self.unlock()
 
                 block.in_use = True
-                block.udp.connect(dest, port)
+                block.sink.connect(dest, port)
 
                 self.access_lock.release()
 
@@ -353,7 +353,7 @@ class receiver(gr.top_block):
 				block = c
 				block_id = c.block_id
 				block.set_offset(pfb_offset)
-				block.udp.disconnect()
+				block.sink.disconnect()
 				#TODO: move UDP output
 				break
 
@@ -371,7 +371,7 @@ class receiver(gr.top_block):
 			self.unlock()
 
 		block.in_use = True
-		block.udp.connect(dest, port)
+		block.sink.connect(dest, port)
 
 		self.access_lock.release()
 
@@ -380,8 +380,8 @@ class receiver(gr.top_block):
 		self.access_lock.acquire()
 		try:
 			self.channels[block_id].in_use = False
-			self.channels[block_id].udp.connect('127.0.0.1', 9999)
-			self.channels[block_id].udp.disconnect()
+			self.channels[block_id].sink.connect('127.0.0.1', 9999)
+			self.channels[block_id].sink.disconnect()
                         self.channel_close_time = time.time()
 		except:
 			self.access_lock.release()
