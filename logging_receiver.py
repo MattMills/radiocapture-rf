@@ -422,7 +422,7 @@ class logging_receiver(gr.top_block):
 				print 'error removing ' + filename[:-4] + '.wav'
 			return filename
 
-	def close(self, patches, send_event_func, emergency=False):
+	def close(self, patches, send_event_func=False, emergency=False):
 		if(not self.in_use): return False
 		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 
@@ -433,7 +433,8 @@ class logging_receiver(gr.top_block):
 			if self.log_dat:
                                 self.dat_sink.close()
 			filename = self.upload_and_cleanup(self.filename, self.uuid, self.cdr, self.filepath, patches, emergency)
-			send_event_func('/queue/call_management/call_complete', {'cdr': self.cdr, 'filename': filename, 'uuid': self.uuid})
+			if send_event_func != False:
+				send_event_func('/queue/call_management/call_complete', {'cdr': self.cdr, 'filename': filename, 'uuid': self.uuid})
 			#_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.uuid, self.cdr, self.filepath, patches, emergency], name='upload_and_cleanup')
 	        	#_thread_0.daemon = True
 			#_thread_0.start()
