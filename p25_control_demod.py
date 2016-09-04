@@ -99,13 +99,13 @@ class p25_control_demod (gr.top_block):
 		if self.modulation == 'C4FM':
 		        # FM demodulator
 		        fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
-		        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
+		        self.fm_demod = fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 
 	                moving_sum = blocks.moving_average_ff(10000, 1, 40000)
 	                subtract = blocks.sub_ff(1)
         	        divide_const = blocks.multiply_const_vff((0.0001, ))
                 	self.probe = blocks.probe_signal_f()
-	                self.connect(fm_demod, moving_sum, divide_const, self.probe)
+	                self.connect(self.fm_demod, moving_sum, divide_const, self.probe)
 	
 		        # symbol filter        
 		        symbol_decim = 1
@@ -117,7 +117,7 @@ class p25_control_demod (gr.top_block):
 		elif self.modulation == 'CQPSK':
 			# FM demodulator
                         fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
-                        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
+                        self.fm_demod = fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 
                         moving_sum = blocks.moving_average_ff(10000, 1, 40000)
                         subtract = blocks.sub_ff(1)
@@ -194,7 +194,7 @@ class p25_control_demod (gr.top_block):
 			if self.modulation == 'C4FM':
 				self.disconnect(self.source, self.control_prefilter)
 	                elif self.modulation == 'CQPSK':
-				self.disconnect(self.source, fm_demod)
+				self.disconnect(self.source, self.fm_demod)
 	                        self.disconnect(self.source, self.resampler)
 		self.connector.release_channel()
 		channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
@@ -203,7 +203,7 @@ class p25_control_demod (gr.top_block):
 		if self.modulation == 'C4FM':
                         self.connect(self.source, self.control_prefilter)
                 elif self.modulation == 'CQPSK':
-                        self.connect(self.source, fm_demod)
+                        self.connect(self.source, self.fm_demod)
                         self.connect(self.source, self.resampler)
 
 		self.unlock()
