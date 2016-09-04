@@ -5,7 +5,7 @@
 # Generated: Thu Oct  4 23:49:39 2012
 ##################################################
 
-from gnuradio import digital, blocks, analog, filter
+from gnuradio import digital, blocks, analog, filter, zeromq
 from gnuradio.filter import firdes
 from gnuradio import gr
 
@@ -97,11 +97,7 @@ class moto_control_demod(gr.top_block):
 		# Blocks
 		##################################################
 
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 1472, False)
-                self.source.set_min_output_buffer(1280*1024)
-
-		self.connector.set_port(self.source.get_port())
-
+		self.source = None
 
 		control_sample_rate = 12500
 		channel_rate = control_sample_rate
@@ -132,7 +128,7 @@ class moto_control_demod(gr.top_block):
 		# Connections
 		##################################################
 
-		self.connect(self.source, self.control_quad_demod, self.control_clock_recovery)
+		self.connect(self.control_quad_demod, self.control_clock_recovery)
                 self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
 
 		if(self.option_dc_offset):
@@ -150,10 +146,18 @@ class moto_control_demod(gr.top_block):
                         self.control_channel_key = 0
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 
+		self.lock()
+
+		if self.source != None:
+			self.disconnect(self.source, self.control_quad_demod)
+	
 		self.connector.release_channel()
-                self.connector.create_channel(self.channel_rate, self.control_channel)
+                channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
 
+		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+		self.connect(self.source, self.control_quad_demod)
 
+		self.unlock()
 		self.log.info('Control Channel retuned to %s' % (self.control_channel))
                 
 		self.control_msg_sink_msgq.flush()

@@ -1,6 +1,6 @@
 #!/usr/env/python
 
-from gnuradio import gr, digital, blocks, filter, analog
+from gnuradio import gr, digital, blocks, filter, analog, zeromq
 try:
         from gnuradio.gr import firdes
 except:
@@ -65,10 +65,7 @@ class edacs_control_demod(gr.top_block):
 		self.channel_rate = 12500
 		self.receive_rate = self.channel_rate #Decimation adds 50% on either side
 
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 1472, False)
-                self.source.set_min_output_buffer(1280*1024)
-
-		self.connector.set_port(self.source.get_port())	
+		self.source = None
 
 
 		try:
@@ -98,8 +95,7 @@ class edacs_control_demod(gr.top_block):
 		# Connections
 		################################################
 	
-		self.connect(   self.source,
-                                self.control_quad_demod,
+		self.connect(   self.control_quad_demod,
                                 self.control_clock_recovery,
                                 self.control_binary_slicer,
                                 self.control_unpacked_to_packed,
@@ -133,8 +129,14 @@ class edacs_control_demod(gr.top_block):
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 		
 
+		self.lock()
+		if self.source != None:
+			self.disconnect(self.source, self.control_quad_demod)
 		self.connector.release_channel()
-                self.connector.create_channel(self.channel_rate, self.control_channel)
+                channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+		self.connect(self.source, self.control_quad_demod)
+		self.unlock()
 	
                 self.log.info('CC Change - %s' % (self.control_channel))
                 self.control_msg_queue.flush()
