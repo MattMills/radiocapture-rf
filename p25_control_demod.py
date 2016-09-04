@@ -8,7 +8,7 @@ import binascii
 import uuid
 import datetime
 
-from gnuradio import gr, uhd, filter, analog, blocks, digital
+from gnuradio import gr, uhd, filter, analog, blocks, digital, zeromq
 from gnuradio.filter import firdes
 from math import pi, floor
 import op25_repeater as repeater
@@ -79,10 +79,8 @@ class p25_control_demod (gr.top_block):
 		self.keep_running = True
 	
 	      
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 1472, False)
-		self.source.set_min_output_buffer(1280*1024)
+		self.source = None
 
-		self.connector.set_port(self.source.get_port())
 
 	        # channel filter
 	        channel_rate = self.channel_rate
@@ -155,10 +153,9 @@ class p25_control_demod (gr.top_block):
 		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False, False)
 	
 		if self.modulation == 'C4FM':
-		        self.connect(self.source, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
+		        self.connect(self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
 		elif self.modulation == 'CQPSK':
-			self.connect(self.source, fm_demod)
-			self.connect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
+			self.connect(self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
 	
                 ##################################################
                 # Threads
@@ -192,11 +189,24 @@ class p25_control_demod (gr.top_block):
                         self.control_channel_i = 0
 
                 self.control_channel = self.system['channels'][self.control_channel_i]
+		self.lock()
+		if self.source != None:
+			if self.modulation == 'C4FM':
+				self.disconnect(self.source, self.control_prefilter)
+	                elif self.modulation == 'CQPSK':
+				self.disconnect(self.source, fm_demod)
+	                        self.disconnect(self.source, self.resampler)
+		self.connector.release_channel()
+		channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))		
 
+		if self.modulation == 'C4FM':
+                        self.connect(self.source, self.control_prefilter)
+                elif self.modulation == 'CQPSK':
+                        self.connect(self.source, fm_demod)
+                        self.connect(self.source, self.resampler)
 
-                self.connector.release_channel()
-                self.connector.create_channel(self.channel_rate, self.control_channel)
-
+		self.unlock()
                 self.decodequeue.flush()
 	def procHDU(self, frame):
 		r = {'short':'HDU', 'long':'Header Data Unit'}

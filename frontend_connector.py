@@ -7,13 +7,14 @@ import time
 import logging
 
 class frontend_connector():
-	def __init__(self, dest='10.5.0.128', host='10.5.0.129', port=50000):
+	def __init__(self, dest='127.0.0.1', host='127.0.0.1', port=50000):
 		#temp hack until I have auto-frontend figured out
 
                 self.log = logging.getLogger('overseer.frontend_connector')
 	
                 self.thread_lock = threading.Lock()
 		self.dest = dest
+		self.host = host
 
 		#self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		#self.s.connect((host,port))
@@ -27,7 +28,8 @@ class frontend_connector():
                 self.log.debug('Successful ZMQ socket connection to tcp://%s:%s' % (host, port))
 		self.my_client_id = None
 		self.channel_id = None
-		self.current_port = None
+		self.port = 0
+
 	
 		self.continue_running = True
 
@@ -67,32 +69,31 @@ class frontend_connector():
                     return False
 
 	def create_channel(self, channel_rate, freq):
-		if self.current_port == None:
-                        self.log.fatal('create_channel() called before set_port()')
-			raise Exception('Port not set')
-
                 self.thread_lock.acquire()
                 
                 self.log.debug('create_channel(channel_rate = %s, freq = %s)' % (channel_rate, freq))
-		self.socket.send('create,%s,%s,%s,%s,%s' % (self.my_client_id, self.dest, self.current_port, channel_rate, freq))
+		self.socket.send('create,%s,%s,%s' % (self.my_client_id, channel_rate, freq))
 		data = self.socket.recv()
 		data = data.strip().split(',')
 
 		if data[0] == 'na': #failed
                         self.thread_lock.release()
-			return False
+			self.log.error('Failed to create channel')
+			return False, False
 		elif data[0] == 'create': #succeeded
 			channel_id = data[1]
+			port = data[2]
+			self.port = port
 			self.channel_id = channel_id
 
                         self.thread_lock.release()
-			return channel_id
+			return channel_id, port
 		else:
                         self.thread_lock.release()
-			return False
+			return False, False
                         
 	def release_channel(self):
-		if self.current_port == None or self.channel_id == None:
+		if self.channel_id == None:
 			return False
 		#if we dont have a port set, we can't have a channel.
 
@@ -104,6 +105,7 @@ class frontend_connector():
 		
 		
                 if data[0] == 'na': #failed
+			self.log.error('Failed to release channel, probably leaking channels')
                         self.thread_lock.release()
                         return False
                 elif data[0] == 'release': #succeeded

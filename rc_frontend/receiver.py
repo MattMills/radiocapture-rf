@@ -9,6 +9,7 @@ import time
 import threading
 import math
 import os
+import random
 
 import channel
 import copy
@@ -229,15 +230,16 @@ class receiver(gr.top_block):
 		#	self.channels[i] = []
 
 		self.access_lock.release()
-        def connect_channel(self, channel_rate, freq, dest, port):
+        def connect_channel(self, channel_rate, freq):
+
 		if self.config.frontend_mode == 'pfb':
-			return self.connect_channel_pfb(channel_rate, freq, dest, port)
+			return self.connect_channel_pfb(channel_rate, freq)
 		elif self.config.frontend_mode == 'xlat':
-			return self.connect_channel_xlat(channel_rate, freq, dest, port)
+			return self.connect_channel_xlat(channel_rate, freq)
 		else:
 			raise Exception('No frontend_mode selected')
 
-	def connect_channel_xlat(self, channel_rate, freq, dest, port):
+	def connect_channel_xlat(self, channel_rate, freq):
 		source_id = None
 		source_distance = None
 
@@ -269,13 +271,20 @@ class receiver(gr.top_block):
                         if c.source_id == source_id and c.in_use == False:
                                 block = c
                                 block_id = c.block_id
+				port = c.port
                                 block.set_offset(offset)
-                                block.sink.disconnect()
                                 #TODO: move UDP output
                                 break
 
                 if block == None:
-                        block = channel.channel(dest, port, channel_rate,(source_samp_rate), offset)
+			for x in range(0, 3):
+                                port = random.randint(10000,60000)
+                                try:
+                                        block = channel.channel(port, channel_rate,(source_samp_rate), offset)
+                                except RuntimeError as err:
+                                        print 'Failed to build channel on port: %s attempt: %s' % (port, x)
+                                        pass
+
                         block.source_id = source_id
 
                         self.channels.append(block)
@@ -295,13 +304,12 @@ class receiver(gr.top_block):
                         self.unlock()
 
                 block.in_use = True
-                block.sink.connect(dest, port)
 
                 self.access_lock.release()
 
-                return block.block_id
+                return block.block_id, port
 
-	def connect_channel_pfb(self, channel_rate, freq, dest, port):
+	def connect_channel_pfb(self, channel_rate, freq):
 	
 		source_id = None
 
@@ -353,12 +361,18 @@ class receiver(gr.top_block):
 				block = c
 				block_id = c.block_id
 				block.set_offset(pfb_offset)
-				block.sink.disconnect()
 				#TODO: move UDP output
 				break
 
 		if block == None:
-			block = channel.channel(dest, port, channel_rate,(pfb_samp_rate), pfb_offset)
+			for x in range(0, 3):
+				port = random.randint(10000,60000)
+				try:
+					block = channel.channel(port, channel_rate,(pfb_samp_rate), pfb_offset)
+				except RuntimeError as err:
+					print 'Failed to build channel on port: %s attempt: %s' % (port, x)
+					pass
+
 			block.source_id = source_id
 			block.pfb_id = pfb_id
 
@@ -371,20 +385,18 @@ class receiver(gr.top_block):
 			self.unlock()
 
 		block.in_use = True
-		block.sink.connect(dest, port)
 
 		self.access_lock.release()
 
-		return block.block_id
+		return block.block_id, port
 	def release_channel(self, block_id):
 		self.access_lock.acquire()
 		try:
 			self.channels[block_id].in_use = False
-			self.channels[block_id].sink.connect('127.0.0.1', 9999)
-			self.channels[block_id].sink.disconnect()
                         self.channel_close_time = time.time()
 		except:
 			self.access_lock.release()
+			raise
 			raise Exception('Failed to release channel')
 
 		#TODO: move UDP output
@@ -413,21 +425,19 @@ if __name__ == '__main__':
 		data = msg.strip().split(',')
 	        if data[0] == 'create':
 			c = int(data[1])
-			dest = data[2]
-			port = int(data[3])
-			channel_rate = int(data[4])
-			freq = int(data[5])
+			channel_rate = int(data[2])
+			freq = int(data[3])
 			
-			result = tb.connect_channel(channel_rate, freq, dest, port)
+			block_id, port = tb.connect_channel(channel_rate, freq)
 
-			if result == -1:
+			if block_id == -1:
 				#Channel failed to create, probably freq out of range
 				print 'failed to create channel %s' % freq
 				return 'na,%s' % freq
 			else:
-	                       	print '%s Created channel ar: %s %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, dest, port, result)
-				clients[c].append(result)
-				return 'create,%s' % result
+	                       	print '%s Created channel ar: %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id)
+				clients[c].append(block_id)
+				return 'create,%s,%s' % (block_id, port)
 		elif data[0] == 'release':
 			try:
 				c = int(data[1])
@@ -443,6 +453,7 @@ if __name__ == '__main__':
 					clients[c].remove(block_id)
 					return 'release,%s\n'
                         except Exception as e:
+				raise
 				return 'na\n'
                 elif data[0] == 'scan_mode_set_freq':
                     freq = int(data[1])
