@@ -15,14 +15,14 @@ class rc_config:
                 self.site_uuid = 'f1877ce6-bfef-4c9e-b34d-014c24c974f2'
 
 		self.samp_rate = 2400000
-		self.gain = 28
-		self.if_gain = 20
+		self.gain = 30
+		self.if_gain = 40
 
 		self.sources = {
 			0:{
 				'type': 'rtlsdr', 
 				'args': 'rtl=4-0,buffers=4',
-				'offset': 307,
+				'offset': 100,
 				'bb_gain': self.if_gain,
 				'rf_gain': self.gain,
 				'center_freq': 855050000,
@@ -31,7 +31,7 @@ class rc_config:
 			1:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-1,buffers=4',
-				'offset': 290,
+				'offset': 130,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 857450000,
@@ -40,7 +40,7 @@ class rc_config:
                         2:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-2,buffers=4',
-				'offset': 377,
+				'offset': 330,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 859850000,
@@ -49,25 +49,25 @@ class rc_config:
                         3:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-3,buffers=4',
-				'offset': 647,
+				'offset': 540,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': self.gain,
+                                'rf_gain': 36,
                                 'center_freq': 852200000,
                                 'samp_rate': self.samp_rate
                         },
                         4:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-4,buffers=4',
-				'offset': -80,
+				'offset': -90,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': self.gain,
+                                'rf_gain': 36,
                                 'center_freq': 853850000,
                                 'samp_rate': self.samp_rate
                         },
 			5:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-5,buffers=4',
-                                'offset': 231,
+                                'offset': 180,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 407500000,
@@ -87,7 +87,7 @@ class rc_config:
                                 'args': 'rtl=4-7,buffers=4',
                                 'offset': 170,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': self.gain,
+                                'rf_gain': 35,
                                 'center_freq': 770000000,
 				'samp_rate': self.samp_rate
                         },
@@ -96,7 +96,7 @@ class rc_config:
                                 'args': 'rtl=4-8,buffers=4',
                                 'offset': 444,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': self.gain,
+                                'rf_gain': 35,
                                 'center_freq': 772000000,
 				'samp_rate': self.samp_rate
                         },
@@ -105,7 +105,7 @@ class rc_config:
 				'args': 'rtl=4-9,buffers=4',
 				'offset': 612,
 				'bb_gain': self.if_gain,
-				'rf_gain': self.gain,
+				'rf_gain': 35,
 				'center_freq': 774000000,
 				'samp_rate': self.samp_rate
 			},
@@ -458,6 +458,7 @@ class rc_config:
                                 'type': 'p25',
                                 'id': 19,
 				'system_uuid': '31a2cf3a-5529-4a1b-8905-089c2a8feec8',  #Westminster P25
+				'modulation': 'CQPSK',
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851062500,
@@ -568,7 +569,8 @@ class rc_config:
 			26: { #DTRS - 1-052
                                 'type': 'p25',
                                 'id': 26,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540',
+				'modulation': 'CQPSK',
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851300000,
@@ -613,8 +615,45 @@ class rc_config:
 					4: 773243750,
 					5: 773693750,
                                 }
-                        }
+                        },
+			29: {
+				'type': 'p25',
+				'id': 29,
+				'system_uuid': 'unknown',
+				'default_control_channel': 0,
+				'channels': {
+					0: 856762500,
+					1: 856937500,
+					2: 856962500,
+					3: 856987500,
+					4: 857762500,
+					5: 857937500,
+					6: 857962500,
+					7: 857987500,
+					8: 858762500,
+					9: 858937500,
+					10: 858962500,
+					11: 858987500,
+					12: 859762500,
+					13: 859937500,
+					14: 859962500,
+					15: 859987500,
+					16: 860762500,
+					17: 860937500,
+					18: 860962500,
+					19: 860987500,
+
+
+				}
+			},
 		}
+		#del self.systems[28]
+		#del self.systems[27]
+		#del self.systems[26]
+		#del self.systems[25]
+		#del self.systems[24]
+		#del self.systems[22]
+		#del self.systems[21]
 		#del self.systems[19]
 		#del self.systems[18]
 		#del self.systems[17]
@@ -622,7 +661,6 @@ class rc_config:
 		#del self.systems[15]
 		#del self.systems[14]
 		#del self.systems[13]
-		#del self.systems[12]
 		#del self.systems[11]
 		#del self.systems[10]
 		#del self.systems[9]
@@ -633,7 +671,6 @@ class rc_config:
 		#del self.systems[4]
 		#del self.systems[3]
 		#del self.systems[2]
-		#del self.systems[1]
 		#del self.systems[0]
 
 		
