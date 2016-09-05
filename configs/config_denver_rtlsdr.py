@@ -87,7 +87,7 @@ class rc_config:
                                 'args': 'rtl=4-7,buffers=4',
                                 'offset': 170,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': 35,
+                                'rf_gain': self.gain,
                                 'center_freq': 770000000,
 				'samp_rate': self.samp_rate
                         },
@@ -96,7 +96,7 @@ class rc_config:
                                 'args': 'rtl=4-8,buffers=4',
                                 'offset': 444,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': 35,
+                                'rf_gain': self.gain,
                                 'center_freq': 772000000,
 				'samp_rate': self.samp_rate
                         },
@@ -105,7 +105,7 @@ class rc_config:
 				'args': 'rtl=4-9,buffers=4',
 				'offset': 612,
 				'bb_gain': self.if_gain,
-				'rf_gain': 35,
+				'rf_gain': self.gain,
 				'center_freq': 774000000,
 				'samp_rate': self.samp_rate
 			},
@@ -113,6 +113,8 @@ class rc_config:
 
 		}
 
+		del self.sources[5]
+		del self.sources[6]
 
 		self.systems = {
 			0: { #Denver Public Safety - EDACS
@@ -475,6 +477,7 @@ class rc_config:
                                 'id': 21,
                                 'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
                                 'default_control_channel': 0,
+				'modulation': 'CQPSK',
                                 'channels': {
 					0: 851350000,
 					1: 851600000,
@@ -498,6 +501,7 @@ class rc_config:
                                 'id': 22,
                                 'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
                                 'default_control_channel': 0,
+				'modulation': 'CQPSK',
                                 'channels': {
 					0: 851125000,
 					1: 851625000,
@@ -520,6 +524,7 @@ class rc_config:
                                 'id': 24,
                                 'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
                                 'default_control_channel': 0,
+				'modulation': 'CQPSK',
                                 'channels': {
 					0: 851162500,
 					1: 851475000,
@@ -620,6 +625,7 @@ class rc_config:
 				'type': 'p25',
 				'id': 29,
 				'system_uuid': 'unknown',
+				'modulation': 'CQPSK',
 				'default_control_channel': 0,
 				'channels': {
 					0: 856762500,
@@ -667,7 +673,7 @@ class rc_config:
 		#del self.systems[8]
 		#del self.systems[7]
 		#del self.systems[6]
-		#del self.systems[5]
+		del self.systems[5]
 		#del self.systems[4]
 		#del self.systems[3]
 		#del self.systems[2]
