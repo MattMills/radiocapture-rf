@@ -292,7 +292,7 @@ class rc_config:
 
                                 }
                         },
-                        10: { #Chevron Plaza Tower (Denver Metro)	1	64
+                        10: { #DTRS 1-064
                                 'type': 'p25',
                                 'id': 10,
                                 'default_control_channel': 0,
@@ -318,7 +318,7 @@ class rc_config:
 
                                 }
                         },
-                        11: { #Denver TX (Denver Metro)	1	20
+                        11: { #DTRS 1-020
                                 'type': 'p25',
                                 'id': 11,
 				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
@@ -339,7 +339,7 @@ class rc_config:
 
                                 }
                         },
-                        14: { #Lookout Mountain (Denver Metro)	1	8
+                        14: { #DTRS 1-008
                                 'type': 'p25',
                                 'id': 14,
 				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
@@ -366,7 +366,7 @@ class rc_config:
 					18: 857787500
                                 }
                         },
-                        15: { #State Capitol (Denver Metro)	1	71
+                        15: { #DTRS 1-071
                                 'type': 'p25',
                                 'id': 15,
 				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
@@ -437,47 +437,6 @@ class rc_config:
 					10: 857062500,
 					11: 858137500,
 					12: 859612500
-				}
-			},
-			19: { #Westminster P25
-
-                                'type': 'p25',
-                                'id': 19,
-				'system_uuid': '31a2cf3a-5529-4a1b-8905-089c2a8feec8',  #Westminster P25
-				'modulation': 'CQPSK',
-                                'default_control_channel': 0,
-                                'channels': {
-					0: 851062500,
-					1: 851762500,
-					2: 852162500,
-					3: 852887500,
-					4: 853350000,
-					5: 856037500,
-					6: 859387500
-                                }
-                        },
-			21: { #DTRS - 1-002
-				'type': 'p25',
-                                'id': 21,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
-                                'default_control_channel': 0,
-				'modulation': 'C4FM',
-                                'channels': {
-					0: 851350000,
-					1: 851600000,
-					2: 851925000,
-					3: 852175000,
-					4: 852587500,
-					5: 852737500,
-					6: 853175000,
-					7: 853337500,
-					8: 853587500,
-					9: 853912500,
-					10: 854137500,
-					11: 854762500,
-					12: 856912500,
-					13: 857162500,
-					14: 858012500,
 				}
 			},
 			22: { #DTRS - 1-005
@@ -636,6 +595,57 @@ class rc_config:
 
 				}
 			},
+			30: { #DTRS 1-014
+				'type': 'p25',
+                                'id': 30,
+                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540',
+				'default_control_channel': 0,
+				'modulation': 'CQPSK',
+                                'channels': {
+					0: 851975000,
+                                        1: 852312500,
+                                        2: 852900000,
+                                        3: 853375000,
+                                        4: 853937500,
+                                        5: 856112500,
+                                        6: 857187500,
+                                        7: 858112500,
+                                        8: 858537500,
+                                        9: 859562500,
+				}
+			},
+			31: { #MARC 3-003
+				'type': 'p25',
+                                'id': 31,
+                                'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 852062500,
+					1: 852325000,
+					2: 853750000,
+					3: 854187500,
+					4: 854387500,
+					5: 854612500,
+					6: 855137500,
+					7: 856537500,
+				}
+			},
+			32: { #MARC 21-021
+				'type': 'p25',
+                                'id': 32,
+                                'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
+                                'default_control_channel': 0,
+                                'channels': {
+					0: 851312500,
+					1: 854737500,
+					2: 856087500,
+					3: 857537500,
+					4: 858187500,
+					5: 858562500,
+					6: 859062500,
+					7: 859537500
+				}
+			}
 		}
 		#del self.systems[28]
 		#del self.systems[27]
