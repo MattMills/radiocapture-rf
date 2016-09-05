@@ -46,12 +46,6 @@ class logging_receiver(gr.top_block):
 		#optionally keep wav files around
 		self.log_wav = False
 
-		self.source = blocks.udp_source(gr.sizeof_gr_complex*1, "0.0.0.0", 0, 1472, False)
-		self.source.set_min_output_buffer(128*1024)
-
-		if self.log_dat:
-			self.dat_sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
-			self.connect(self.source, self.dat_sink)
 		self.sink = blocks.wavfile_sink(self.filepath, 1, 8000)
 
 		self.protocol = None
@@ -69,8 +63,12 @@ class logging_receiver(gr.top_block):
 
 		#Setup connector
 		self.connector = frontend_connector()
-		self.connector.set_port(self.source.get_port())
-		self.connector.create_channel(int(cdr['channel_bandwidth']), int(cdr['frequency']))
+		channel_id, port = self.connector.create_channel(int(cdr['channel_bandwidth']), int(cdr['frequency']))
+		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+
+		if self.log_dat:
+                        self.dat_sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
+                        self.connect(self.source, self.dat_sink)
 
 
 		self.set_rate(int(cdr['channel_bandwidth']))
