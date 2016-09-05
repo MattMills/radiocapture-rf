@@ -87,7 +87,7 @@ class rc_config:
                                 'args': 'rtl=4-7,buffers=4',
                                 'offset': 170,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': self.gain,
+                                'rf_gain': 36,
                                 'center_freq': 770000000,
 				'samp_rate': self.samp_rate
                         },
@@ -96,7 +96,7 @@ class rc_config:
                                 'args': 'rtl=4-8,buffers=4',
                                 'offset': 444,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': self.gain,
+                                'rf_gain': 38,
                                 'center_freq': 772000000,
 				'samp_rate': self.samp_rate
                         },
@@ -105,7 +105,7 @@ class rc_config:
 				'args': 'rtl=4-9,buffers=4',
 				'offset': 612,
 				'bb_gain': self.if_gain,
-				'rf_gain': self.gain,
+				'rf_gain': 38,
 				'center_freq': 774000000,
 				'samp_rate': self.samp_rate
 			},
@@ -145,9 +145,9 @@ class rc_config:
 	                                20: 854562500
 				}
 			},
-			2: { #DIA - EDACS
+			1: { #DIA - EDACS
 				'type': 'edacs',
-                                'id': 2,
+                                'id': 1,
                                 'symbol_rate': 9600.0,
                                 'esk': False,
                                 'channels': {
@@ -168,9 +168,9 @@ class rc_config:
 	                               15: 857637500
 				}
 			},
-			3: { #Denver city services
+			2: { #Denver city services
                                 'type': 'edacs',
-                                'id': 3,
+                                'id': 2,
                                 'symbol_rate': 9600.0,
                                 'esk': False,
                                 'channels': {
@@ -191,9 +191,9 @@ class rc_config:
 					15: 857137500
                                 }
 			},
-			4: { #Lakewood Public Works - EDACS
+			3: { #Lakewood Public Works - EDACS
 				'type': 'edacs',
-                                'id': 4,
+                                'id': 3,
                                 'symbol_rate': 9600.0,
                                 'esk': True,
                                 'channels': {
@@ -204,7 +204,7 @@ class rc_config:
 		                        5: 856537500,
 				}
 			},
-			5:{#United Airlines
+			4:{#United Airlines
                                 'type': 'moto',
                                 'id': 0x3b27,
                                 'channels' : {
@@ -221,7 +221,7 @@ class rc_config:
                                         0x18c: 860912500,
                                 }
                         },
-			6:{#Denver area federal / military - (2) Downtown Denver
+			5:{#Denver area federal / military - (2) Downtown Denver
 				'type': 'moto',
                                 'id': 0x8d34,
                                 'channels' : {
@@ -232,9 +232,9 @@ class rc_config:
                                         0x25a: 408775000,
                                 }
                         },
-                        7: { #Adams County Simulcast (FRCC)
+                        6: { #Adams County Simulcast (FRCC) 5-22
                                 'type': 'p25',
-                                'id': 7,
+                                'id': 6,
                                 'default_control_channel': 0,
 				'modulation': 'CQPSK',
                                 'channels': {
@@ -252,9 +252,9 @@ class rc_config:
 					11: 772993750
                                 }
                         },
-                        8: { #Arapahoe Admin (Denver Metro)	1	1
+                        7: { #DTRS 1-001
                                 'type': 'p25',
-                                'id': 8,
+                                'id': 7,
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851225000,
@@ -271,9 +271,9 @@ class rc_config:
 
                                 }
                         },
-                        9: { #Auraria Campus (Denver Metro)	1	70
+                        8: { #DTRS 1-070
                                 'type': 'p25',
-                                'id': 9,
+                                'id': 8,
 				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
@@ -336,23 +336,6 @@ class rc_config:
 					9: 852812500,
 					10: 853112500,
 					11: 853700000
-
-                                }
-                        },
-                        13: { #Fort Lupton (FRCC)
-                                'type': 'p25',
-                                'id': 13,
-                                'default_control_channel': 0,
-                                'channels': {
-					0: 770256250,
-					1: 771006250,
-					2: 771256250,
-					3: 771543750,
-					4: 771843750,
-					5: 772093750,
-					6: 772393750,
-					7: 773168750,
-					8: 773418750
 
                                 }
                         },
@@ -456,7 +439,7 @@ class rc_config:
 					12: 859612500
 				}
 			},
-			19: {
+			19: { #Westminster P25
 
                                 'type': 'p25',
                                 'id': 19,
@@ -478,7 +461,7 @@ class rc_config:
                                 'id': 21,
                                 'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
                                 'default_control_channel': 0,
-				'modulation': 'CQPSK',
+				'modulation': 'C4FM',
                                 'channels': {
 					0: 851350000,
 					1: 851600000,
@@ -502,7 +485,7 @@ class rc_config:
                                 'id': 22,
                                 'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
                                 'default_control_channel': 0,
-				'modulation': 'CQPSK',
+				'modulation': 'C4FM',
                                 'channels': {
 					0: 851125000,
 					1: 851625000,
@@ -525,7 +508,7 @@ class rc_config:
                                 'id': 24,
                                 'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
                                 'default_control_channel': 0,
-				'modulation': 'CQPSK',
+				'modulation': 'C4FM',
                                 'channels': {
 					0: 851162500,
 					1: 851475000,
@@ -622,7 +605,7 @@ class rc_config:
 					5: 773693750,
                                 }
                         },
-			29: {
+			29: { #Aurora P25
 				'type': 'p25',
 				'id': 29,
 				'system_uuid': 'unknown',
@@ -673,7 +656,7 @@ class rc_config:
 		#del self.systems[9]
 		#del self.systems[8]
 		#del self.systems[7]
-		del self.systems[6]
+		del self.systems[4]
 		del self.systems[5]
 		#del self.systems[4]
 		#del self.systems[3]
