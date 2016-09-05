@@ -236,6 +236,7 @@ class rc_config:
                                 'type': 'p25',
                                 'id': 7,
                                 'default_control_channel': 0,
+				'modulation': 'CQPSK',
                                 'channels': {
 					0: 770106250,
 					1: 770356250,
@@ -672,7 +673,7 @@ class rc_config:
 		#del self.systems[9]
 		#del self.systems[8]
 		#del self.systems[7]
-		#del self.systems[6]
+		del self.systems[6]
 		del self.systems[5]
 		#del self.systems[4]
 		#del self.systems[3]
