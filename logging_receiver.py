@@ -1,6 +1,6 @@
 #!/usr/env/python
 
-from gnuradio import gr, blocks, analog, filter, fft, digital
+from gnuradio import gr, blocks, analog, filter, fft, digital, zeromq
 try:
 	from gnuradio.gr import firdes
 except:
