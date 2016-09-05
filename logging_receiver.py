@@ -458,7 +458,6 @@ class logging_receiver(gr.top_block):
 		self.connector.release_channel()
 
 		self.connector.exit()
-		self.source.disconnect()
                 self.stop()
 
                 self.source = None
