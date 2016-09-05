@@ -43,7 +43,6 @@ class p25_control_demod (gr.top_block):
 		self.overseer_uuid = overseer_uuid
 
 
-		self.channel_rate = 12500
 
 		self.control_channel = system['channels'][system['default_control_channel']]
 		self.control_channel_i = system['default_control_channel']
@@ -58,6 +57,8 @@ class p25_control_demod (gr.top_block):
 		except:
 			self.modulation = 'C4FM'
 
+		self.channel_rate = 12500
+		symbol_rate = 4800
 
 		self.site_detail = {}
 		self.site_detail['WACN ID'] = None
@@ -69,8 +70,6 @@ class p25_control_demod (gr.top_block):
 		self.site_detail['RFSS Network Connection'] = None
 
 
-	        # Setup receiver attributes
-	        symbol_rate = 4800
 
 		self.bad_messages = 0
 		self.total_messages = 0
@@ -84,8 +83,6 @@ class p25_control_demod (gr.top_block):
 
 	        # channel filter
 	        channel_rate = self.channel_rate
-	        trans_width = 12.5e3 / 2;
-	        trans_centre = trans_width + (trans_width / 2)
 		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, channel_rate)
 	
 	        # power squelch
