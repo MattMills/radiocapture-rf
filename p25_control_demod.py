@@ -177,11 +177,12 @@ class p25_control_demod (gr.top_block):
 
 		#self.receive_engine()
 	def adjust_channel_offset(self, delta_hz):
+		return False #Disable
 	        max_delta_hz = 6000.0
 	        delta_hz *= self.symbol_deviation      
 	        delta_hz = max(delta_hz, -max_delta_hz)
 	        delta_hz = min(delta_hz, max_delta_hz)
-	        self.control_prefilter.set_center_freq(0 + delta_hz)
+	        #self.control_prefilter.set_center_freq(0 + delta_hz)
 		self.log.info('adjust control deltz_hz = %s' % (delta_hz))
         def tune_next_control_channel(self):
                 self.control_channel_i += 1
@@ -207,6 +208,7 @@ class p25_control_demod (gr.top_block):
                         self.connect(self.source, self.resampler)
 
 		self.unlock()
+		self.log.info('CC Change %s' % self.control_channel)
                 self.decodequeue.flush()
 	def procHDU(self, frame):
 		r = {'short':'HDU', 'long':'Header Data Unit'}
@@ -569,6 +571,7 @@ class p25_control_demod (gr.top_block):
 
 		while self.keep_running:
 			if loops_locked < -50 and time()-loop_start > 0.1:
+				self.log.warning('Unable to lock control channel on %s' % self.control_channel)
 				self.tune_next_control_channel()
 
 				loops_locked = 0
@@ -590,7 +593,7 @@ class p25_control_demod (gr.top_block):
 				pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
 			else:
-				sleep(0.010) #avg time between packets is 0.007s
+				sleep(0.007) #avg time between packets is 0.007s
 
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
 			fsnext   = buf.find(binascii.unhexlify('5575f5ff77ff'), fsoffset+6)
@@ -610,7 +613,7 @@ class p25_control_demod (gr.top_block):
 
 				if duid != 0x7:
 					wrong_duid_count = wrong_duid_count +1
-					if wrong_duid_count > 50:
+					if wrong_duid_count > 200:
 						self.log.warning('Hit wrong DUID count on control channel')
 						self.tune_next_control_channel()
 
