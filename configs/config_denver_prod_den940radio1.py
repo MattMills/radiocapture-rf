@@ -664,10 +664,10 @@ class rc_config:
 			}
 		}
 	
-		#del self.systems[32]
-		#del self.systems[31]
+		del self.systems[32]
+		del self.systems[31]
 		#del self.systems[30]
-		#del self.systems[29]
+		del self.systems[29]
 		#del self.systems[28]
 		#del self.systems[27]
 		#del self.systems[26]
@@ -678,9 +678,9 @@ class rc_config:
 
 
 
-		#del self.systems[18]
-		#del self.systems[17]
-		#del self.systems[16]
+		del self.systems[18]
+		del self.systems[17]
+		del self.systems[16]
 		#del self.systems[15]
 		#del self.systems[14]
 
@@ -690,14 +690,14 @@ class rc_config:
 		
 		#del self.systems[8]
 		#del self.systems[7]
-		#del self.systems[6]
+		del self.systems[6]
 
-		#del self.systems[5]
-		#del self.systems[4]
+		del self.systems[5]
+		del self.systems[4]
 
-		#del self.systems[3]
-		#del self.systems[2]
-		#del self.systems[1]
+		del self.systems[3]
+		del self.systems[2]
+		del self.systems[1]
 
 		del self.systems[0]
 
