@@ -251,7 +251,7 @@ class receiver(gr.top_block):
 					source_distance = abs(freq-self.sources[i]['center_freq'])
     
                     if source_id == None:
-                        return -1
+                    	raise Exception('Unable to find source for frequency %s' % freq)
                 else:
                     source_id = 0
 		
@@ -320,7 +320,7 @@ class receiver(gr.top_block):
 				break
 
 		    if source_id == None:
-			return -1
+			raise Exception('Unable to find source for frequency %s' % freq)
 
 		source_center_freq = self.sources[source_id]['center_freq']
 		source_samp_rate = self.sources[source_id]['samp_rate']
@@ -427,8 +427,10 @@ if __name__ == '__main__':
 			c = int(data[1])
 			channel_rate = int(data[2])
 			freq = int(data[3])
-			
-			block_id, port = tb.connect_channel(channel_rate, freq)
+			try:
+				block_id, port = tb.connect_channel(channel_rate, freq)
+			except:
+				block_id = -1
 
 			if block_id == -1:
 				#Channel failed to create, probably freq out of range
