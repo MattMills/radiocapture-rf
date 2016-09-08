@@ -26,12 +26,14 @@ logging.config.dictConfig(config)
 
 logger = logging.getLogger('overseer')
 
+config = rc_config()       
 overseer_uuid = '%s' % uuid.uuid4()
-site_uuid = '9218d5c0-98e5-4592-9859-f18acac2e639'
+site_uuid = config.site_uuid
+
 
 logger.info('Overseer %s initializing' % (overseer_uuid))
 logger.info('Site UUID: %s' % site_uuid)
-config = rc_config()       
+
 
 demods = {}
 for x in config.systems:
@@ -52,7 +54,7 @@ p25_cm = p25_call_manager()
 moto_cm = moto_call_manager()
 edacs_cm = edacs_call_manager()
 
-#p25_md_agent = p25_metadata_agent()
+p25_md_agent = p25_metadata_agent()
 
 logger.info('Initializing call recorder')
 
