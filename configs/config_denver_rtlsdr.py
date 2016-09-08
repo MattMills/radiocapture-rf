@@ -12,7 +12,7 @@ class rc_config:
                 self.frontend_ip = '10.5.0.22'
                 self.backend_ip = '10.5.0.23'
 
-                self.site_uuid = 'f1877ce6-bfef-4c9e-b34d-014c24c974f2'
+                self.site_uuid = 'd5bc103c-db78-4f16-a2da-d4bec23d7e72'
 
 		self.samp_rate = 2400000
 		self.gain = 30
@@ -113,9 +113,6 @@ class rc_config:
 
 		}
 
-		del self.sources[5]
-		del self.sources[6]
-
 		self.systems = {
 			0: { #Denver Public Safety - EDACS
 				'type': 'edacs',
@@ -149,6 +146,8 @@ class rc_config:
 				'type': 'edacs',
                                 'id': 1,
                                 'symbol_rate': 9600.0,
+				'transmit_site_uuid': 'd62895e9-f1b7-4149-8fbe-b46ef54fa950',
+                                'system_uuid': 'c35c1083-c799-47d2-8f76-bcd313999bf4',
                                 'esk': False,
                                 'channels': {
 	                               1: 855212500,
@@ -172,6 +171,8 @@ class rc_config:
                                 'type': 'edacs',
                                 'id': 2,
                                 'symbol_rate': 9600.0,
+				'transmit_site_uuid': 'dac3bed2-4f02-4f3f-a404-8735d6ddd5d7',
+                                'system_uuid': 'afd4d02b-171c-4a97-806c-6c275dfcfbb2',
                                 'esk': False,
                                 'channels': {
                                         1: 858462500,
@@ -191,22 +192,11 @@ class rc_config:
 					15: 857137500
                                 }
 			},
-			3: { #Lakewood Public Works - EDACS
-				'type': 'edacs',
-                                'id': 3,
-                                'symbol_rate': 9600.0,
-                                'esk': True,
-                                'channels': {
-					1: 853750000,
-		                        2: 854387500,
-		                        3: 854537500,
-		                        4: 855137500,
-		                        5: 856537500,
-				}
-			},
 			4:{#United Airlines
                                 'type': 'moto',
                                 'id': 0x3b27,
+                                'transmit_site_uuid': 'd04ba7d7-eb9b-4355-b617-b07034522276',
+                                'system_uuid': '28d436b4-c9df-4787-a2ba-f5d27e0ab121',
                                 'channels' : {
                                         0x1: 853462500,
 					0x99: 854837500,
@@ -224,6 +214,8 @@ class rc_config:
 			5:{#Denver area federal / military - (2) Downtown Denver
 				'type': 'moto',
                                 'id': 0x8d34,
+                                'transmit_site_uuid': 'a265fea6-18a8-47cd-b5a5-5caccced460b',
+                                'system_uuid': '8e5ceec8-2e4a-4cbb-aaa0-06a278874894',
                                 'channels' : {
                                         0x1ba: 406775000,
                                         0x1d6: 407125000,
@@ -237,6 +229,8 @@ class rc_config:
                                 'id': 6,
                                 'default_control_channel': 0,
 				'modulation': 'CQPSK',
+                                'transmit_site_uuid': '125ca2a8-118e-4413-a0c6-ad24c0a0de98',
+                                'system_uuid': '3fe357e7-5098-469f-89f1-15f67326b361',
                                 'channels': {
 					0: 770106250,
 					1: 770356250,
@@ -256,6 +250,8 @@ class rc_config:
                                 'type': 'p25',
                                 'id': 7,
                                 'default_control_channel': 0,
+                                'transmit_site_uuid': 'e5434680-1b27-4b14-b8e3-5f4960eb21cc',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', #DTRS
                                 'channels': {
 					0: 851225000,
 					1: 851775000,
@@ -274,7 +270,8 @@ class rc_config:
                         8: { #DTRS 1-070
                                 'type': 'p25',
                                 'id': 8,
-				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
+				'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', #DTRS
+                                'transmit_site_uuid': '83592f32-550f-4417-9c77-57685e0619b6',
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 769156250,
@@ -296,6 +293,8 @@ class rc_config:
                                 'type': 'p25',
                                 'id': 10,
                                 'default_control_channel': 0,
+                                'transmit_site_uuid': '43dc2da0-082d-4643-8793-2e77d3b12da8',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', #DTRS
                                 'channels': {
 					0: 769256250,
 					1: 771556250,
@@ -321,7 +320,8 @@ class rc_config:
                         11: { #DTRS 1-020
                                 'type': 'p25',
                                 'id': 11,
-				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
+                                'transmit_site_uuid': '28ae194d-42a3-49b3-a387-ed039cf5a37c',
+				'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 770281250,
@@ -342,7 +342,8 @@ class rc_config:
                         14: { #DTRS 1-008
                                 'type': 'p25',
                                 'id': 14,
-				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
+                                'transmit_site_uuid': 'c91bb25c-09e0-49d8-bc11-9fdd6e10806d',
+				'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851112500,
@@ -369,7 +370,8 @@ class rc_config:
                         15: { #DTRS 1-071
                                 'type': 'p25',
                                 'id': 15,
-				'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', #DTRS
+                                'transmit_site_uuid': 'a9b8f3f0-042d-4f5d-bf0d-003c8eac4dc8',
+				'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', #DTRS
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 769306250,
@@ -389,7 +391,8 @@ class rc_config:
 			16: { #MARC 1-001
 				'type': 'p25',
                                 'id': 16,
-				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
+                                'transmit_site_uuid': '8bebe35e-d316-4ecb-819c-dced718f0ce8',
+				'system_uuid': '8bd8cbe3-ac9a-4808-b2e4-a8817b6a288f',  #MARC
                                 'default_control_channel': 0,
 				'channels': {
 					0: 851250000,
@@ -405,7 +408,8 @@ class rc_config:
 			17: {	#MARC 2-002
                                 'type': 'p25',
                                 'id': 17,
-				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
+                                'transmit_site_uuid': 'f1666ebb-08b2-4f28-af08-a3bf8aa82c7c',
+				'system_uuid': '8bd8cbe3-ac9a-4808-b2e4-a8817b6a288f',  #MARC
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851087500,
@@ -421,7 +425,8 @@ class rc_config:
 			18: { #MARC - 6-006
                                 'type': 'p25',
                                 'id': 18,
-				'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
+                                'transmit_site_uuid': 'c1f3a4d6-d512-4a00-bb4b-ee6b44f9c2a6',
+				'system_uuid': '8bd8cbe3-ac9a-4808-b2e4-a8817b6a288f',  #MARC
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851562500,
@@ -442,7 +447,8 @@ class rc_config:
 			22: { #DTRS - 1-005
                                 'type': 'p25',
                                 'id': 22,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'transmit_site_uuid': '5e738104-d9b5-42ef-b970-9e037fa5cefd',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
                                 'default_control_channel': 0,
 				'modulation': 'C4FM',
                                 'channels': {
@@ -465,7 +471,8 @@ class rc_config:
 			24: { #DTRS - 1-006
                                 'type': 'p25',
                                 'id': 24,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'transmit_site_uuid': 'ba9e9cf8-c9d1-46be-8ddd-ee3c743a79af',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', 
                                 'default_control_channel': 0,
 				'modulation': 'C4FM',
                                 'channels': {
@@ -490,7 +497,8 @@ class rc_config:
 			25: { #DTRS - 1-007
                                 'type': 'p25',
                                 'id': 25,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540',
+                                'transmit_site_uuid': '658a2b18-3749-4316-a181-c8abd57144ec',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851112500,
@@ -517,7 +525,8 @@ class rc_config:
 			26: { #DTRS - 1-052
                                 'type': 'p25',
                                 'id': 26,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540',
+                                'transmit_site_uuid': '788a3227-e1e2-43b5-8760-87730cc292ec',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
 				'modulation': 'CQPSK',
                                 'default_control_channel': 0,
                                 'channels': {
@@ -538,7 +547,8 @@ class rc_config:
 			27: { #DTRS - 1-068
                                 'type': 'p25',
                                 'id': 27,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'transmit_site_uuid': 'd532058c-cd1c-4937-8748-371015877b72',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', 
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 770593750,
@@ -553,7 +563,8 @@ class rc_config:
 			28: { #DTRS - 1-069
                                 'type': 'p25',
                                 'id': 28,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540', 
+                                'transmit_site_uuid': '5cdcd394-f3f5-4bb4-b5a2-f08559dd6bd4',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007', 
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 771206250,
@@ -570,6 +581,8 @@ class rc_config:
 				'system_uuid': 'unknown',
 				'modulation': 'CQPSK',
 				'default_control_channel': 0,
+                                'transmit_site_uuid': 'b772c955-2e5a-4b34-aa49-c56d800f6cc6',
+                                'system_uuid': 'd096d184-a844-4e25-9e4f-936ae3436e15',
 				'channels': {
 					0: 856762500,
 					1: 856937500,
@@ -598,7 +611,8 @@ class rc_config:
 			30: { #DTRS 1-014
 				'type': 'p25',
                                 'id': 30,
-                                'system_uuid': '4ec04aaa-a534-49ff-bc7c-79917487d540',
+                                'transmit_site_uuid': '4391a532-a156-46ff-b12a-61fe05dc632e',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
 				'default_control_channel': 0,
 				'modulation': 'CQPSK',
                                 'channels': {
@@ -617,7 +631,8 @@ class rc_config:
 			31: { #MARC 3-003
 				'type': 'p25',
                                 'id': 31,
-                                'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
+                                'transmit_site_uuid': '0f6e515e-08fc-4e74-a8ba-eb1ca23260be',
+                                'system_uuid': '8bd8cbe3-ac9a-4808-b2e4-a8817b6a288f',  #MARC
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 852062500,
@@ -633,7 +648,8 @@ class rc_config:
 			32: { #MARC 21-021
 				'type': 'p25',
                                 'id': 32,
-                                'system_uuid': 'bfd7943c-2aa8-4b6c-a09f-0e6ddb25f034',  #MARC
+                                'transmit_site_uuid': '3bf26f46-1261-47c4-b581-50e98816516e',
+                                'system_uuid': '8bd8cbe3-ac9a-4808-b2e4-a8817b6a288f',  #MARC
                                 'default_control_channel': 0,
                                 'channels': {
 					0: 851312500,
@@ -675,11 +691,14 @@ class rc_config:
 		#del self.systems[8]
 		#del self.systems[7]
 		#del self.systems[6]
-		del self.systems[5]
-		del self.systems[4]
+
+		#del self.systems[5]
+		#del self.systems[4]
+
 		#del self.systems[3]
 		#del self.systems[2]
 		#del self.systems[1]
+
 		del self.systems[0]
 
 		
