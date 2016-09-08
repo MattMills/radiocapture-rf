@@ -49,10 +49,10 @@ import time
 
 logger.info('Initializing call managers')
 p25_cm = p25_call_manager()
-#moto_cm = moto_call_manager()
-#edacs_cm = edacs_call_manager()
+moto_cm = moto_call_manager()
+edacs_cm = edacs_call_manager()
 
-p25_md_agent = p25_metadata_agent()
+#p25_md_agent = p25_metadata_agent()
 
 logger.info('Initializing call recorder')
 
