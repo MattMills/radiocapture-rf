@@ -88,6 +88,8 @@ class logging_receiver(gr.top_block):
 		self.start()	
 
 	def configure_blocks(self, protocol):
+		if protocol == 'provoice': 
+			protocol = 'analog'
 		print 'configure_blocks(%s)' % protocol
 		if not (protocol == 'p25' or protocol == 'p25_tdma' or protocol == 'p25_cqpsk' or protocol=='p25_cqpsk_tdma' or protocol == 'provoice' or protocol == 'dsd_p25' or protocol == 'analog' or protocol == 'none'):
 			raise Exception('Invalid protocol %s' % protocol)
