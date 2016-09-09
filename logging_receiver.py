@@ -234,7 +234,11 @@ class logging_receiver(gr.top_block):
                         self.symbol_filter_c = blocks.multiply_const_cc(1.0)
 
                         gain_mu= 0.025
-			symbol_rate = 6000
+			if protocol == 'p25_cqpsk_tdma':
+				symbol_rate = 6000
+			else:
+				symbol_rate = 4800
+
 			omega = float(self.input_rate) / float(symbol_rate)
                         gain_omega = 0.1  * gain_mu * gain_mu
 
