@@ -75,7 +75,7 @@ class logging_receiver(gr.top_block):
 		self.configure_blocks(cdr['modulation_type'])
 		if cdr['modulation_type'] == 'p25_tdma' or cdr['modulation_type'] == 'p25_cqpsk_tdma' :
 			try:
-				self.set_p25_xor_chars(p25p2_lfsr(0x4d1,int(cdr['p25_system_id'],0),int(cdr['p25_wacn'],0)).xor_chars)
+				self.set_p25_xor_chars(p25p2_lfsr(0x841,int(cdr['p25_system_id'],0),int(cdr['p25_wacn'],0)).xor_chars)
 			except:
 				pass
 			self.set_p25_tdma_slot(cdr['slot'])
