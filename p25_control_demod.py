@@ -90,7 +90,7 @@ class p25_control_demod (gr.top_block):
 	        #self.connect(self.channel_filter, power_squelch)
 
                 autotuneq = gr.msg_queue(2)
-                self.demod_watcher = demod_watcher(autotuneq, self.adjust_channel_offset)
+                self.demod_watcher = demod_watcher(self)
 		self.symbol_deviation = 600.0
 
 		if self.modulation == 'C4FM':
@@ -610,7 +610,7 @@ class p25_control_demod (gr.top_block):
 
 				if duid != 0x7:
 					wrong_duid_count = wrong_duid_count +1
-					if wrong_duid_count > 200:
+					if wrong_duid_count > 50:
 						self.log.warning('Hit wrong DUID count on control channel')
 						self.tune_next_control_channel()
 
@@ -797,22 +797,19 @@ class p25_control_demod (gr.top_block):
 #
 class demod_watcher(threading.Thread):
 
-    def __init__(self, msgq,  callback, **kwds):
-        threading.Thread.__init__ (self, **kwds)
+    def __init__(self, tb):
+        threading.Thread.__init__ (self)
         self.setDaemon(1)
-        self.msgq = msgq
-        self.callback = callback
+	self.tb = tb
         self.keep_running = True
         self.start()
 
     def run(self):
+	sleep(1)
         while(self.keep_running):
-            msg = self.msgq.delete_head()
-            frequency_correction = msg.arg1()
-	    if frequency_correction == 0.0:
-		continue
-	    #print '%s' % (msg.arg2())
-            print 'Freq correction %s' % (frequency_correction)
-            self.callback(frequency_correction)
+		if(self.tb.is_locked):
+			print 'Probe: %s' % self.tb.probe.level()
+			self.tb.connector.report_offset(self.tb.probe.level())
+		sleep(0.1)
 
 
