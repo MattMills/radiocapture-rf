@@ -467,7 +467,6 @@ if __name__ == '__main__':
 					clients[c].remove(block_id)
 					return 'release,%s\n'
                         except Exception as e:
-				raise
 				return 'na\n'
                 elif data[0] == 'scan_mode_set_freq':
                     freq = int(data[1])
