@@ -117,6 +117,22 @@ class frontend_connector():
 		else:
                         self.thread_lock.release()
 			return False
+	def report_offset(self, offset):
+		if self.channel_id == None:
+			return False #We're not running, cant change offset
+		self.thread_lock.acquire()
+		self.log.debug('report_offset(%s)' % offset)
+		self.socket.send('offset,%s,%s,%s' % (self.my_client_id, self.channel_id, offset))
+		data = self.socket.recv(1024)
+                data = data.strip().split(',')
+
+		if data[0] == 'na': #failed
+                        self.log.error('Failed to set offset')
+                        self.thread_lock.release()
+                        return False
+		elif data[0] == 'offset': #success
+			self.thread_lock.release()
+			return True
 	def exit(self):
                 self.log.debug('exit() called')
 		self.continue_running = False

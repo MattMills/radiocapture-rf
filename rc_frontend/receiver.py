@@ -403,6 +403,18 @@ class receiver(gr.top_block):
 		
 		self.access_lock.release()
 		return True
+	def source_offset(self, block_id, offset):
+		center_freq = self.sources[self.channels[block_id].source_id]['center_freq']
+		offset = offset*10
+		if offset < 3 and offset > -3:
+			return True
+		new_center_freq = center_freq+offset
+		print 'Source %s New Center freq %s' % (self.channels[block_id].source_id, new_center_freq)
+		self.access_lock.acquire()
+		self.sources[self.channels[block_id].source_id]['block'].set_center_freq(new_center_freq,0)
+		self.sources[self.channels[block_id].source_id]['center_freq'] = new_center_freq
+		self.access_lock.release()
+		return True
 
 if __name__ == '__main__':
 	tb = receiver()
@@ -490,7 +502,16 @@ if __name__ == '__main__':
 			c = int(data[1])
 			client_hb[c] = time.time()
 			return 'hb,%s' % c
+		elif data[0] == 'offset':
+			client_id = int(data[1])
+			block_id = int(data[2])
+			offset = float(data[3])
+			print 'Offset Adjust: %s %s %s' % (client_id, block_id, offset)
+	
+			tb.source_offset(block_id, offset)
 			
+			return 'offset,%s' % client_id
+
 	context = zmq.Context()
 	socket = context.socket(zmq.REP)
 	socket.bind("tcp://0.0.0.0:50000")
