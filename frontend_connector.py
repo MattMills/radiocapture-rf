@@ -7,7 +7,7 @@ import time
 import logging
 
 class frontend_connector():
-	def __init__(self, dest='127.0.0.1', host='10.82.11.23', port=50000):
+	def __init__(self, dest='127.0.0.1', host='127.0.0.1', port=50000):
 		#temp hack until I have auto-frontend figured out
 
                 self.log = logging.getLogger('overseer.frontend_connector')
@@ -93,11 +93,12 @@ class frontend_connector():
 			return False, False
                         
 	def release_channel(self):
+		self.thread_lock.acquire()
 		if self.channel_id == None:
+			self.thread_lock.release()
 			return False
 		#if we dont have a port set, we can't have a channel.
 
-                self.thread_lock.acquire()
                 self.log.debug('release_channel()')
 		self.socket.send('release,%s,%s' % (self.my_client_id, self.channel_id))
                 data = self.socket.recv(1024)
@@ -118,9 +119,10 @@ class frontend_connector():
                         self.thread_lock.release()
 			return False
 	def report_offset(self, offset):
-		if self.channel_id == None:
-			return False #We're not running, cant change offset
 		self.thread_lock.acquire()
+		if self.channel_id == None:
+			self.thread_lock.release()
+			return False #We're not running, cant change offset
 		self.log.debug('report_offset(%s)' % offset)
 		self.socket.send('offset,%s,%s,%s' % (self.my_client_id, self.channel_id, offset))
 		data = self.socket.recv(1024)
