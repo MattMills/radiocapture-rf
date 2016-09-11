@@ -408,7 +408,6 @@ class logging_receiver(gr.top_block):
 			tags['TPE1'] = '%s' %(cdr['system_user_local'])
 			tags['TALB'] = '%s' % (cdr['system_id'])
 			
-
 			groups = []
 			for patch_group in patches:
 				if(cdr['system_group_local'] in patches[patch_group] or cdr['system_group_local'] == patch_group):
