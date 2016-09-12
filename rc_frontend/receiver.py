@@ -405,13 +405,19 @@ class receiver(gr.top_block):
 		return True
 	def source_offset(self, block_id, offset):
 		center_freq = self.sources[self.channels[block_id].source_id]['center_freq']
-		offset = offset*10
-		if offset < 3 and offset > -3:
+		base_offset = self.sources[self.channels[block_id].source_id]['offset']
+		if offset > 1 or offset < -1:
+			hz_offset = offset*50
+		elif offset > 0.5 or offset < -0.5:
+			hz_offset = offset*10
+		else:
+			hz_offset = offset*4
+		if hz_offset < 1 and hz_offset > -1:
 			return True
-		new_center_freq = center_freq+offset
-		print 'Source %s New Center freq %s' % (self.channels[block_id].source_id, new_center_freq)
+		new_center_freq = center_freq+hz_offset
+		print 'Source %s New Center freq %s %s' % (self.channels[block_id].source_id, new_center_freq, offset)
 		self.access_lock.acquire()
-		self.sources[self.channels[block_id].source_id]['block'].set_center_freq(new_center_freq,0)
+		self.sources[self.channels[block_id].source_id]['block'].set_center_freq(new_center_freq+base_offset,0)
 		self.sources[self.channels[block_id].source_id]['center_freq'] = new_center_freq
 		self.access_lock.release()
 		return True
@@ -452,7 +458,7 @@ if __name__ == '__main__':
 	                       	print '%s Created channel ar: %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id)
 				clients[c].append(block_id)
 				return 'create,%s,%s' % (block_id, port)
-		elif data[0] == 'release':
+		elif data[0] ==  'release':
 			try:
 				c = int(data[1])
 				block_id = int(data[2])
@@ -505,7 +511,6 @@ if __name__ == '__main__':
 			client_id = int(data[1])
 			block_id = int(data[2])
 			offset = float(data[3])
-			print 'Offset Adjust: %s %s %s' % (client_id, block_id, offset)
 	
 			tb.source_offset(block_id, offset)
 			

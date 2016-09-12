@@ -80,7 +80,7 @@ class logging_receiver(gr.top_block):
 				pass
 			self.set_p25_tdma_slot(cdr['slot'])
 
-		p25_sensor = threading.Thread(target=self.p25_sensor, name='p25_sensor')
+		p25_sensor = threading.Thread(target=self.p25_sensor, name='p25_sensor', args=(self,))
                 p25_sensor.daemon = True
                 p25_sensor.start()
 
@@ -216,7 +216,7 @@ class logging_receiver(gr.top_block):
 
 			
                         self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, True, (True if protocol == 'p25_tdma' else False))
-			self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3, False, False)
+			self.decoder2 = repeater.p25_frame_assembler('', 0, 15, False, True, False, decodequeue3, False, False)
 
 			self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
 			
@@ -238,13 +238,12 @@ class logging_receiver(gr.top_block):
 				symbol_rate = 6000
 			else:
 				symbol_rate = 4800
-
 			omega = float(self.input_rate) / float(symbol_rate)
                         gain_omega = 0.1  * gain_mu * gain_mu
 
                         alpha = 0.04
                         beta = 0.125 * alpha * alpha
-                        fmax = 1200     # Hz
+                        fmax = 2400     # Hz
                         fmax = 2*pi * fmax / float(self.input_rate)
 
                         self.clock = repeater.gardner_costas_cc(omega, gain_mu, gain_omega, alpha,  beta, fmax, -fmax)
@@ -257,8 +256,8 @@ class logging_receiver(gr.top_block):
                         self.slicer = op25.fsk4_slicer_fb(levels)
 
                         #self.imbe = repeater.vocoder(False, True, 0, "", 0, False)
-                        self.decodequeue3 = decodequeue3 = gr.msg_queue(10000)
-                        self.decodequeue2 = decodequeue2 = gr.msg_queue(10000)
+                        self.decodequeue3 = decodequeue3 = gr.msg_queue(2)
+                        self.decodequeue2 = decodequeue2 = gr.msg_queue(2)
                         self.decodequeue = decodequeue = gr.msg_queue(10000)
 
                         #self.demod_watcher = demod_watcher(decodequeue2, self.adjust_channel_offset)
@@ -303,6 +302,7 @@ class logging_receiver(gr.top_block):
 		#return False
 
 	def adjust_channel_offset(self, delta_hz):
+		pass
 		print 'adjust channel offset: %s' % (delta_hz)
 
                 max_delta_hz = 12000.0
@@ -318,7 +318,8 @@ class logging_receiver(gr.top_block):
 			self.close({})
                 time.sleep(10)
                 print 'DEBUG: %s %s %s %s %s' % (time.time(), 0, self.time_activity, self.destroyed, self.in_use)
-	def p25_sensor(self):
+	def p25_sensor(self, tb):
+
 		import binascii
 		buf = ''
 		data_unit_ids = {
@@ -345,8 +346,8 @@ class logging_receiver(gr.top_block):
 			except:
 				print 'NO DECODEQUEUE'
 				continue
-			if self.decodequeue.count() > 0:
-                                pkt = self.decodequeue.delete_head().to_string()
+			if tb.decodequeue.count():
+                                pkt = tb.decodequeue.delete_head().to_string()
                                 buf += pkt
 
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
@@ -387,7 +388,8 @@ class logging_receiver(gr.top_block):
                                 except Exception as e:
 					if duid == 0x5 or duid == 0xf: pass #print e
                                         continue
-				print '%s' % r
+					
+					
 
 
         def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):

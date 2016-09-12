@@ -133,8 +133,9 @@ class p25_control_demod (gr.top_block):
 	
 	                alpha = 0.04
 	                beta = 0.125 * alpha * alpha
-	                fmax = 1200     # Hz
-	                fmax = 2*pi * fmax / channel_rate
+	                fmax = 2400     # Hz
+	                fmax = 2*pi * fmax / float(channel_rate)
+
 			self.clock = repeater.gardner_costas_cc(omega, gain_mu, gain_omega, alpha,  beta, fmax, -fmax)
 			self.diffdec = digital.diff_phasor_cc()
 			self.to_float = blocks.complex_to_arg()
@@ -567,7 +568,7 @@ class p25_control_demod (gr.top_block):
 		wrong_duid_count = 0
 
 		while self.keep_running:
-			if loops_locked < -50 and time()-loop_start > 0.1:
+			if loops_locked < -50 and time()-loop_start > 0.5:
 				self.log.warning('Unable to lock control channel on %s' % self.control_channel)
 				self.tune_next_control_channel()
 
@@ -607,16 +608,18 @@ class p25_control_demod (gr.top_block):
 				#print 'NAC: %s' % nac
 				self.total_messages = self.total_messages + 3
 				#print 'FSO:%s FSN:%s BS:%s FL:%s - %s - %s' % (fsoffset, fsnext, len(buf), (fsnext-fsoffset), frame_sync, data_unit_ids[duid])
-
 				if duid != 0x7:
 					wrong_duid_count = wrong_duid_count +1
-					if wrong_duid_count > 50:
+					if wrong_duid_count > 10:
 						self.log.warning('Hit wrong DUID count on control channel')
 						self.tune_next_control_channel()
 
 						loop_start = time()
 				                loops_locked = 0
 				                wrong_duid_count = 0
+				elif duid == 0x7:
+					wrong_duid_count = 0
+
 				try:
 					if duid == 0x0:
 						r = self.procHDU(frame)
@@ -808,8 +811,9 @@ class demod_watcher(threading.Thread):
 	sleep(1)
         while(self.keep_running):
 		if(self.tb.is_locked):
-			print 'Probe: %s' % self.tb.probe.level()
-			self.tb.connector.report_offset(self.tb.probe.level())
-		sleep(0.1)
+			#print 'Probe: %s' % self.tb.probe.level()
+			offset = self.tb.probe.level()
+			#self.tb.connector.report_offset(offset)
+		sleep(0.05)
 
 
