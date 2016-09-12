@@ -17,6 +17,7 @@ from time import sleep,time
 
 
 from p25_cai import p25_cai
+from p25_moto import p25_moto
 
 from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
@@ -324,8 +325,12 @@ class p25_control_demod (gr.top_block):
                 r['p'] = bitframe[1:2] #protected
                 r['opcode'] = int(bitframe[2:8],2)
                 r['mfid'] = int(bitframe[8:16],2)
-		if r['mfid'] != 0x0 and r['mfid'] != 0x1: return r
-		p = p25_cai()
+		if r['mfid'] == 0x0 or r['mfid'] != 0x1: 
+			p = p25_cai()
+		elif r['mfid'] == 0x90:
+			p = p25_moto()
+		else:
+			return r
                 try:
                         r['name'] = p.tsbk_osp_single[r['opcode']]['name']
                 except:
