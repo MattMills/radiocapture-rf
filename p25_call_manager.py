@@ -335,16 +335,16 @@ class p25_call_manager():
 						self.call_user_to_group(instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
 					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT':
 						self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address']))
-						#self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address']))
-						#self.call_user_to_group(instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
+						self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address']))
+						self.call_user_to_group(instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						self.log.debug('GRP_V_CH_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Group Address 0'], t['Channel 1'], t['Group Address 1']))
 						self.call_user_to_group(instance_uuid, t['Channel 0'], t['Group Address 0'])
 						self.call_user_to_group(instance_uuid, t['Channel 1'], t['Group Address 1'])
 					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
 						self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Super Group 0'], t['Channel 1'], t['Super Group 1']))
-                                                #self.call_user_to_group(instance_uuid, t['Channel 0'], t['Super Group 0'])
-                                                #self.call_user_to_group(instance_uuid, t['Channel 1'], t['Super Group 1'])
+                                                self.call_user_to_group(instance_uuid, t['Channel 0'], t['Super Group 0'])
+                                                self.call_user_to_group(instance_uuid, t['Channel 1'], t['Super Group 1'])
 
 				        self.client.ack(frame)
 				except Exception as e:
