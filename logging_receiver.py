@@ -245,7 +245,7 @@ class logging_receiver(gr.top_block):
                         alpha = 0.04
                         beta = 0.125 * alpha * alpha
                         fmax = 1200     # Hz
-                        fmax = 2*pi * fmax / self.input_rate
+                        fmax = 2*pi * fmax / float(self.input_rate)
 
                         self.clock = repeater.gardner_costas_cc(omega, gain_mu, gain_omega, alpha,  beta, fmax, -fmax)
                         self.diffdec = digital.diff_phasor_cc()
@@ -269,11 +269,8 @@ class logging_receiver(gr.top_block):
 
                         self.float_conversion = blocks.short_to_float(1, 8192)
 
-                        self.connect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer)#, (self.subtract,0))
-			#self.null_sink = blocks.null_sink(8)
-			#self.connect(self.clock, self.null_sink)
+                        self.connect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer, self.decoder2, self.qsink)#, (self.subtract,0))
                         self.connect(self.slicer, self.decoder, self.float_conversion, self.sink)
-                        self.connect(self.slicer, self.decoder2, self.qsink)
 		elif protocol == 'provoice':
 			fm_demod_gain = 0.6
                         self.fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
