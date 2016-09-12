@@ -247,7 +247,7 @@ class logging_receiver(gr.top_block):
 
                         alpha = 0.04
                         beta = 0.125 * alpha * alpha
-                        fmax = 2400     # Hz
+                        fmax = 1200     # Hz
                         fmax = 2*pi * fmax / float(self.input_rate)
 
                         self.clock = repeater.gardner_costas_cc(omega, gain_mu, gain_omega, alpha,  beta, fmax, -fmax)
