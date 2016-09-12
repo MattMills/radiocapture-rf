@@ -415,7 +415,7 @@ class logging_receiver(gr.top_block):
 					groups.append(patch_group)
 			groups = list(set(groups))
 
-			tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['timestamp'], groups)
+			tags['COMM'] = '%s,%s,%s' %(cdr['system_channel_local'],cdr['time_open'], groups)
 			tags['COMM'] = tags['COMM'].replace(':', '|')
 			os.system('id3v2 -2 --TIT2 "%s" --TPE1 "%s" --TALB "%s" -c "RC":"%s":"English" %s' % (tags['TIT2'], tags['TPE1'], tags['TALB'], tags['COMM'], filename))
 			#os.system('mp3gain -q -c -p %s' % (filename))
