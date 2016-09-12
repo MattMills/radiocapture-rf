@@ -216,7 +216,7 @@ class logging_receiver(gr.top_block):
 
 			
                         self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, True, (True if protocol == 'p25_tdma' else False))
-			self.decoder2 = repeater.p25_frame_assembler('', 0, 15, False, True, False, decodequeue3, False, False)
+			self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, False, decodequeue3, False, False)
 
 			self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
 			
