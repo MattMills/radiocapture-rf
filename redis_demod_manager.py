@@ -44,7 +44,10 @@ class redis_demod_manager():
 			
 			demods = {}
 			for instance_uuid in self.client.smembers('demod:%s' % demod_type):
-				demods[instance_uuid] = json.loads(self.client.get(instance_uuid))
+				try:
+					demods[instance_uuid] = json.loads(self.client.get(instance_uuid))	
+				except Exception as e:
+					print 'Error %s' % e
 			
 			deletions = []
 			for demod in demods:
