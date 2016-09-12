@@ -25,6 +25,8 @@ from p25p2_lfsr import p25p2_lfsr
 from p25_cai import p25_cai
 from frontend_connector import frontend_connector
 
+from client_activemq import client_activemq
+
 class logging_receiver(gr.top_block):
 	def __init__(self, cdr):
 		self.audio_capture = True;
@@ -83,6 +85,8 @@ class logging_receiver(gr.top_block):
 		p25_sensor = threading.Thread(target=self.p25_sensor, name='p25_sensor', args=(self,))
                 p25_sensor.daemon = True
                 p25_sensor.start()
+
+		self.client_activemq = client_activemq()
 
 		self.open()
 		self.start()	
@@ -389,7 +393,12 @@ class logging_receiver(gr.top_block):
 					if duid == 0x5 or duid == 0xf: pass #print e
                                         continue
 					
-					
+				body = {
+					'packet': r,
+					'instance_uuid': self.cdr['instance_uuid'],
+					'call_uuid': self.cdr['call_uuid'],
+					}
+				self.client_activemq.send_event_lazy('/topic/raw_voice', body)
 
 
         def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):
