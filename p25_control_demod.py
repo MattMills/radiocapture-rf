@@ -735,8 +735,8 @@ class p25_control_demod (gr.top_block):
 							t['BW'] = 6.25
 						elif(t['Channel Type'] == 4):
 							t['BW'] = 25
-
-						self.channel_identifier_table[t['Identifier']] = {
+						try:
+							self.channel_identifier_table[t['Identifier']] = {
                                                         'BW': t['BW'],
                                                         'Base Frequency': t['Base Frequency'],
                                                         'Channel Spacing': t['Channel Spacing'],
@@ -744,8 +744,8 @@ class p25_control_demod (gr.top_block):
                                                         'Type': t['Access Type'],
 							'Slots': t['Slots'],
                                                         }
-					
-						pass	
+						except:
+							pass	
 					elif t['name'] == 'GRP_V_CH_GRANT':
 						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
