@@ -291,8 +291,8 @@ class p25_call_manager():
 					if system_uuid not in self.system_metadata:
 						self.system_metadata[system_uuid] = {'call_table': {}}
 
-					#if 'crc' in t and t['crc'] != 0:
-					#	continue #Don't bother trying to work with bad data
+					if 'crc' in t and t['crc'] != 0:
+						continue #Don't bother trying to work with bad data
 						
                                         if t['name'] == 'IDEN_UP_VU' and t['crc'] == 0:
 						try:
