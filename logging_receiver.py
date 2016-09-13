@@ -86,7 +86,7 @@ class logging_receiver(gr.top_block):
                 p25_sensor.daemon = True
                 p25_sensor.start()
 
-		self.client_activemq = client_activemq()
+		#self.client_activemq = client_activemq()
 
 		self.open()
 		self.start()	
@@ -398,7 +398,7 @@ class logging_receiver(gr.top_block):
 					'instance_uuid': self.cdr['instance_uuid'],
 					'call_uuid': self.cdr['call_uuid'],
 					}
-				self.client_activemq.send_event_lazy('/topic/raw_voice', body)
+				#self.client_activemq.send_event_lazy('/topic/raw_voice', body)
 
 
         def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):
