@@ -175,7 +175,10 @@ class p25_metadata_agent():
 		        		frame = self.client.receiveFrame()
 				        t = json.loads(frame.body)
 					instance_uuid = frame.headers['destination'].replace('/topic/raw_control/', '')
-					instance = self.redis_demod_manager.demods[instance_uuid]
+					try:
+						instance = self.redis_demod_manager.demods[instance_uuid]
+					except:
+						continue
 					#system_uuid = self.get_system_from_instance(instance_uuid)
 
 					if instance_uuid not in self.instance_metadata:
