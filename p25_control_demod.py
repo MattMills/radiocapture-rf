@@ -19,9 +19,9 @@ from time import sleep,time
 from p25_cai import p25_cai
 from p25_moto import p25_moto
 
-from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
+from client_activemq import client_activemq
 
 import logging
 
@@ -159,8 +159,7 @@ class p25_control_demod (gr.top_block):
                 ##################################################
                 # Threads
                 ##################################################
-
-		self.backend_event_publisher = backend_event_publisher()
+		self.client_activemq = client_activemq()
 		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
                 receive_engine = threading.Thread(target=self.receive_engine)
@@ -780,7 +779,7 @@ class p25_control_demod (gr.top_block):
 						del t['crc']
 						del t['mfid']
 						del t['opcode']
-					self.backend_event_publisher.publish_raw_control(self.instance_uuid, self.system['type'], t)
+					self.client_activemq.send_event_lazy('/topic/raw_control/%s' % (self.instance_uuid), t, False)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):

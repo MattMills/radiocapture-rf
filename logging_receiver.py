@@ -35,6 +35,7 @@ class logging_receiver(gr.top_block):
 		gr.top_block.__init__(self, "logging_receiver")
 
 		self.cdr = cdr
+		self.in_use = False
 		self.client_activemq = client_activemq
 
 	def run(self):
@@ -57,7 +58,6 @@ class logging_receiver(gr.top_block):
 		self.protocol = None
 		self.time_activity = 0
 
-		self.in_use = False
 		self.codec_provoice = False
 		self.codec_p25 = False
 	

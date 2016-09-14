@@ -141,13 +141,14 @@ class client_activemq():
 			while len(self.outbound_msg_queue_lazy) > 1 and self.connection_issue == False:
 	        	        try:
 					item = self.outbound_msg_queue_lazy.pop(0)
-					if persistent == True:
+					if item['persistent'] == True:
 						persist = 'true'
 					else:
 						persist = 'false'
 					
-	                	        self.client.send(item['destination'], json.dumps(item['body']), {'persistent': item['persist']} )
-		                except:
+	                	        self.client.send(item['destination'], json.dumps(item['body']), {'persistent': persist} )
+		                except Exception as e:
+					self.log.critical('Except: %s' % e)
 					self.outbound_msg_queue_lazy.insert(0,item)
         		                self.connection_issue = True
 
@@ -165,7 +166,8 @@ class client_activemq():
 					item = self.outbound_msg_queue.pop(0)
                 	        	self.client.send(item['destination'], json.dumps(item['body']), {'persistent': 'true'})
 					
-	                	except:
+	                	except Exception as e:
+					self.log.critical('Except: %s' % e)
 					self.outbound_msg_queue.insert(0,item)
 	        	                self.connection_issue = True
 			
@@ -185,11 +187,9 @@ class client_activemq():
 						self.subscriptions[queue]['callback'](self.subscriptions[queue]['callback_class'], data, frame.headers)
 					        self.client.ack(frame)
 					except Exception as e:
-						raise
 						self.log.critical('Except: %s' % e)
 						self.client.nack(frame)
 				except Exception as e:
-					raise
 					self.log.fatal('except: %s' % e)
 					self.connection_issue = True
 
