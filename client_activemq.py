@@ -28,8 +28,9 @@ class client_activemq():
 		self.continue_running = True
 		self.subscriptions = {}
 		self.outbound_msg_queue = []
+		self.outbound_msg_queue_lazy = []
 
-	
+		self.lock = threading.Lock()
 
                 connection_handler = threading.Thread(target=self.connection_handler)
                 connection_handler.daemon = True
@@ -38,6 +39,10 @@ class client_activemq():
 		send_event_hopeful_thread = threading.Thread(target=self.send_event_hopeful_thread)
                 send_event_hopeful_thread.daemon = True
                 send_event_hopeful_thread.start()
+	
+		send_event_lazy_thread = threading.Thread(target=self.send_event_lazy_thread)
+                send_event_lazy_thread.daemon = True
+                send_event_lazy_thread.start()
 
 
 		publish_loop = threading.Thread(target=self.publish_loop)
@@ -60,15 +65,21 @@ class client_activemq():
                 #This func will just try to reconnect repeatedly in a thread if we're flagged as having an issue.
                 while(True):
                         if(self.connection_issue == True):
+				self.lock.acquire()
                                 try:
                                         self.init_connection()
                                         self.connection_issue = False
 					for subscription in self.subscriptions:
+						self.log.info('Re-subscribing upon reconnection: %s' % subscription)
 						self.subscribe(subscription, self.subscriptions[subscription]['callback_class'], self.subscriptions[subscription]['callback'], resub=True)
 						
-                                except:
+                                except Exception as e:
+					self.log.critical('Except: %s' % e)
                                         pass
+				finally:
+					self.lock.release()
 			else:
+				
 				try:
 					self.client.beat()
 				except:
@@ -77,51 +88,68 @@ class client_activemq():
 	def subscribe(self, queue, callback_class, callback, resub=False):
 		#This needs to exist so we can keep track of what subs we have and re-sub on reconnect
 		if queue in self.subscriptions and not resub:
+			self.log.info('Ignoring existing subscription %s' % queue)
 			return True #we're already subscribed
 
 		this_uuid = '%s' % uuid.uuid4()
+		self.log.info('Attempting to acquire lock')
+		self.lock.acquire()
+		self.log.info('Lock Acquired')
 		if(self.connection_issue == True):
+			self.log.info('Cannot process subscription request as were not properly connected')
 			self.subscriptions[queue] = {'uuid': this_uuid, 'callback': callback, 'callback_class': callback_class}
-                        return None	
+			self.lock.release()
+                        return None
+		self.log.info('subscribe(%s %s %s %s)' %( queue, callback_class, callback, resub))
 	
 		try:
 			self.subscriptions[queue] = {'uuid': this_uuid, 'callback': callback, 'callback_class': callback_class}
 			self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, })
 		except Exception as e:
 			self.log.fatal('%s' % e)
-                        raise
 			self.connection_issue = True
-
+		finally:
+			self.lock.release()
 
 	def unsubscribe(self, queue):
 		if queue not in self.subscriptions:
                         return False #cant unsubscribe, we're not subscribed
 
+		self.lock.acquire()
+
                 if(self.connection_issue == True):
 			del self.subscriptions[queue]
+			self.lock.release()
                         return None
-
                 try:
-                        self.client.unsubscribe(self.subscriptions[queue]['uuid'], {StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL})
+                        self.client.unsubscribe(self.subscriptions[queue]['uuid'])
 			del self.subscriptions[queue]
                 except Exception as e:
 			self.log.error('%s' % e)
                         self.connection_issue = True
-
+		finally:
+			self.lock.release()
         def send_event_lazy(self, destination, body, persistent = True):
-                #If it gets there, then great, if not, well we tried!
-                if(self.connection_issue == True):
-                        return None
+		self.outbound_msg_queue_lazy.append({'destination': destination, 'body': body, 'persistent': persistent})
 
-                try:
-			if persistent == True:
-				persist = 'true'
-			else:
-				persist = 'false'
-
-                        self.client.send(destination, json.dumps(body), {'persistent': persist} )
-                except:
-                        self.connection_issue = True
+	def send_event_lazy_thread(self):
+		while self.continue_running:
+			time.sleep(0.01)
+	                #If it gets there, then great, if not, well we tried!
+        	        if(self.connection_issue == True):
+                	        continue
+			while len(self.outbound_msg_queue_lazy) > 1 and self.connection_issue == False:
+	        	        try:
+					item = self.outbound_msg_queue_lazy.pop(0)
+					if persistent == True:
+						persist = 'true'
+					else:
+						persist = 'false'
+					
+	                	        self.client.send(item['destination'], json.dumps(item['body']), {'persistent': item['persist']} )
+		                except:
+					self.outbound_msg_queue_lazy.insert(0,item)
+        		                self.connection_issue = True
 
 	def send_event_hopeful(self, destination, body, persist):
 		self.outbound_msg_queue.append({'destination': destination, 'body': body})
@@ -158,7 +186,7 @@ class client_activemq():
 					        self.client.ack(frame)
 					except Exception as e:
 						raise
-						print '%s' % e
+						self.log.critical('Except: %s' % e)
 						self.client.nack(frame)
 				except Exception as e:
 					raise

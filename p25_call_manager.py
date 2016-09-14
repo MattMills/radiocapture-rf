@@ -24,6 +24,7 @@ class p25_call_manager():
 
 		self.redis_demod_manager = redis_demod_manager(self)
 
+		self.lock = threading.Lock()
 
 		self.hang_time = 5
 		self.instance_metadata = {}
@@ -118,7 +119,6 @@ class p25_call_manager():
 		ict = self.instance_metadata[instance_uuid]['call_table']
 
 		closed_calls = []
-
 		for call in ict:
 			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
 				ict[call]['time_activity'] = time.time()
@@ -136,10 +136,12 @@ class p25_call_manager():
 			
 		#Not a continuation, new call
 		call_uuid = None
+		self.lock.acquire()
 		for call in sct:
 			if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
 				call_uuid = sct[call]['call_uuid']
 				break
+		self.lock.release()
 
 		if call_uuid == None:
 			#call is new systemwide, assign new UUID
@@ -185,12 +187,13 @@ class p25_call_manager():
 	
 
 		ict[call_uuid] = cdr
+		self.lock.acquire()
 		if call_uuid not in sct:
 			sct[call_uuid] = cdr
 			sct[call_uuid]['instances'] = {instance_uuid: True}
 		else:
 			sct[call_uuid]['instances'][instance_uuid] = True
-			
+		self.lock.release()
 		
 
 		#event call open to record subsys
@@ -218,9 +221,11 @@ class p25_call_manager():
 						self.log.info('%s CLOSE: %s' % (time.time(), ict[call_uuid]))
 				for call_uuid in closed_calls:
 					del ict[call_uuid]
+					self.lock.acquire()
 					del sct[call_uuid]['instances'][instance]
 					if len(sct[call_uuid]['instances']) == 0:
 						del sct[call_uuid]
+					self.lock.release()
 				if len(closed_calls) > 0:
 					self.redis_demod_manager.publish_call_table(instance, ict)
 					
