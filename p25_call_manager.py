@@ -162,7 +162,7 @@ class p25_call_manager():
 			return #Cant close a call thats not open
 		
         	self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
-                print '%s CLOSE: %s' % (time.time(), ict[call_uuid])
+                self.log.info('Closing call due to close_call(): %s %s' % (instance_uuid, call_uuid))
                 del ict[call_uuid]
                 del sct[call_uuid]['instances'][instance_uuid]
                 if len(sct[call_uuid]['instances']) == 0:
@@ -317,7 +317,7 @@ class p25_call_manager():
 					try:
 					        t = json.loads(frame.body)
 					except: 
-						print 'JSON FAILURE: %s' % frame.body
+						self.log.critical('JSON FAILURE: %s' % frame.body)
 					if 'instance_uuid' in t.keys():
 						instance_uuid = t['instance_uuid']
 						packet_type = 'voice'
@@ -405,7 +405,7 @@ class p25_call_manager():
 					elif packet_type == 'voice':
 						try:
 							if t['packet']['short'] == 'TLC' and t['packet']['lc']['lcf_long'] == 'Call Termination / Cancellation':
-								print 'closing %s due to tlc' % t
+								self.log.info('closing due to tlc %s %s' % (t['instance_uuid'], t['call_uuid']))
 								
 								self.close_call(t['instance_uuid'], t['call_uuid'])
 							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel User':
@@ -417,11 +417,11 @@ class p25_call_manager():
 								if self.instance_metadata[instance_uuid]['call_table'][t['call_uuid']]['system_user_local'] == 0 and t['packet']['lc']['source_id'] != 0:
 									self.instance_metadata[instance_uuid]['call_table'][t['call_uuid']]['system_user_local'] = t['packet']['lc']['source_id']
 
-								print 'call_user_to_group %s %s %s %s' % (instance_uuid, channel, t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
+								self.log.info('call_user_to_group %s %s %s %s' % (instance_uuid, channel, t['packet']['lc']['tgid'], t['packet']['lc']['source_id']))
 								if channel != -1:
 									self.call_user_to_group(instance_uuid, channel,t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
 							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel Update':
-								print 'group voice channel update %s %s %s %s' % (t['packet']['lc']['channel_a'], t['packet']['lc']['channel_a_group'], t['packet']['lc']['channel_b'], t['packet']['lc']['channel_b_group'])
+								self.log.info('group voice channel update %s %s %s %s' % (t['packet']['lc']['channel_a'], t['packet']['lc']['channel_a_group'], t['packet']['lc']['channel_b'], t['packet']['lc']['channel_b_group']))
 								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_a'] ,t['packet']['lc']['channel_a_group'], 0)
 								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_b'] ,t['packet']['lc']['channel_b_group'], 0)
 						except KeyError:

@@ -181,13 +181,15 @@ class call_recorder():
 					if action == 'new_call':
 						if time.time()-cdr['time_open'] > 5:
 							self.client.ack(frame)
-							print 'ignored stale call'
+							self.log.info('ignored stale call %s' % cdr['uuid'])
 							continue
 						if cdr['instance_uuid'] not in self.call_table:
 							self.call_table[cdr['instance_uuid']] = {}
-
+						self.log.info('DEBUG: logging_receiver() pre')
 						self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver(cdr, self.client_activemq)
+						self.log.info('DEBUG: logging_receiver() post')
 					elif action == 'timeout':
+						self.log.info('Call Timeout received %s %s' % (cdr['instance_uuid'], cdr['call_uuid']))
 						try:
 							thread = threading.Thread(target=self.call_table[cdr['instance_uuid']][cdr['call_uuid']].close, args=({}, self.send_event_hopeful))
 							thread.start()
