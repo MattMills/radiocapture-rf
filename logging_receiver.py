@@ -30,13 +30,14 @@ from client_activemq import client_activemq
 
 class logging_receiver(gr.top_block):
 	def __init__(self, cdr, client_activemq):
-		self.log = logging.getLogger('overseer.logging_receiver')
-                self.log.info('Initializing call_recorder')
 		self.audio_capture = True;
 
 		gr.top_block.__init__(self, "logging_receiver")
 
 		self.cdr = cdr
+		self.client_activemq = client_activemq
+
+	def run(self):
 
 		self.thread_id = 'logr-' + str(uuid.uuid4())
 
@@ -44,7 +45,6 @@ class logging_receiver(gr.top_block):
 		self.filepath = "/dev/null"
 		self.channel_rate = 0
 		self.input_rate = 0
-		self.client_activemq = client_activemq
 	
 		#optionall log dat files
 		self.log_dat = False
@@ -63,7 +63,8 @@ class logging_receiver(gr.top_block):
 	
 		self.destroyed = False
 
-	def run(self):
+		self.log = logging.getLogger('overseer.logging_receiver')
+                self.log.info('Initializing call_recorder')
 
                 debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
                 debug.daemon = True
