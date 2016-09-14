@@ -194,9 +194,8 @@ class p25_call_manager():
 			
                         }
 	
-
-		ict[call_uuid] = cdr
 		self.lock.acquire()
+		ict[call_uuid] = cdr
 		if call_uuid not in sct:
 			sct[call_uuid] = cdr
 			sct[call_uuid]['instances'] = {instance_uuid: True}
@@ -262,7 +261,8 @@ class p25_call_manager():
 					if packet_type == 'control':
 	                                        if t['name'] == 'IDEN_UP_VU' and t['crc'] == 0:
 							try:
-		                                               self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
+								self.lock.acquire()
+		                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
 	                                                        'BW': t['BW VU'],
 	                                                        'Base Frequency': t['Base Frequency'],
 	                                                        'Channel Spacing': t['Channel Spacing'],
@@ -272,9 +272,12 @@ class p25_call_manager():
 	                                                        }
 							except:
 								pass
+							finally: 
+								self.lock.release()
 						elif t['name'] == 'IDEN_UP' and t['crc'] == 0:
 							try:
-		                                               self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
+								self.lock.acquire()
+		                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
 	                                                        'BW': t['BW'],
 	                                                        'Base Frequency': t['Base Frequency'],
 	                                                        'Channel Spacing': t['Channel Spacing'],
@@ -284,8 +287,11 @@ class p25_call_manager():
 	                                                        }
 							except:
 								pass
+							finally: 
+                                                                self.lock.release()
 						elif t['name'] == 'IDEN_UP_TDMA' and t['crc'] == 0:
 							try:
+								self.lock.acquire()
 		                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
 	                                                        'BW': t['BW'],
 	                                                        'Base Frequency': t['Base Frequency'],
@@ -296,6 +302,8 @@ class p25_call_manager():
 	                                                        }
 							except:
 								pass
+							finally: 
+                                                                self.lock.release()
 						elif t['name'] == 'GRP_V_CH_GRANT' :
 							self.log.debug('GRP_V_CH_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Group Address'], t['Source Address']))
 							self.call_user_to_group(instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
