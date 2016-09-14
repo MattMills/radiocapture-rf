@@ -63,13 +63,15 @@ class logging_receiver(gr.top_block):
 	
 		self.destroyed = False
 
+	def run(self):
+
                 debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
                 debug.daemon = True
                 debug.start()
 
 		#Setup connector
 		self.connector = frontend_connector()
-		channel_id, port = self.connector.create_channel(int(cdr['channel_bandwidth']), int(cdr['frequency']))
+		channel_id, port = self.connector.create_channel(int(self.cdr['channel_bandwidth']), int(self.cdr['frequency']))
 		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
 
 		if self.log_dat:
@@ -77,14 +79,14 @@ class logging_receiver(gr.top_block):
                         self.connect(self.source, self.dat_sink)
 
 
-		self.set_rate(int(cdr['channel_bandwidth']))
-		self.configure_blocks(cdr['modulation_type'])
-		if cdr['modulation_type'] == 'p25_tdma' or cdr['modulation_type'] == 'p25_cqpsk_tdma' :
+		self.set_rate(int(self.cdr['channel_bandwidth']))
+		self.configure_blocks(self.cdr['modulation_type'])
+		if self.cdr['modulation_type'] == 'p25_tdma' or self.cdr['modulation_type'] == 'p25_cqpsk_tdma' :
 			try:
-				self.set_p25_xor_chars(p25p2_lfsr(0x841,int(cdr['p25_system_id'],0),int(cdr['p25_wacn'],0)).xor_chars)
+				self.set_p25_xor_chars(p25p2_lfsr(0x841,int(self.cdr['p25_system_id'],0),int(self.cdr['p25_wacn'],0)).xor_chars)
 			except:
 				pass
-			self.set_p25_tdma_slot(cdr['slot'])
+			self.set_p25_tdma_slot(self.cdr['slot'])
 
 		p25_sensor = threading.Thread(target=self.p25_sensor, name='p25_sensor', args=(self,))
                 p25_sensor.daemon = True

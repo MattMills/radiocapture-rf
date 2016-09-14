@@ -187,6 +187,8 @@ class call_recorder():
 							self.call_table[cdr['instance_uuid']] = {}
 						self.log.info('DEBUG: logging_receiver() pre')
 						self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver(cdr, self.client_activemq)
+						thread = threading.Thread(target=self.call_table[cdr['instance_uuid']][cdr['call_uuid']].run)
+						thread.start()
 						self.log.info('DEBUG: logging_receiver() post')
 					elif action == 'timeout':
 						self.log.info('Call Timeout received %s %s' % (cdr['instance_uuid'], cdr['call_uuid']))
