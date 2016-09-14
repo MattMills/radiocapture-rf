@@ -153,6 +153,39 @@ class p25_call_manager():
 		except:
 			return False
 
+	def close_call(self, instance_uuid, call_uuid):
+		system_uuid = self.get_system_from_instance(instance_uuid)
+		sct = self.system_metadata[system_uuid]['call_table']
+                ict = self.instance_metadata[instance_uuid]['call_table']
+
+		if call_uuid not in ict:
+			return #Cant close a call thats not open
+		
+        	self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
+                print '%s CLOSE: %s' % (time.time(), ict[call_uuid])
+                del ict[call_uuid]
+                del sct[call_uuid]['instances'][instance_uuid]
+                if len(sct[call_uuid]['instances']) == 0:
+                	del sct[call_uuid]
+	def call_continuation(self, instance_uuid, channel, group_address):
+                channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
+
+                if channel_frequency == False:
+                        return False
+
+                system_uuid = self.get_system_from_instance(instance_uuid)
+                if system_uuid == False:
+                        return False
+
+                sct = self.system_metadata[system_uuid]['call_table']
+                ict = self.instance_metadata[instance_uuid]['call_table']
+
+                closed_calls = []
+
+                for call in ict:
+                        if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address:
+                                ict[call]['time_activity'] = time.time()
+                                return True
 	def call_user_to_group(self, instance_uuid, channel, group_address, user_address=0):
 		channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
 
@@ -180,14 +213,8 @@ class p25_call_manager():
 				#different user on same group, and neither new or old user = 0, kill existing
 				closed_calls.append(call)
 
-		pass
 		for call_uuid in closed_calls:
-			self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
-			print '%s CLOSE: %s' % (time.time(), ict[call_uuid])
-	                del ict[call_uuid]
-                        del sct[call_uuid]['instances'][instance_uuid]
-                        if len(sct[call_uuid]['instances']) == 0:
-        	                del sct[call_uuid]					
+			self.close_call(instance_uuid, call_uuid)
 			
 		#Not a continuation, new call
 		call_uuid = None
@@ -211,6 +238,11 @@ class p25_call_manager():
 			modulation_type = 'p25_cqpsk_tdma'
 		else:
 			modulation_type = 'ERROR %s %s' % (modulation, instance['system_modulation'])
+
+		patches = []
+
+		#for x in self.instance_metadata[instance_uuid]:
+		#	if self.instance_metadata[instance_uuid][x]
 			
 		cdr = {
 			'call_uuid': call_uuid,
@@ -229,7 +261,8 @@ class p25_call_manager():
 			'time_open': time.time(),
 			'time_activity': time.time(),
 			'p25_wacn': instance['site_detail']['WACN ID'],
-			'p25_system_id': instance['site_detail']['System ID']
+			'p25_system_id': instance['site_detail']['System ID'],
+			
                         }
 	
 
@@ -248,6 +281,7 @@ class p25_call_manager():
 		self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']))
 
 	def publish_loop(self):
+		self.subscribe('/topic/raw_voice')
 		self.log.info('publish_loop() startup')
 		while self.continue_running:
 			for instance in self.instance_metadata:
@@ -280,8 +314,16 @@ class p25_call_manager():
 					if not self.client.canRead(0.1):
 						continue
 		        		frame = self.client.receiveFrame()
-				        t = json.loads(frame.body)
-					instance_uuid = frame.headers['destination'].replace('/topic/raw_control/', '')
+					try:
+					        t = json.loads(frame.body)
+					except: 
+						print 'JSON FAILURE: %s' % frame.body
+					if 'instance_uuid' in t.keys():
+						instance_uuid = t['instance_uuid']
+						packet_type = 'voice'
+					else:
+						instance_uuid = frame.headers['destination'].replace('/topic/raw_control/', '')
+						packet_type = 'control'
 					instance = self.redis_demod_manager.demods[instance_uuid]
 					system_uuid = self.get_system_from_instance(instance_uuid)
 
@@ -293,58 +335,97 @@ class p25_call_manager():
 
 					if 'crc' in t and t['crc'] != 0:
 						continue #Don't bother trying to work with bad data
-						
-                                        if t['name'] == 'IDEN_UP_VU' and t['crc'] == 0:
+					if packet_type == 'control':
+	                                        if t['name'] == 'IDEN_UP_VU' and t['crc'] == 0:
+							try:
+		                                               self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
+	                                                        'BW': t['BW VU'],
+	                                                        'Base Frequency': t['Base Frequency'],
+	                                                        'Channel Spacing': t['Channel Spacing'],
+	                                                        'Transmit Offset': t['Transmit Offset VU'],
+	                                                        'Type': 'FDMA',
+	                                                        'Slots': 1,
+	                                                        }
+							except:
+								pass
+						elif t['name'] == 'IDEN_UP' and t['crc'] == 0:
+							try:
+		                                               self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
+	                                                        'BW': t['BW'],
+	                                                        'Base Frequency': t['Base Frequency'],
+	                                                        'Channel Spacing': t['Channel Spacing'],
+	                                                        'Transmit Offset': t['Transmit Offset'],
+	                                                        'Type': 'FDMA',
+	                                                        'Slots': 1,
+	                                                        }
+							except:
+								pass
+						elif t['name'] == 'IDEN_UP_TDMA' and t['crc'] == 0:
+							try:
+		                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
+	                                                        'BW': t['BW'],
+	                                                        'Base Frequency': t['Base Frequency'],
+	                                                        'Channel Spacing': t['Channel Spacing'],
+	                                                        'Transmit Offset': t['Transmit Offset TDMA'],
+	                                                        'Type': t['Access Type'],
+	                                                        'Slots': t['Slots'],
+	                                                        }
+							except:
+								pass
+						elif t['name'] == 'GRP_V_CH_GRANT' :
+							self.log.debug('GRP_V_CH_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Group Address'], t['Source Address']))
+							self.call_user_to_group(instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
+						elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT':
+							self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address']))
+							self.call_user_to_group(instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
+						elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
+							self.log.debug('GRP_V_CH_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Group Address 0'], t['Channel 1'], t['Group Address 1']))
+							self.call_continuation(instance_uuid, t['Channel 0'], t['Group Address 0'])
+							self.call_continuation(instance_uuid, t['Channel 1'], t['Group Address 1'])
+						elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
+							self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Super Group 0'], t['Channel 1'], t['Super Group 1']))
+	                                                self.call_continuation(instance_uuid, t['Channel 0'], t['Super Group 0'])
+	                                                self.call_continuation(instance_uuid, t['Channel 1'], t['Super Group 1'])
+						elif t['name'] == 'MOT_PAT_GRP_ADD_CMD':
+							for group in [t['Group 1'], t['Group 2'], t['Group 3']]:
+								pass
+								#if(t['Super Group'] in self.patches):
+				                                #        self.instance_metadata[instance_uuid]['patches'][t['Super Group']][group] = time()
+				                                #else:
+				                                #        self.instance_metadata[instance_uuid]['patches'][t['Super Group']] = {group: time()}
+						elif t['name'] == 'MOT_PAT_GRP_DEL_CMD':
+							#not sure if this is right, but it looks like all 4 groups are the "super" group, so I'll iterate all and teardown any patches in that supergroup
+							for group in [t['Super Group'], t['Group 1'], t['Group 2'], t['Group 3']]:
+								if(group in self.patches):
+									for subgroup in self.patches[group]:
+										pass
+										#do nothing, not sure the timing works out on this, in example dump there is voice activity 1s before deletion
+										#since we take 0.5-3s to timeout a voice call, lets just let the timeout handle patch deletion.
+										#self.patches[group][subgroup] = time()-(self.patch_timeout*2) #time immedietly?
+					elif packet_type == 'voice':
 						try:
-	                                               self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
-                                                        'BW': t['BW VU'],
-                                                        'Base Frequency': t['Base Frequency'],
-                                                        'Channel Spacing': t['Channel Spacing'],
-                                                        'Transmit Offset': t['Transmit Offset VU'],
-                                                        'Type': 'FDMA',
-                                                        'Slots': 1,
-                                                        }
-						except:
+							if t['packet']['short'] == 'TLC' and t['packet']['lc']['lcf_long'] == 'Call Termination / Cancellation':
+								print 'closing %s due to tlc' % t
+								
+								self.close_call(t['instance_uuid'], t['call_uuid'])
+							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel User':
+								try:
+									channel = self.instance_metadata[t['instance_uuid']]['call_table'][t['call_uuid']]['system_channel_local']
+								except:
+									channel = -1
+								
+								if self.instance_metadata[instance_uuid]['call_table'][t['call_uuid']]['system_user_local'] == 0 and t['packet']['lc']['source_id'] != 0:
+									self.instance_metadata[instance_uuid]['call_table'][t['call_uuid']]['system_user_local'] = t['packet']['lc']['source_id']
+
+								print 'call_user_to_group %s %s %s %s' % (instance_uuid, channel, t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
+								if channel != -1:
+									self.call_user_to_group(instance_uuid, channel,t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
+							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel Update':
+								print 'group voice channel update %s %s %s %s' % (t['packet']['lc']['channel_a'], t['packet']['lc']['channel_a_group'], t['packet']['lc']['channel_b'], t['packet']['lc']['channel_b_group'])
+								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_a'] ,t['packet']['lc']['channel_a_group'], 0)
+								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_b'] ,t['packet']['lc']['channel_b_group'], 0)
+						except KeyError:
 							pass
-					elif t['name'] == 'IDEN_UP' and t['crc'] == 0:
-						try:
-	                                               self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
-                                                        'BW': t['BW'],
-                                                        'Base Frequency': t['Base Frequency'],
-                                                        'Channel Spacing': t['Channel Spacing'],
-                                                        'Transmit Offset': t['Transmit Offset'],
-                                                        'Type': 'FDMA',
-                                                        'Slots': 1,
-                                                        }
-						except:
-							pass
-					elif t['name'] == 'IDEN_UP_TDMA' and t['crc'] == 0:
-						try:
-	                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
-                                                        'BW': t['BW'],
-                                                        'Base Frequency': t['Base Frequency'],
-                                                        'Channel Spacing': t['Channel Spacing'],
-                                                        'Transmit Offset': t['Transmit Offset TDMA'],
-                                                        'Type': t['Access Type'],
-                                                        'Slots': t['Slots'],
-                                                        }
-						except:
-							pass
-					elif t['name'] == 'GRP_V_CH_GRANT' :
-						self.log.debug('GRP_V_CH_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Group Address'], t['Source Address']))
-						self.call_user_to_group(instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
-					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT':
-						self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address']))
-						self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Super Group'], t['Source Address']))
-						#self.call_user_to_group(instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
-					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
-						self.log.debug('GRP_V_CH_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Group Address 0'], t['Channel 1'], t['Group Address 1']))
-						self.call_user_to_group(instance_uuid, t['Channel 0'], t['Group Address 0'])
-						self.call_user_to_group(instance_uuid, t['Channel 1'], t['Group Address 1'])
-					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
-						self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Super Group 0'], t['Channel 1'], t['Super Group 1']))
-                                                #self.call_user_to_group(instance_uuid, t['Channel 0'], t['Super Group 0'])
-                                                #self.call_user_to_group(instance_uuid, t['Channel 1'], t['Super Group 1'])
 
 				        self.client.ack(frame)
 				except Exception as e:

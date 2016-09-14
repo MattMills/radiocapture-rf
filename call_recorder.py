@@ -15,6 +15,7 @@ import math
 import logging
 
 from logging_receiver import logging_receiver
+from client_activemq import client_activemq
 
 class call_recorder():
         def __init__(self, host=None, port=None):
@@ -36,6 +37,8 @@ class call_recorder():
 		self.outbound_msg_queue = []
 	
 		self.call_table = {}
+
+		self.client_activemq = client_activemq()
 
 
                 connection_handler = threading.Thread(target=self.connection_handler)
@@ -178,14 +181,16 @@ class call_recorder():
 					if action == 'new_call':
 						if time.time()-cdr['time_open'] > 5:
 							self.client.ack(frame)
+							print 'ignored stale call'
 							continue
 						if cdr['instance_uuid'] not in self.call_table:
 							self.call_table[cdr['instance_uuid']] = {}
 
-						self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver(cdr)
+						self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver(cdr, self.client_activemq)
 					elif action == 'timeout':
 						try:
-							self.call_table[cdr['instance_uuid']][cdr['call_uuid']].close({}, self.send_event_hopeful)
+							thread = threading.Thread(target=self.call_table[cdr['instance_uuid']][cdr['call_uuid']].close, args=({}, self.send_event_hopeful))
+							thread.start()
 							del self.call_table[cdr['instance_uuid']][cdr['call_uuid']]
 						except KeyError as e:
 							pass

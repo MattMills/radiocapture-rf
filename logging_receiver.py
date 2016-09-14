@@ -28,7 +28,7 @@ from frontend_connector import frontend_connector
 from client_activemq import client_activemq
 
 class logging_receiver(gr.top_block):
-	def __init__(self, cdr):
+	def __init__(self, cdr, client_activemq):
 		self.audio_capture = True;
 
 		gr.top_block.__init__(self, "logging_receiver")
@@ -41,6 +41,7 @@ class logging_receiver(gr.top_block):
 		self.filepath = "/dev/null"
 		self.channel_rate = 0
 		self.input_rate = 0
+		self.client_activemq = client_activemq
 	
 		#optionall log dat files
 		self.log_dat = False
@@ -86,7 +87,6 @@ class logging_receiver(gr.top_block):
                 p25_sensor.daemon = True
                 p25_sensor.start()
 
-		#self.client_activemq = client_activemq()
 
 		self.open()
 		self.start()	
@@ -398,7 +398,7 @@ class logging_receiver(gr.top_block):
 					'instance_uuid': self.cdr['instance_uuid'],
 					'call_uuid': self.cdr['call_uuid'],
 					}
-				#self.client_activemq.send_event_lazy('/topic/raw_voice', body)
+				self.client_activemq.send_event_lazy('/topic/raw_voice', body, False)
 
 
         def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):
@@ -437,6 +437,7 @@ class logging_receiver(gr.top_block):
 			return filename
 
 	def close(self, patches, send_event_func=False, emergency=False):
+		time.sleep(0.5)
 		if(not self.in_use): return False
 		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 
@@ -489,7 +490,6 @@ class logging_receiver(gr.top_block):
 			self.configure_blocks(proto)
 
 	def open(self):
-		print '%s' % self.cdr
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
 		try:
 			self.decodequeue.flush()
@@ -499,7 +499,7 @@ class logging_receiver(gr.top_block):
 		self.uuid = self.cdr['uuid'] = str(uuid.uuid4())
 
 
-		#print "(%s) %s %s" %(time.time(), "Open ", str(self.cdr))
+		print "(%s) %s %s" %(time.time(), "Open ", str(self.cdr))
 		now = datetime.datetime.utcnow()
 
 		if(self.cdr['type'] == 'group'):
@@ -590,18 +590,94 @@ class logging_receiver(gr.top_block):
 
 		return r
         def subprocLC(self, bitframe):
-                bitframe = self.rs_24_12_13_decode(bitframe)
+		bitframe = self.rs_24_12_13_decode(bitframe)
                 r = {'short': 'LC', 'long': 'Link Control'}
-                r['lcf'] = int(bitframe[:8],2)
-                r['mfid'] = int(bitframe[8:16],2)
+                r['p'] = int(bitframe[0:1], 2)
+                r['sf'] = int(bitframe[1:2], 2)
+                r['lcf'] = int(bitframe[2:8],2)
 
-                if(r['lcf'] == 0x0): #Group Voice Channel User (LCGVR)
+		if r['p'] == 1:
+			return r
+		if r['sf'] == 0:
+			r['mfid'] = int(bitframe[8:16], 2)
+			bitframe = bitframe[16:]
+		else:
+			r['mfid'] = 0
+			bitframe = bitframe[8:]
+
+		if r['mfid'] != 0:
+			r['data'] = bitframe
+			return r
+
+                if(r['lcf'] == 0): #Group Voice Channel User (LCGVR)
                         r['lcf_long'] = 'Group Voice Channel User'
-                        r['emergency'] = bitframe[16:17]
-                        r['reserved'] = bitframe[17:32]
-                        r['tgid'] = int(bitframe[32:48],2)
-                        r['source_id'] = int(bitframe[48:72],2)
+                        r['service options'] = int(bitframe[0:8],2)
+			r['reserved'] = bitframe[8:15]
+			r['explicit'] = int(bitframe[15:16],2)
+                        r['tgid'] = int(bitframe[16:32],2)
+                        r['source_id'] = int(bitframe[32:56],2)
                         #print 'GV %s %s' %(r['tgid'], r['source_id'])
+		elif r['lcf'] == 2:
+			r['lcf_long'] = 'Group Voice Channel Update'
+			r['channel_a'] = int(bitframe[0:16],2)
+			r['channel_a_group'] = int(bitframe[16:32], 2)
+			r['channel_b'] = int(bitframe[32:48], 2)
+			r['channel_b_group'] = int(bitframe[48:64], 2)
+		elif r['lcf'] == 3:
+			r['lcf_long'] = 'Unit to Unit Voice Channel User'
+			r['service options'] = int(bitframe[0:8],2)
+			r['source_address'] = int(bitframe[8:32],2)
+			r['target_address'] = int(bitframe[32:56],2)
+		elif r['lcf'] == 4:
+			r['lcf_long'] = 'Group Voice Channel Update - Explicit'
+			r['reserved'] = bitframe[0:8]
+			r['service_options'] = int(bitframe[8:16],2)
+			r['group_address'] = int(bitframe[16:32],2)
+			r['channel_transmit'] = int(bitframe[32:48],2)
+			r['chanenl_receive'] = int(bitframe[48:64], 2)
+		elif r['lcf'] == 5:
+			r['lcf_long'] = 'Unit to Unit Answer Request'
+			r['service options'] = int(bitframe[0:8],2)
+                        r['reserved'] = bitframe[8:15]
+                        r['explicit'] = int(bitframe[15:16],2)
+			r['target_address'] = int(bitframe[16:40],2)
+			r['source_address'] = int(bitframe[40:64],2)
+		elif r['lcf'] == 6:
+			r['lcf_long'] = 'Telephone Interconnect Voice Channel User'
+			r['reserved'] = bitframe[0:8]
+			r['service options'] = int(bitframe[8:16],2)
+			r['reserved2'] = bitframe[16:24]
+			r['call_timer'] = int(bitframe[24:40], 2)
+			r['target_adddress'] = int(bitframe[40:64],2)
+		elif r['lcf'] == 7:
+			r['lcf_long'] = 'Telephone Interconnect Answer Request'
+			r['digit_1'] = int(bitframe[8:12],2)
+			r['digit_2'] = int(bitframe[12:16],2)
+			r['digit_3'] = int(bitframe[16:20],2)
+			r['digit_4'] = int(bitframe[20:24],2)
+			r['digit_5'] = int(bitframe[24:28],2)
+			r['digit_6'] = int(bitframe[28:32],2)
+			r['digit_7'] = int(bitframe[32:36],2)
+			r['digit_8'] = int(bitframe[36:40],2)
+			r['digit_9'] = int(bitframe[40:44],2)
+			r['digit_10'] = int(bitframe[44:48],2)
+			r['target_address'] = int(bitframe[48:64], 2)
+                elif(r['lcf'] == 15): #Call Termination / Cancellation
+                        r['lcf_long'] = 'Call Termination / Cancellation'
+			r['reserved'] = bitframe[0:40]
+			r['target_address'] = int(bitframe[40:64], 2)
+		elif r['lcf'] == 16:
+			r['lcf_long'] = 'Group Affiliation Query'
+			r['reserved'] = bitframe[0:16]
+			r['target_address'] = int(bitframe[16:40], 2)
+			r['source_address'] = int(bitframe[40:64], 2)
+		elif r['lcf'] == 17:
+			r['lcf_long'] = 'Unit Registration Command'
+			r['network_id'] = int(bitframe[0:12], 2)
+			r['system_id'] = int(bitframe[12:24], 2)
+			r['target_id'] = int(bitframe[24:48], 2)
+			r['reserved'] = bitframe[48:64]
+		
                 return r
         # fake (24,12,8) extended Golay decoder, no error correction
         # TODO: make less fake

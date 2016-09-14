@@ -107,17 +107,22 @@ class client_activemq():
 			self.log.error('%s' % e)
                         self.connection_issue = True
 
-        def send_event_lazy(self, destination, body):
+        def send_event_lazy(self, destination, body, persistent = True):
                 #If it gets there, then great, if not, well we tried!
                 if(self.connection_issue == True):
                         return None
 
                 try:
-                        self.client.send(destination, json.dumps(body))
+			if persistent == True:
+				persist = 'true'
+			else:
+				persist = 'false'
+
+                        self.client.send(destination, json.dumps(body), {'persistent': persist} )
                 except:
                         self.connection_issue = True
 
-	def send_event_hopeful(self, destination, body):
+	def send_event_hopeful(self, destination, body, persist):
 		self.outbound_msg_queue.append({'destination': destination, 'body': body})
 
 	def send_event_hopeful_thread(self):

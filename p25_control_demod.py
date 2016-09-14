@@ -345,7 +345,9 @@ class p25_control_demod (gr.top_block):
 	def subprocLC(self, bitframe):
 		bitframe = self.rs_24_12_13_decode(bitframe)
 		r = {'short': 'LC', 'long': 'Link Control'}
-		r['lcf'] = int(bitframe[:8],2)
+		r['p'] = int(bitframe[0:1], 2)
+		r['p'] = int(bitframe[1:2], 2)
+		r['lcf'] = int(bitframe[2:8],2)
                 r['mfid'] = int(bitframe[8:16],2)
 
 		if(r['lcf'] == 0x0): #Group Voice Channel User (LCGVR)
@@ -355,6 +357,9 @@ class p25_control_demod (gr.top_block):
 			r['tgid'] = int(bitframe[32:48],2)
 			r['source_id'] = int(bitframe[48:72],2)
 			#print 'GV %s %s' %(r['tgid'], r['source_id'])
+		elif(r['lcf'] == 0x15):	#Call Termination / Cancellation
+			r['lcf_long'] = 'Call Termination / Cancellation'
+			
 		return r
 	def procStatus(self, bitframe):
 		r = []
@@ -818,7 +823,7 @@ class demod_watcher(threading.Thread):
 		if(self.tb.is_locked):
 			#print 'Probe: %s' % self.tb.probe.level()
 			offset = self.tb.probe.level()
-			#self.tb.connector.report_offset(offset)
+			self.tb.connector.report_offset(offset)
 		sleep(0.05)
 
 
