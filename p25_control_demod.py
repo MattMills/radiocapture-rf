@@ -823,7 +823,7 @@ class demod_watcher(threading.Thread):
 		if(self.tb.is_locked):
 			#print 'Probe: %s' % self.tb.probe.level()
 			offset = self.tb.probe.level()
-			self.tb.connector.report_offset(offset)
+			#self.tb.connector.report_offset(offset)
 		sleep(0.05)
 
 
