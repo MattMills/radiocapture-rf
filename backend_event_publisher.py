@@ -56,7 +56,7 @@ class backend_event_publisher():
 			return None
 
 		try:
-			self.client.send(destination, json.dumps(body))
+			self.client.send(destination, json.dumps(body), {'persistent': 'false'})
 		except:
 			self.connection_issue = True
 
