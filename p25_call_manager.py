@@ -14,9 +14,10 @@ import signal
 import math
 import logging
 from redis_demod_manager import redis_demod_manager
+from client_activemq import client_activemq
 
 class p25_call_manager():
-        def __init__(self, host=None, port=None):
+        def __init__(self):
                 self.log = logging.getLogger('overseer.p25_call_manager')
                 self.log.info('Initializing p25_call_manager')
 		self.demod_type = 'p25'
@@ -24,111 +25,28 @@ class p25_call_manager():
 		self.redis_demod_manager = redis_demod_manager(self)
 
 
-                if(host != None):
-                        self.host = host
-                else:
-                        self.host = '127.0.0.1' #manually set here until there is a better place
-                if(port != None):
-                        self.port = port
-                else:
-                        self.port = 61613 #manually set here until there is a better place
-
-                self.client = None
-                self.connection_issue = True
-		self.continue_running = True
-		self.subscriptions = {}
-
-
 		self.hang_time = 5
 		self.instance_metadata = {}
 		self.system_metadata = {}
-		
+		self.continue_running = True
 
-                connection_handler = threading.Thread(target=self.connection_handler)
-                connection_handler.daemon = True
-                connection_handler.start()
+		self.amq_clients = {}
+		self.amq_clients['raw_voice'] = client_activemq()
+		self.amq_clients['raw_voice'].subscribe('/topic/raw_voice', self, self.process_raw_control.im_func)
 
-		#time.sleep(0.25)
-		publish_loop = threading.Thread(target=self.publish_loop)
-		publish_loop.daemon = True
-		publish_loop.start()
-
-        def init_connection(self):
-                self.log.info('init_connection() (activemq) to tcp://%s/:%s' % (self.host, self.port))
-                if(self.client != None and self.client.session.state == 'connected'):
-                        try:
-                                self.client.disconnect()
-                        except:
-                                pass
-
-                config = StompConfig('tcp://%s:%s' % (self.host, self.port), version=StompSpec.VERSION_1_1, check=True)
-                self.client = Stomp(config)
-                self.client.connect(heartBeats=(30000, 0), connectTimeout=1, connectedTimeout=1)
-
-        def connection_handler(self):
-                self.log.info('connection_handler() startup')
-                #This func will just try to reconnect repeatedly in a thread if we're flagged as having an issue.
-                while(True):
-                        if(self.connection_issue == True):
-                                try:
-                                        self.init_connection()
-                                        self.connection_issue = False
-					for subscription in self.subscriptions:
-						self.subscribe(subscription, resub=True)
-						
-                                except:
-                                        pass
-                        time.sleep(1)
-	def subscribe(self, queue, resub=False):
-		#This needs to exist so we can keep track of what subs we have and re-sub on reconnect
-		if queue in self.subscriptions and not resub:
-			return True #we're already subscribed
-
-		this_uuid = '%s' % uuid.uuid4()
-
-		if(self.connection_issue == True):
-			self.subscriptions[queue] = this_uuid
-                        return None	
-	
-		try:
-			self.subscriptions[queue] = this_uuid
-			self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, })
-		except Exception as e:
-			self.log.fatal('%s' % e)
-			self.connection_issue = True
-
-
-	def unsubscribe(self, queue):
-		if queue not in self.subscriptions:
-                        return False #cant unsubscribe, we're not subscribed
-
-                if(self.connection_issue == True):
-                        return None
-
-                try:
-                        self.client.unsubscribe(self.subscriptions[queue], {StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL})
-			del self.subscriptions[queue]
-                except Exception as e:
-			self.log.fatal('%s' % e)
-                        self.connection_issue = True
-
-        def send_event_lazy(self, destination, body):
-                #If it gets there, then great, if not, well we tried!
-                if(self.connection_issue == True):
-                        return None
-
-                try:
-                        self.client.send(destination, json.dumps(body))
-                except:
-                        self.connection_issue = True
+		periodic_timeout_thread = threading.Thread(target=self.periodic_timeout_thread)
+		periodic_timeout_thread.daemon = True
+                periodic_timeout_thread.start()
 
 	def notify_demod_new(self, demod_instance_uuid):
 		self.log.info('Notified of new demod %s' % (demod_instance_uuid))
-		self.subscribe('/topic/raw_control/%s' % (demod_instance_uuid))
+		self.amq_clients[demod_instance_uuid] = client_activemq()
+		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func)
 
 	def notify_demod_expire(self, demod_instance_uuid):
 		self.log.info('Notified of expired demod %s' % (demod_instance_uuid))
-		self.unsubscribe('/topic/raw_control/%s' % (demod_instance_uuid))
+		if demod_instance_uuid in self.amq_clients:
+			self.amq_clients[demod_instance_uuid].unsubscribe('/topic/raw_control/%s' % (demod_instance_uuid))
 
 	def get_channel_detail(self, instance, channel):
                 chan_ident = (channel & 0xf000)>>12
@@ -161,7 +79,7 @@ class p25_call_manager():
 		if call_uuid not in ict:
 			return #Cant close a call thats not open
 		
-        	self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
+        	self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
                 self.log.info('Closing call due to close_call(): %s %s' % (instance_uuid, call_uuid))
                 del ict[call_uuid]
                 del sct[call_uuid]['instances'][instance_uuid]
@@ -276,14 +194,13 @@ class p25_call_manager():
 		
 
 		#event call open to record subsys
-		self.send_event_lazy('/queue/call_management/new_call', cdr)
+		self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/new_call', cdr)
 		self.redis_demod_manager.publish_call_table(instance_uuid, ict)
 		self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']))
 
-	def publish_loop(self):
-		self.subscribe('/topic/raw_voice')
-		self.log.info('publish_loop() startup')
+	def periodic_timeout_thread(self):
 		while self.continue_running:
+			time.sleep(0.1)
 			for instance in self.instance_metadata:
 				ict = self.instance_metadata[instance]['call_table']
 				system_uuid = self.get_system_from_instance(instance)
@@ -296,7 +213,7 @@ class p25_call_manager():
 					if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
 						closed_calls.append(call_uuid)
 						#event call close to record subsys on call specific queue
-						self.send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
+						self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
 
 						self.log.info('%s CLOSE: %s' % (time.time(), ict[call_uuid]))
 				for call_uuid in closed_calls:
@@ -307,22 +224,13 @@ class p25_call_manager():
 				if len(closed_calls) > 0:
 					self.redis_demod_manager.publish_call_table(instance, ict)
 					
-
-
-			if self.connection_issue == False:
+	def process_raw_control(self, t, headers):
 				try:
-					if not self.client.canRead(0.1):
-						continue
-		        		frame = self.client.receiveFrame()
-					try:
-					        t = json.loads(frame.body)
-					except: 
-						self.log.critical('JSON FAILURE: %s' % frame.body)
 					if 'instance_uuid' in t.keys():
 						instance_uuid = t['instance_uuid']
 						packet_type = 'voice'
 					else:
-						instance_uuid = frame.headers['destination'].replace('/topic/raw_control/', '')
+						instance_uuid = headers['destination'].replace('/topic/raw_control/', '')
 						packet_type = 'control'
 					instance = self.redis_demod_manager.demods[instance_uuid]
 					system_uuid = self.get_system_from_instance(instance_uuid)
@@ -334,7 +242,7 @@ class p25_call_manager():
 						self.system_metadata[system_uuid] = {'call_table': {}}
 
 					if 'crc' in t and t['crc'] != 0:
-						continue #Don't bother trying to work with bad data
+						return #Don't bother trying to work with bad data
 					if packet_type == 'control':
 	                                        if t['name'] == 'IDEN_UP_VU' and t['crc'] == 0:
 							try:
@@ -428,8 +336,8 @@ class p25_call_manager():
 						except KeyError:
 							pass
 
-				        self.client.ack(frame)
 				except Exception as e:
+					raise
 					self.log.fatal('except: %s' % e)
 					self.connection_issue = True
 

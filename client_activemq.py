@@ -28,6 +28,7 @@ class client_activemq():
 		self.continue_running = True
 		self.subscriptions = {}
 		self.outbound_msg_queue = []
+
 	
 
                 connection_handler = threading.Thread(target=self.connection_handler)
@@ -63,7 +64,7 @@ class client_activemq():
                                         self.init_connection()
                                         self.connection_issue = False
 					for subscription in self.subscriptions:
-						self.subscribe(subscription, self.subscriptions[subscription]['callback'], resub=True)
+						self.subscribe(subscription, self.subscriptions[subscription]['callback_class'], self.subscriptions[subscription]['callback'], resub=True)
 						
                                 except:
                                         pass
@@ -73,18 +74,18 @@ class client_activemq():
 				except:
 					pass
                         time.sleep(1)
-	def subscribe(self, queue, callback, resub=False):
+	def subscribe(self, queue, callback_class, callback, resub=False):
 		#This needs to exist so we can keep track of what subs we have and re-sub on reconnect
 		if queue in self.subscriptions and not resub:
 			return True #we're already subscribed
 
 		this_uuid = '%s' % uuid.uuid4()
 		if(self.connection_issue == True):
-			self.subscriptions[queue] = {'uuid': this_uuid, 'callback': callback}
+			self.subscriptions[queue] = {'uuid': this_uuid, 'callback': callback, 'callback_class': callback_class}
                         return None	
 	
 		try:
-			self.subscriptions[queue] = {'uuid': this_uuid, 'callback': callback}
+			self.subscriptions[queue] = {'uuid': this_uuid, 'callback': callback, 'callback_class': callback_class}
 			self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, })
 		except Exception as e:
 			self.log.fatal('%s' % e)
@@ -153,12 +154,14 @@ class client_activemq():
 					        data = json.loads(frame.body)
 						queue = frame.headers['destination']
 
-						self.subscriptions[queue]['callback'](data)
+						self.subscriptions[queue]['callback'](self.subscriptions[queue]['callback_class'], data, frame.headers)
 					        self.client.ack(frame)
 					except Exception as e:
+						raise
 						print '%s' % e
 						self.client.nack(frame)
 				except Exception as e:
+					raise
 					self.log.fatal('except: %s' % e)
 					self.connection_issue = True
 
