@@ -212,6 +212,7 @@ class p25_call_manager():
 	def periodic_timeout_thread(self):
 		while self.continue_running:
 			time.sleep(0.1)
+			self.lock.acquire()
 			for instance in self.instance_metadata:
 				ict = self.instance_metadata[instance]['call_table']
 				system_uuid = self.get_system_from_instance(instance)
@@ -220,7 +221,6 @@ class p25_call_manager():
 				sct = self.system_metadata[system_uuid]['call_table']
 
 				closed_calls = []
-				self.lock.acquire()
 				for call_uuid in ict:
 					if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
 						closed_calls.append(call_uuid)
@@ -228,16 +228,14 @@ class p25_call_manager():
 						self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
 
 						self.log.info('%s CLOSE: %s' % (time.time(), ict[call_uuid]))
-				self.lock.release()
 				for call_uuid in closed_calls:
-					self.lock.acquire()
 					del ict[call_uuid]
 					del sct[call_uuid]['instances'][instance]
 					if len(sct[call_uuid]['instances']) == 0:
 						del sct[call_uuid]
-					self.lock.release()
 				if len(closed_calls) > 0:
 					self.redis_demod_manager.publish_call_table(instance, ict)
+			self.lock.release()
 					
 	def process_raw_control(self, t, headers):
 				try:
