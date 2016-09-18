@@ -19,7 +19,7 @@ from client_activemq import client_activemq
 class p25_call_manager():
         def __init__(self):
                 self.log = logging.getLogger('overseer.p25_call_manager')
-                self.log.info('Initializing p25_call_manager')
+                self.log.debug('Initializing p25_call_manager')
 		self.demod_type = 'p25'
 
 		self.redis_demod_manager = redis_demod_manager(self)
@@ -40,12 +40,12 @@ class p25_call_manager():
                 periodic_timeout_thread.start()
 
 	def notify_demod_new(self, demod_instance_uuid):
-		self.log.info('Notified of new demod %s' % (demod_instance_uuid))
+		self.log.debug('Notified of new demod %s' % (demod_instance_uuid))
 		self.amq_clients[demod_instance_uuid] = client_activemq()
 		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False, 'packet_type = \'GRP_V_CH_GRANT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT\' or packet_type = \'GRP_V_CH_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_ADD_CMD\' or packet_type = \'MOT_PAT_GRP_DEL_CMD\' or packet_type = \'IDEN_UP\' or packet_type = \'IDEN_UP_VU\' or packet_type = \'IDEN_UP_TDMA\'')
 
 	def notify_demod_expire(self, demod_instance_uuid):
-		self.log.info('Notified of expired demod %s' % (demod_instance_uuid))
+		self.log.debug('Notified of expired demod %s' % (demod_instance_uuid))
 		if demod_instance_uuid in self.amq_clients:
 			self.amq_clients[demod_instance_uuid].unsubscribe('/topic/raw_control/%s' % (demod_instance_uuid))
 
@@ -228,7 +228,7 @@ class p25_call_manager():
 						#event call close to record subsys on call specific queue
 						self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
 
-						self.log.info('%s CLOSE: %s' % (time.time(), ict[call_uuid]))
+						self.log.info('CLOSE: %s' % (ict[call_uuid]))
 				for call_uuid in closed_calls:
 					del ict[call_uuid]
 					del sct[call_uuid]['instances'][instance]
@@ -348,12 +348,12 @@ class p25_call_manager():
 								if self.instance_metadata[instance_uuid]['call_table'][t['call_uuid']]['system_user_local'] == 0 and t['packet']['lc']['source_id'] != 0:
 									self.instance_metadata[instance_uuid]['call_table'][t['call_uuid']]['system_user_local'] = t['packet']['lc']['source_id']
 
-								self.log.info('call_user_to_group %s %s %s %s' % (instance_uuid, channel, t['packet']['lc']['tgid'], t['packet']['lc']['source_id']))
+								self.log.debug('call_user_to_group %s %s %s %s' % (instance_uuid, channel, t['packet']['lc']['tgid'], t['packet']['lc']['source_id']))
 								if channel != -1:
 									self.call_continuation(instance_uuid, channel, t['packet']['lc']['tgid'])
 									#self.call_user_to_group(instance_uuid, channel,t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
 							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel Update':
-								self.log.info('group voice channel update %s %s %s %s' % (t['packet']['lc']['channel_a'], t['packet']['lc']['channel_a_group'], t['packet']['lc']['channel_b'], t['packet']['lc']['channel_b_group']))
+								self.log.debug('group voice channel update %s %s %s %s' % (t['packet']['lc']['channel_a'], t['packet']['lc']['channel_a_group'], t['packet']['lc']['channel_b'], t['packet']['lc']['channel_b_group']))
 								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_a'] ,t['packet']['lc']['channel_a_group'], 0)
 								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_b'] ,t['packet']['lc']['channel_b_group'], 0)
 						except KeyError:

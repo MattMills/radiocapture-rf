@@ -181,7 +181,7 @@ class call_recorder():
 					if action == 'new_call':
 						if time.time()-cdr['time_open'] > 5:
 							self.client.ack(frame)
-							self.log.info('ignored stale call %s' % cdr['call_uuid'])
+							self.log.info('ignored stale call %s %s'  % (cdr['instance_uuid'], cdr['call_uuid']))
 							continue
 						if cdr['instance_uuid'] not in self.call_table:
 							self.call_table[cdr['instance_uuid']] = {}

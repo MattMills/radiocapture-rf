@@ -64,7 +64,7 @@ class logging_receiver(gr.top_block):
 		self.destroyed = False
 
 		self.log = logging.getLogger('overseer.logging_receiver')
-                self.log.info('Initializing call_recorder')
+                self.log.debug('Initializing call_recorder')
 
                 debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
                 debug.daemon = True
@@ -100,7 +100,7 @@ class logging_receiver(gr.top_block):
 	def configure_blocks(self, protocol):
 		if protocol == 'provoice': 
 			protocol = 'analog'
-		self.log.info('configure_blocks(%s)' % protocol)
+		self.log.debug('configure_blocks(%s)' % protocol)
 		if not (protocol == 'p25' or protocol == 'p25_tdma' or protocol == 'p25_cqpsk' or protocol=='p25_cqpsk_tdma' or protocol == 'provoice' or protocol == 'dsd_p25' or protocol == 'analog' or protocol == 'none'):
 			raise Exception('Invalid protocol %s' % protocol)
 		if self.protocol == protocol:
@@ -313,7 +313,7 @@ class logging_receiver(gr.top_block):
 
 	def adjust_channel_offset(self, delta_hz):
 		pass
-		self.log.info('adjust channel offset: %s' % (delta_hz))
+		self.log.debug('adjust channel offset: %s' % (delta_hz))
 
                 max_delta_hz = 12000.0
                 delta_hz *= self.symbol_deviation
@@ -327,7 +327,7 @@ class logging_receiver(gr.top_block):
 		if(time.time()-self.cdr['time_open'] > 120):
 			self.close({})
                 time.sleep(10)
-                self.log.info('DEBUG: %s %s %s %s %s' % (time.time(), 0, self.time_activity, self.destroyed, self.in_use))
+                self.log.debug('DEBUG: %s %s %s %s %s' % (time.time(), 0, self.time_activity, self.destroyed, self.in_use))
 	def p25_sensor(self, tb):
 
 		import binascii
@@ -452,7 +452,7 @@ class logging_receiver(gr.top_block):
 		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 
 		self.cdr['time_close'] = time.time()
-		self.log.info('CLOSE %s' % self.cdr)
+		self.log.info('CLOSE %s %s' % (self.cdr['instance_uuid'], self.cdr['call_uuid']))
 		if(self.audio_capture):
 			self.stop()
 			self.sink.close()
@@ -491,7 +491,7 @@ class logging_receiver(gr.top_block):
 
 	def set_rate(self, channel_rate):
 		if(channel_rate != self.channel_rate):
-			self.log.info('System: Adjusting audio rate %s' % (channel_rate))
+			self.log.debug('System: Adjusting audio rate %s' % (channel_rate))
                         self.channel_rate = channel_rate
                         self.input_rate = channel_rate
 			proto = self.protocol
@@ -509,7 +509,7 @@ class logging_receiver(gr.top_block):
 		self.uuid = self.cdr['uuid'] = str(uuid.uuid4())
 
 
-		self.log.info('OPEN %s' % self.cdr)
+		self.log.info('OPEN %s %s' % (self.cdr['instance_uuid'], self.cdr['call_uuid']))
 		now = datetime.datetime.utcnow()
 
 		if(self.cdr['type'] == 'group'):
@@ -538,7 +538,7 @@ class logging_receiver(gr.top_block):
 		self.time_activity = time.time()
 		self.time_last_use = time.time()
 	def acquire_lock(self, lock_id):
-		self.log.info('%s attempt lock acquire %s' % (self.thread_id, lock_id))
+		self.log.debug('%s attempt lock acquire %s' % (self.thread_id, lock_id))
 		if self.lock_id == False:
 			self.lock_id = lock_id
 			return True
