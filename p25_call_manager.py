@@ -35,7 +35,7 @@ class p25_call_manager():
 
 		self.amq_clients = {}
 		self.amq_clients['raw_voice'] = client_activemq(10)
-		self.amq_clients['raw_voice'].subscribe('/topic/raw_voice', self, self.process_raw_control.im_func, False, 'packet_type = \'Group Voice Channel User\' or packet_type = \'Call Termination / Cancellation\' or packet_type = \'Group Voice Channel Update\'')
+		#self.amq_clients['raw_voice'].subscribe('/topic/raw_voice', self, self.process_raw_control.im_func, False, 'packet_type = \'Group Voice Channel User\' or packet_type = \'Call Termination / Cancellation\' or packet_type = \'Group Voice Channel Update\'')
 
 		periodic_timeout_thread = threading.Thread(target=self.periodic_timeout_thread)
 		periodic_timeout_thread.daemon = True
@@ -45,6 +45,7 @@ class p25_call_manager():
 		self.log.debug('Notified of new demod %s' % (demod_instance_uuid))
 		self.amq_clients[demod_instance_uuid] = client_activemq()
 		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False, 'packet_type = \'GRP_V_CH_GRANT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT\' or packet_type = \'GRP_V_CH_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_ADD_CMD\' or packet_type = \'MOT_PAT_GRP_DEL_CMD\' or packet_type = \'IDEN_UP\' or packet_type = \'IDEN_UP_VU\' or packet_type = \'IDEN_UP_TDMA\'')
+		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_voice/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False, 'packet_type = \'Group Voice Channel User\' or packet_type = \'Call Termination / Cancellation\' or packet_type = \'Group Voice Channel Update\'')
 
 	def notify_demod_expire(self, demod_instance_uuid):
 		self.log.debug('Notified of expired demod %s' % (demod_instance_uuid))
