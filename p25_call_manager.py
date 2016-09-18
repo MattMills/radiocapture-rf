@@ -24,7 +24,7 @@ class p25_call_manager():
 
 		self.redis_demod_manager = redis_demod_manager(self)
 
-		self.lock = threading.Lock()
+		self.lock = threading.RLock()
 
 		self.hang_time = 5
 		self.instance_metadata = {}
@@ -33,7 +33,7 @@ class p25_call_manager():
 
 		self.amq_clients = {}
 		self.amq_clients['raw_voice'] = client_activemq()
-		self.amq_clients['raw_voice'].subscribe('/topic/raw_voice', self, self.process_raw_control.im_func)
+		self.amq_clients['raw_voice'].subscribe('/topic/raw_voice', self, self.process_raw_control.im_func, False, 'packet_type = \'Group Voice Channel User\' or packet_type = \'Call Termination / Cancellation\' or packet_type = \'Group Voice Channel Update\'')
 
 		periodic_timeout_thread = threading.Thread(target=self.periodic_timeout_thread)
 		periodic_timeout_thread.daemon = True
@@ -42,7 +42,7 @@ class p25_call_manager():
 	def notify_demod_new(self, demod_instance_uuid):
 		self.log.info('Notified of new demod %s' % (demod_instance_uuid))
 		self.amq_clients[demod_instance_uuid] = client_activemq()
-		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func)
+		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False, 'packet_type = \'GRP_V_CH_GRANT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT\' or packet_type = \'GRP_V_CH_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_ADD_CMD\' or packet_type = \'MOT_PAT_GRP_DEL_CMD\' or packet_type = \'IDEN_UP\' or packet_type = \'IDEN_UP_VU\' or packet_type = \'IDEN_UP_TDMA\'')
 
 	def notify_demod_expire(self, demod_instance_uuid):
 		self.log.info('Notified of expired demod %s' % (demod_instance_uuid))
@@ -217,6 +217,7 @@ class p25_call_manager():
 				ict = self.instance_metadata[instance]['call_table']
 				system_uuid = self.get_system_from_instance(instance)
 				if system_uuid == False:
+					self.lock.release()
 					continue
 				sct = self.system_metadata[system_uuid]['call_table']
 

@@ -779,7 +779,12 @@ class p25_control_demod (gr.top_block):
 						del t['crc']
 						del t['mfid']
 						del t['opcode']
-					self.client_activemq.send_event_lazy('/topic/raw_control/%s' % (self.instance_uuid), t, False)
+					try:
+						packet_type = t['name']
+					except:
+						packet_type = 'invalid'
+
+					self.client_activemq.send_event_lazy('/topic/raw_control/%s' % (self.instance_uuid), t,{'packet_type': packet_type}, False)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):

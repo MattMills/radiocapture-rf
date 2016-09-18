@@ -404,7 +404,12 @@ class logging_receiver(gr.top_block):
 					'instance_uuid': self.cdr['instance_uuid'],
 					'call_uuid': self.cdr['call_uuid'],
 					}
-				self.client_activemq.send_event_lazy('/topic/raw_voice', body, False)
+				try:
+					packet_type = r['lc']['lcf_long']
+				except:
+					packet_type = 'invalid'
+
+				self.client_activemq.send_event_lazy('/topic/raw_voice', body, {'packet_type': packet_type }, False)
 
 
         def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):
