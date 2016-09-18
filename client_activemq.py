@@ -13,10 +13,10 @@ import sys
 import signal
 import math
 import logging
-
+import Queue
 
 class client_activemq():
-        def __init__(self):
+        def __init__(self, worker_threads=2):
                 self.log = logging.getLogger('client_activemq')
                 self.log.debug('Initializing client_activemq')
 
@@ -47,7 +47,15 @@ class client_activemq():
 		publish_loop = threading.Thread(target=self.publish_loop)
 		publish_loop.daemon = True
 		publish_loop.start()
-	
+
+		self.work_queue = Queue.Queue()
+
+		for i in range(worker_threads):
+		     t = threading.Thread(target=self.worker, args=(self.work_queue,))
+		     t.daemon = True
+		     t.start()
+
+
 
         def init_connection(self):
                 if(self.client != None and self.client.session.state == 'connected'):
@@ -67,6 +75,7 @@ class client_activemq():
                                 try:
                                         self.init_connection()
                                         self.connection_issue = False
+					time.sleep(0.1)
 					for subscription in self.subscriptions:
 						self.log.info('Re-subscribing upon reconnection: %s' % subscription)
 						self.subscribe(subscription, self.subscriptions[subscription]['callback_class'], self.subscriptions[subscription]['callback'], True, self.subscriptions[subscription]['selector'])
@@ -114,7 +123,7 @@ class client_activemq():
                 except Exception as e:
 			self.log.error('%s' % e)
                         self.connection_issue = True
-        def send_event_lazy(self, destination, body, headers = {}, persistent = True):
+        def send_event_lazy(self, destination, body, headers = {}, persistent = False):
 		self.outbound_msg_queue_lazy.append({'destination': destination, 'body': body, 'headers': headers, 'persistent': persistent})
 
 	def send_event_lazy_thread(self):
@@ -123,14 +132,14 @@ class client_activemq():
 	                #If it gets there, then great, if not, well we tried!
         	        if(self.connection_issue == True):
                 	        continue
-			while len(self.outbound_msg_queue_lazy) > 1 and self.connection_issue == False:
+			while len(self.outbound_msg_queue_lazy) > 0 and self.connection_issue == False:
 	        	        try:
 					item = self.outbound_msg_queue_lazy.pop(0)
 					if item['persistent'] == True:
 						item['headers']['persistent'] = 'true'
 					else:
 						item['headers']['persistent'] = 'false'
-					
+					item['headers']['time_sent'] = time.time()
 	                	        self.client.send(item['destination'], json.dumps(item['body']), item['headers'])
 		                except Exception as e:
 					self.log.critical('Except: %s' % e)
@@ -146,19 +155,27 @@ class client_activemq():
 			time.sleep(0.01)
 			if(self.connection_issue == True):
 				continue
-			while len(self.outbound_msg_queue) > 1 and self.connection_issue == False:
+			while len(self.outbound_msg_queue) > 0 and self.connection_issue == False:
 				try:
 					item = self.outbound_msg_queue.pop(0)
-                	        	self.client.send(item['destination'], json.dumps(item['body']), {'persistent': 'true'})
+                	        	self.client.send(item['destination'], json.dumps(item['body']), {'persistent': 'false'})
 					
 	                	except Exception as e:
 					self.log.critical('Except: %s' % e)
 					self.outbound_msg_queue.insert(0,item)
 	        	                self.connection_issue = True
-			
+        def worker(self, queue):
+		while True:
+			item = queue.get()
+			try:
+				item['callback'](item['callback_class'], item['data'], item['headers'])
+			except Exception as e:
+				self.log.error('Exception in worker thread: %s' % e)
+			queue.task_done()		
 
 	def publish_loop(self):
 		self.log.debug('publish_loop() init')
+		time.sleep(0.2)
 		while self.continue_running:
 			if self.connection_issue == False:
 				try:
@@ -168,10 +185,23 @@ class client_activemq():
 			        		frame = self.client.receiveFrame()
 					        data = json.loads(frame.body)
 						queue = frame.headers['destination']
+						try:
+							time_sent = float(frame.headers['time_sent'])
+							latency = (time.time()-time_sent)
+							if latency > 0.1:
+								print 'Packet Latency: %s' % (time.time()-time_sent)
+						except:
+							pass
 
-						self.subscriptions[queue]['callback'](self.subscriptions[queue]['callback_class'], data, frame.headers)
+						self.work_queue.put({
+								'callback': self.subscriptions[queue]['callback'],
+								'callback_class':self.subscriptions[queue]['callback_class'],
+								'data': data,
+								'headers': frame.headers,
+								})
 					        self.client.ack(frame)
 					except Exception as e:
+						raise
 						self.log.critical('Except: %s' % e)
 						self.client.nack(frame)
 				except Exception as e:

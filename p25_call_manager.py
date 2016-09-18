@@ -13,6 +13,8 @@ import sys
 import signal
 import math
 import logging
+import logging.config
+
 from redis_demod_manager import redis_demod_manager
 from client_activemq import client_activemq
 
@@ -32,7 +34,7 @@ class p25_call_manager():
 		self.continue_running = True
 
 		self.amq_clients = {}
-		self.amq_clients['raw_voice'] = client_activemq()
+		self.amq_clients['raw_voice'] = client_activemq(10)
 		self.amq_clients['raw_voice'].subscribe('/topic/raw_voice', self, self.process_raw_control.im_func, False, 'packet_type = \'Group Voice Channel User\' or packet_type = \'Call Termination / Cancellation\' or packet_type = \'Group Voice Channel Update\'')
 
 		periodic_timeout_thread = threading.Thread(target=self.periodic_timeout_thread)
@@ -82,12 +84,11 @@ class p25_call_manager():
 		
         	self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
                 self.log.info('Closing call due to close_call(): %s %s' % (instance_uuid, call_uuid))
-		self.lock.acquire()
-                del ict[call_uuid]
-                del sct[call_uuid]['instances'][instance_uuid]
-                if len(sct[call_uuid]['instances']) == 0:
-                	del sct[call_uuid]
-		self.lock.release()
+		with self.lock:
+	                del ict[call_uuid]
+        	        del sct[call_uuid]['instances'][instance_uuid]
+                	if len(sct[call_uuid]['instances']) == 0:
+	                	del sct[call_uuid]
 	def call_continuation(self, instance_uuid, channel, group_address):
                 channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
 
@@ -103,13 +104,11 @@ class p25_call_manager():
 
                 closed_calls = []
 
-		self.lock.acquire()
-                for call in ict:
-                        if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address:
-                                ict[call]['time_activity'] = time.time()
-				self.lock.release()
+	        for call in ict.keys():
+        		if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address:
+                		ict[call]['time_activity'] = time.time()
                                 return True
-		self.lock.release()
+
 	def call_user_to_group(self, instance_uuid, channel, group_address, user_address=0):
 		channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
 
@@ -124,11 +123,9 @@ class p25_call_manager():
 		ict = self.instance_metadata[instance_uuid]['call_table']
 
 		closed_calls = []
-		self.lock.acquire()
-		for call in ict:
+		for call in ict.keys():
 			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
 				ict[call]['time_activity'] = time.time()
-				self.lock.release()
 				return True
 
 			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] != group_address:
@@ -138,19 +135,16 @@ class p25_call_manager():
 				#different user on same group, and neither new or old user = 0, kill existing
 				closed_calls.append(call)
 
-		self.lock.release()
 
 		for call_uuid in closed_calls:
 			self.close_call(instance_uuid, call_uuid)
 			
 		#Not a continuation, new call
 		call_uuid = None
-		self.lock.acquire()
-		for call in sct:
+		for call in sct.keys():
 			if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
 				call_uuid = sct[call]['call_uuid']
 				break
-		self.lock.release()
 
 		if call_uuid == None:
 			#call is new systemwide, assign new UUID
@@ -193,15 +187,14 @@ class p25_call_manager():
 			'p25_system_id': instance['site_detail']['System ID'],
 			
                         }
-	
-		self.lock.acquire()
-		ict[call_uuid] = cdr
-		if call_uuid not in sct:
-			sct[call_uuid] = cdr
-			sct[call_uuid]['instances'] = {instance_uuid: True}
-		else:
-			sct[call_uuid]['instances'][instance_uuid] = True
-		self.lock.release()
+		
+		with self.lock:
+			ict[call_uuid] = cdr
+			if call_uuid not in sct:
+				sct[call_uuid] = cdr
+				sct[call_uuid]['instances'] = {instance_uuid: True}
+			else:
+				sct[call_uuid]['instances'][instance_uuid] = True
 		
 
 		#event call open to record subsys
@@ -212,22 +205,20 @@ class p25_call_manager():
 	def periodic_timeout_thread(self):
 		while self.continue_running:
 			time.sleep(0.1)
-			self.lock.acquire()
-			for instance in self.instance_metadata:
+			for instance in self.instance_metadata.keys():
 				ict = self.instance_metadata[instance]['call_table']
 				system_uuid = self.get_system_from_instance(instance)
 				if system_uuid == False:
-					self.lock.release()
 					continue
 				sct = self.system_metadata[system_uuid]['call_table']
 
 				closed_calls = []
-				for call_uuid in ict:
+				for call_uuid in ict.keys():
 					if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
 						closed_calls.append(call_uuid)
 						#event call close to record subsys on call specific queue
 						self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
-
+	
 						self.log.info('CLOSE: %s' % (ict[call_uuid]))
 				for call_uuid in closed_calls:
 					del ict[call_uuid]
@@ -236,7 +227,6 @@ class p25_call_manager():
 						del sct[call_uuid]
 				if len(closed_calls) > 0:
 					self.redis_demod_manager.publish_call_table(instance, ict)
-			self.lock.release()
 					
 	def process_raw_control(self, t, headers):
 				try:
@@ -259,50 +249,44 @@ class p25_call_manager():
 						return #Don't bother trying to work with bad data
 					if packet_type == 'control':
 	                                        if t['name'] == 'IDEN_UP_VU' and t['crc'] == 0:
-							try:
-								self.lock.acquire()
-		                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
-	                                                        'BW': t['BW VU'],
-	                                                        'Base Frequency': t['Base Frequency'],
-	                                                        'Channel Spacing': t['Channel Spacing'],
-	                                                        'Transmit Offset': t['Transmit Offset VU'],
-	                                                        'Type': 'FDMA',
-	                                                        'Slots': 1,
-	                                                        }
-							except:
-								pass
-							finally: 
-								self.lock.release()
+							with self.lock:
+								try:
+			                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
+	        	                                                'BW': t['BW VU'],
+	                	                                        'Base Frequency': t['Base Frequency'],
+	                        	                                'Channel Spacing': t['Channel Spacing'],
+	                                	                        'Transmit Offset': t['Transmit Offset VU'],
+	                                        	                'Type': 'FDMA',
+	                                                	        'Slots': 1,
+		                                                        }
+								except:
+									pass
 						elif t['name'] == 'IDEN_UP' and t['crc'] == 0:
-							try:
-								self.lock.acquire()
-		                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
-	                                                        'BW': t['BW'],
-	                                                        'Base Frequency': t['Base Frequency'],
-	                                                        'Channel Spacing': t['Channel Spacing'],
-	                                                        'Transmit Offset': t['Transmit Offset'],
-	                                                        'Type': 'FDMA',
-	                                                        'Slots': 1,
-	                                                        }
-							except:
-								pass
-							finally: 
-                                                                self.lock.release()
+							with self.lock:
+								try:
+			                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
+		                                                        'BW': t['BW'],
+		                                                        'Base Frequency': t['Base Frequency'],
+		                                                        'Channel Spacing': t['Channel Spacing'],
+		                                                        'Transmit Offset': t['Transmit Offset'],
+		                                                        'Type': 'FDMA',
+		                                                        'Slots': 1,
+		                                                        }
+								except:
+									pass
 						elif t['name'] == 'IDEN_UP_TDMA' and t['crc'] == 0:
-							try:
-								self.lock.acquire()
-		                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
-	                                                        'BW': t['BW'],
-	                                                        'Base Frequency': t['Base Frequency'],
-	                                                        'Channel Spacing': t['Channel Spacing'],
-	                                                        'Transmit Offset': t['Transmit Offset TDMA'],
-	                                                        'Type': t['Access Type'],
-	                                                        'Slots': t['Slots'],
-	                                                        }
-							except:
-								pass
-							finally: 
-                                                                self.lock.release()
+							with self.lock:
+								try:
+			                                                self.instance_metadata[instance_uuid]['channel_identifier_table'][t['Identifier']] = {
+		                                                        'BW': t['BW'],
+		                                                        'Base Frequency': t['Base Frequency'],
+		                                                        'Channel Spacing': t['Channel Spacing'],
+		                                                        'Transmit Offset': t['Transmit Offset TDMA'],
+		                                                        'Type': t['Access Type'],
+		                                                        'Slots': t['Slots'],
+		                                                        }
+								except:
+									pass
 						elif t['name'] == 'GRP_V_CH_GRANT' :
 							self.log.debug('GRP_V_CH_GRANT %s %s %s %s' % (instance_uuid, t['Channel'], t['Group Address'], t['Source Address']))
 							self.call_user_to_group(instance_uuid, t['Channel'], t['Group Address'], t['Source Address'])
@@ -336,7 +320,7 @@ class p25_call_manager():
 					elif packet_type == 'voice':
 						try:
 							if t['packet']['short'] == 'TLC' and t['packet']['lc']['lcf_long'] == 'Call Termination / Cancellation':
-								self.log.info('closing due to tlc %s %s' % (t['instance_uuid'], t['call_uuid']))
+								self.log.debug('closing due to tlc %s %s' % (t['instance_uuid'], t['call_uuid']))
 								
 								self.close_call(t['instance_uuid'], t['call_uuid'])
 							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel User':
@@ -365,6 +349,10 @@ class p25_call_manager():
 					self.connection_issue = True
 
 if __name__ == '__main__':
+	with open('config.logging.json', 'rt') as f:
+	    config = json.load(f)
+
+	logging.config.dictConfig(config)
 
 	main = p25_call_manager()
 	while True:

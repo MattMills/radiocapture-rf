@@ -13,6 +13,7 @@ import sys
 import signal
 import math
 import logging
+import logging.config
 
 from logging_receiver import logging_receiver
 from client_activemq import client_activemq
@@ -209,6 +210,10 @@ class call_recorder():
 					self.connection_issue = True
 
 if __name__ == '__main__':
+	with open('config.logging.json', 'rt') as f:
+	    config = json.load(f)
+
+	logging.config.dictConfig(config)
 
 	main = call_recorder()
 	while True:

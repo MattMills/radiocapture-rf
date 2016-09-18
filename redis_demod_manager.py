@@ -39,6 +39,7 @@ class redis_demod_manager():
                 result = pipe.execute()
 	def manager_loop(self):
 		print 'manager_loop()'
+		time.sleep(0.1)
 		while self.continue_running:
 			demod_type = self.parent_call_manager.demod_type
 			
