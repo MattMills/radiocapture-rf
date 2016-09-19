@@ -650,7 +650,7 @@ class p25_control_demod (gr.top_block):
 					else:
 						pass
 				except Exception as e:
-					print '%s' % e
+					self.log.info('%s' % e)
 					self.bad_messages = self.bad_messages + 3
 					continue
 				try:
