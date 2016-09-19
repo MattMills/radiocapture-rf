@@ -459,8 +459,7 @@ class logging_receiver(gr.top_block):
 			if self.log_dat:
                                 self.dat_sink.close()
 			filename = self.upload_and_cleanup(self.filename, self.uuid, self.cdr, self.filepath, patches, emergency)
-			if send_event_func != False:
-				send_event_func('/queue/call_management/call_complete', {'cdr': self.cdr, 'filename': filename, 'uuid': self.uuid})
+			self.client_activemq.send_event_hopeful('/queue/call_management/call_complete', {'cdr': self.cdr, 'filename': filename, 'uuid': self.uuid}, True)
 			#_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.uuid, self.cdr, self.filepath, patches, emergency], name='upload_and_cleanup')
 	        	#_thread_0.daemon = True
 			#_thread_0.start()

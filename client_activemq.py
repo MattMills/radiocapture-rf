@@ -104,7 +104,10 @@ class client_activemq():
 	
 		try:
 			self.subscriptions[queue] = {'uuid': this_uuid, 'callback': callback, 'callback_class': callback_class, 'selector': selector}
-			self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, 'selector': selector })
+			if selector != None:
+				self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, 'selector': selector })
+			else:
+				self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL,})
 		except Exception as e:
 			self.log.fatal('%s' % e)
 			self.connection_issue = True
