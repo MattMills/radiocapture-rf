@@ -342,6 +342,7 @@ class logging_receiver(gr.top_block):
                                 0xF: 'Terminator with Link Control'
                                 }
 		last_duid = None
+		last_lc = None
 		while(not self.destroyed):
 			#if self == None or self.destroyed != False:
 			if self.destroyed != False:
@@ -408,8 +409,13 @@ class logging_receiver(gr.top_block):
 					packet_type = r['lc']['lcf_long']
 				except:
 					packet_type = 'invalid'
-
-				self.client_activemq.send_event_lazy('/topic/raw_voice/%s' %self.cdr['instance_uuid'] , body, {'packet_type': packet_type }, False)
+				try:
+					if last_lc != r['lc']:
+						self.client_activemq.send_event_lazy('/topic/raw_voice/%s' %self.cdr['instance_uuid'] , body, {'packet_type': packet_type }, False)
+					last_lc = r['lc']
+				except:
+					pass
+				
 
 
         def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):
