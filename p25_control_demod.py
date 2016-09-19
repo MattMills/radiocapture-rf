@@ -324,16 +324,19 @@ class p25_control_demod (gr.top_block):
                 r['p'] = bitframe[1:2] #protected
                 r['opcode'] = int(bitframe[2:8],2)
                 r['mfid'] = int(bitframe[8:16],2)
-		if r['mfid'] == 0x0 or r['mfid'] != 0x1: 
+		if r['mfid'] == 0x0 or r['mfid'] == 0x1: 
 			p = p25_cai()
 		elif r['mfid'] == 0x90:
 			p = p25_moto()
 		else:
+			r['name'] = 'UNKnOWN MFID'
+			r['data'] = hex(int(bitframe,2))
 			return r
                 try:
                         r['name'] = p.tsbk_osp_single[r['opcode']]['name']
                 except:
-                        r['name'] = 'INVALID'
+                        r['name'] = 'UNKNOWN OPCODE'
+			r['data'] = hex(int(bitframe,2))
 			return r
 		if(len(bitframe[16:]) < 80): return r
 		bitframe = bitframe[16:]
@@ -647,6 +650,7 @@ class p25_control_demod (gr.top_block):
 					else:
 						pass
 				except Exception as e:
+					print '%s' % e
 					self.bad_messages = self.bad_messages + 3
 					continue
 				try:
