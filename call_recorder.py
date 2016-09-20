@@ -31,11 +31,20 @@ class call_recorder():
 	
 		self.call_table = {}
 
-		self.client_activemq = client_activemq(10)
+		self.client_activemq = client_activemq(4)
+		self.client_activemq2 = client_activemq(4)
+		self.client_activemq3 = client_activemq(4)
+		self.client_activemq4 = client_activemq(4)
 		time.sleep(0.25)
 
 		self.client_activemq.subscribe('/queue/call_management/new_call', self, self.process_new_call.im_func)
 		self.client_activemq.subscribe('/queue/call_management/timeout', self, self.process_call_timeout.im_func)
+		self.client_activemq2.subscribe('/queue/call_management/new_call', self, self.process_new_call.im_func)
+                self.client_activemq2.subscribe('/queue/call_management/timeout', self, self.process_call_timeout.im_func)
+		self.client_activemq3.subscribe('/queue/call_management/new_call', self, self.process_new_call.im_func)
+                self.client_activemq3.subscribe('/queue/call_management/timeout', self, self.process_call_timeout.im_func)
+		self.client_activemq4.subscribe('/queue/call_management/new_call', self, self.process_new_call.im_func)
+                self.client_activemq4.subscribe('/queue/call_management/timeout', self, self.process_call_timeout.im_func)
 
 	def process_new_call(self, cdr, headers):
 		if time.time()-cdr['time_open'] > 5:
@@ -65,5 +74,5 @@ if __name__ == '__main__':
 	while True:
 		time.sleep(100)
 		for t in threading.enumerate():
-			main.log.debug('%s' % t)
+			main.log.info('Thread Debug: %s' % t)
 		
