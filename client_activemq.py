@@ -14,6 +14,7 @@ import signal
 import math
 import logging
 import Queue
+import traceback
 
 class client_activemq():
         def __init__(self, worker_threads=2):
@@ -170,10 +171,16 @@ class client_activemq():
         def worker(self, queue):
 		while True:
 			item = queue.get()
-			try:
-				item['callback'](item['callback_class'], item['data'], item['headers'])
-			except Exception as e:
-				self.log.error('Exception in worker thread: %s' % e)
+			for x in 1,2,3:
+				try:
+					item['callback'](item['callback_class'], item['data'], item['headers'])
+					break
+				except Exception as e:
+					self.log.error('Exception in worker thread: %s' % e)
+					traceback.print_exc()
+					time.sleep(0.01)
+				
+				
 			queue.task_done()		
 
 	def publish_loop(self):
@@ -191,8 +198,8 @@ class client_activemq():
 						try:
 							time_sent = float(frame.headers['time_sent'])
 							latency = (time.time()-time_sent)
-							if latency > 0.1:
-								print 'Packet Latency: %s' % (time.time()-time_sent)
+							#if latency > 0.1:
+							#	print 'Packet Latency: %s' % (time.time()-time_sent)
 						except:
 							pass
 
