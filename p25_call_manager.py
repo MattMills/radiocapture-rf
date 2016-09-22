@@ -28,6 +28,7 @@ class p25_call_manager():
 
 		self.lock = threading.RLock()
 
+		self.patches = {}
 		self.hang_time = 5
 		self.instance_metadata = {}
 		self.system_metadata = {}
@@ -142,10 +143,15 @@ class p25_call_manager():
 			
 		#Not a continuation, new call
 		call_uuid = None
+		call_count = 0
 		for call in sct.keys():
 			if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
 				call_uuid = sct[call]['call_uuid']
-				break
+				call_count + 1
+
+		if call_count >= 3:
+			pass
+			#return False
 
 		if call_uuid == None:
 			#call is new systemwide, assign new UUID
@@ -323,7 +329,8 @@ class p25_call_manager():
 							if t['packet']['short'] == 'TLC' and t['packet']['lc']['lcf_long'] == 'Call Termination / Cancellation':
 								self.log.debug('closing due to tlc %s %s' % (t['instance_uuid'], t['call_uuid']))
 								
-								self.close_call(t['instance_uuid'], t['call_uuid'])
+								if time.time()-self.instance_metadata[instance_uuid][t['call_uuid']]['time_open'] > 0.2:
+									self.close_call(t['instance_uuid'], t['call_uuid'])
 							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel User':
 								try:
 									channel = self.instance_metadata[t['instance_uuid']]['call_table'][t['call_uuid']]['system_channel_local']
