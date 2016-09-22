@@ -38,8 +38,6 @@ class logging_receiver(gr.top_block):
 		self.in_use = False
 		self.client_activemq = client_activemq
 
-	def run(self):
-
 		self.thread_id = 'logr-' + str(uuid.uuid4())
 
 		self.filename = "/dev/null"
@@ -96,7 +94,6 @@ class logging_receiver(gr.top_block):
 
 		self.open()
 		self.start()	
-
 	def configure_blocks(self, protocol):
 		if protocol == 'provoice': 
 			protocol = 'analog'
@@ -454,14 +451,17 @@ class logging_receiver(gr.top_block):
 			return filename
 
 	def close(self, patches, send_event_func=False, emergency=False):
-		if(not self.in_use): return False
+		if self.destroyed == True:
+			return True
 		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
-
 		self.cdr['time_close'] = time.time()
 		self.log.info('CLOSE %s %s' % (self.cdr['instance_uuid'], self.cdr['call_uuid']))
 		if(self.audio_capture):
 			self.stop()
-			self.sink.close()
+			try:
+				self.sink.close()
+			except:
+				print '%s' % self.sink
 			if self.log_dat:
                                 self.dat_sink.close()
 			filename = self.upload_and_cleanup(self.filename, self.uuid, self.cdr, self.filepath, patches, emergency)
@@ -473,9 +473,8 @@ class logging_receiver(gr.top_block):
 		self.time_last_use = time.time()
 		self.uuid =''
 		self.in_use = False
-
 	def destroy(self):
-                if self.destroy == True:
+                if self.destroyed == True:
                     return True
 		if self.protocol == 'p25' or self.protocol=='p25_cqpsk' or self.protocol == 'p25_tdma' or self.protocol == 'p25_cqpsk_tdma':
 			try:

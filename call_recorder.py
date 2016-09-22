@@ -54,7 +54,6 @@ class call_recorder():
 			if cdr['instance_uuid'] not in self.call_table:
 				self.call_table[cdr['instance_uuid']] = {}
 			self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver(cdr, self.client_activemq)
-			self.call_table[cdr['instance_uuid']][cdr['call_uuid']].run()
 	def process_call_timeout(self, cdr, headers):
 		self.log.info('Call Timeout received %s %s' % (cdr['instance_uuid'], cdr['call_uuid']))
 		try:
@@ -72,7 +71,16 @@ if __name__ == '__main__':
 
 	main = call_recorder()
 	while True:
-		time.sleep(100)
-		for t in threading.enumerate():
-			main.log.info('Thread Debug: %s' % t)
+		time.sleep(5)
+		for system in main.call_table.keys():
+			for call in main.call_table[system].keys():
+				try:
+					if time.time()-main.call_table[system][call].time_open > 120:
+						self.log.error('Call 120s timeout')
+						main.call_table[system][call].close()
+				except:
+					pass
+		#time.sleep(100)
+		#for t in threading.enumerate():
+		#	main.log.info('Thread Debug: %s' % t)
 		
