@@ -17,6 +17,14 @@ import uuid
 import logging
 import logging.config
 import json
+import multiprocessing
+import sys
+import os
+import time
+
+def tb_worker(func, *args, **kwargs):
+	new_process = func(*args, **kwargs)
+	new_process.run()
 
 with open('config.logging.json', 'rt') as f:
     config = json.load(f)
@@ -39,11 +47,11 @@ demods = {}
 for x in config.systems:
         logger.info('Initializing %s demodulator. System configuration: %s' % (config.systems[x]['type'], config.systems[x]))
 	if config.systems[x]['type'] == 'edacs':
-		demods[x] = edacs_control_demod(config.systems[x], site_uuid, overseer_uuid)
+		demods[x] = multiprocessing.Process(target=tb_worker, args=(edacs_control_demod, config.systems[x], site_uuid, overseer_uuid))
 	elif config.systems[x]['type'] == 'moto':
-		demods[x] = moto_control_demod(config.systems[x], site_uuid, overseer_uuid)
+		demods[x] = multiprocessing.Process(target=tb_worker, args=(moto_control_demod, config.systems[x], site_uuid, overseer_uuid))
 	elif config.systems[x]['type'] == 'p25':
-		demods[x] = p25_control_demod(config.systems[x], site_uuid, overseer_uuid)
+		demods[x] = multiprocessing.Process(target=tb_worker, args=(p25_control_demod, config.systems[x], site_uuid, overseer_uuid))
 		
 	demods[x].start()
 
