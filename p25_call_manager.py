@@ -91,26 +91,6 @@ class p25_call_manager():
         	        del sct[call_uuid]['instances'][instance_uuid]
                 	if len(sct[call_uuid]['instances']) == 0:
 	                	del sct[call_uuid]
-	def call_continuation(self, instance_uuid, channel, group_address):
-                channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
-
-                if channel_frequency == False:
-                        return False
-
-                system_uuid = self.get_system_from_instance(instance_uuid)
-                if system_uuid == False:
-                        return False
-
-                sct = self.system_metadata[system_uuid]['call_table']
-                ict = self.instance_metadata[instance_uuid]['call_table']
-
-                closed_calls = []
-
-	        for call in ict.keys():
-        		if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address:
-                		ict[call]['time_activity'] = time.time()
-                                return True
-
 	def call_user_to_group(self, instance_uuid, channel, group_address, user_address=0):
 		channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
 
@@ -302,12 +282,12 @@ class p25_call_manager():
 							self.call_user_to_group(instance_uuid, t['Channel'], t['Super Group'], t['Source Address'])
 						elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 							self.log.debug('GRP_V_CH_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Group Address 0'], t['Channel 1'], t['Group Address 1']))
-							self.call_continuation(instance_uuid, t['Channel 0'], t['Group Address 0'])
-							self.call_continuation(instance_uuid, t['Channel 1'], t['Group Address 1'])
+							self.call_user_to_group(instance_uuid, t['Channel 0'], t['Group Address 0'])
+							self.call_user_to_group(instance_uuid, t['Channel 1'], t['Group Address 1'])
 						elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
 							self.log.debug('MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT %s %s %s %s %s' % (instance_uuid, t['Channel 0'], t['Super Group 0'], t['Channel 1'], t['Super Group 1']))
-	                                                self.call_continuation(instance_uuid, t['Channel 0'], t['Super Group 0'])
-	                                                self.call_continuation(instance_uuid, t['Channel 1'], t['Super Group 1'])
+	                                                self.call_user_to_group(instance_uuid, t['Channel 0'], t['Super Group 0'])
+	                                                self.call_user_to_group(instance_uuid, t['Channel 1'], t['Super Group 1'])
 						elif t['name'] == 'MOT_PAT_GRP_ADD_CMD':
 							for group in [t['Group 1'], t['Group 2'], t['Group 3']]:
 								pass
@@ -342,12 +322,12 @@ class p25_call_manager():
 
 								self.log.debug('call_user_to_group %s %s %s %s' % (instance_uuid, channel, t['packet']['lc']['tgid'], t['packet']['lc']['source_id']))
 								if channel != -1:
-									self.call_continuation(instance_uuid, channel, t['packet']['lc']['tgid'])
-									#self.call_user_to_group(instance_uuid, channel,t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
+									#self.call_continuation(instance_uuid, channel, t['packet']['lc']['tgid'])
+									self.call_user_to_group(instance_uuid, channel,t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
 							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel Update':
 								self.log.debug('group voice channel update %s %s %s %s' % (t['packet']['lc']['channel_a'], t['packet']['lc']['channel_a_group'], t['packet']['lc']['channel_b'], t['packet']['lc']['channel_b_group']))
-								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_a'] ,t['packet']['lc']['channel_a_group'], 0)
-								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_b'] ,t['packet']['lc']['channel_b_group'], 0)
+								self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_a'] ,t['packet']['lc']['channel_a_group'], 0)
+								self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_b'] ,t['packet']['lc']['channel_b_group'], 0)
 						except KeyError:
 							pass
 
