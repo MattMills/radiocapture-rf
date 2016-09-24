@@ -60,6 +60,7 @@ class client_activemq():
 
         def init_connection(self):
                 if(self.client != None and self.client.session.state == 'connected'):
+			self.log.error('Re-init connection')
                         try:
                                 self.client.disconnect()
                         except:
@@ -169,7 +170,7 @@ class client_activemq():
 					self.outbound_msg_queue.insert(0,item)
 	        	                self.connection_issue = True
         def worker(self, queue):
-		while True:
+		while self.continue_running:
 			item = queue.get()
 			for x in 1,2,3:
 				try:
@@ -181,7 +182,7 @@ class client_activemq():
 					time.sleep(0.01)
 				
 				
-			queue.task_done()		
+			queue.task_done()	
 
 	def publish_loop(self):
 		self.log.debug('publish_loop() init')

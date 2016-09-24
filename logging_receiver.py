@@ -136,9 +136,8 @@ class logging_receiver(gr.top_block):
 			self.float_conversion = None
 			self.resampler = None
 		elif self.protocol == 'p25_cqpsk' or self.protocol == 'p25_cqpsk_tdma':
-			self.disconnect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer)#, (self.subtract,0))
+			self.disconnect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer, self.decoder2, self.qsink)#, (self.subtract,0))
                         self.disconnect(self.slicer, self.decoder, self.float_conversion, self.sink)
-                        self.disconnect(self.slicer,self.decoder2, self.qsink)
 
                         self.prefilter = None
                         self.resampler = None
