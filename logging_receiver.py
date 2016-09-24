@@ -64,9 +64,9 @@ class logging_receiver(gr.top_block):
 		self.log = logging.getLogger('overseer.logging_receiver')
                 self.log.debug('Initializing call_recorder')
 
-                debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
-                debug.daemon = True
-                debug.start()
+                #debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
+                #debug.daemon = True
+                #debug.start()
 
 		#Setup connector
 		self.connector = frontend_connector()

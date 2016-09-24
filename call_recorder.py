@@ -78,6 +78,7 @@ if __name__ == '__main__':
 					if time.time()-main.call_table[system][call].time_open > 120:
 						self.log.error('Call 120s timeout')
 						main.call_table[system][call].close()
+						del main.call_table[system][call]
 				except:
 					pass
 		#time.sleep(100)

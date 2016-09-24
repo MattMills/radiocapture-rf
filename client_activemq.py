@@ -179,6 +179,7 @@ class client_activemq():
 				except Exception as e:
 					self.log.error('Exception in worker thread: %s' % e)
 					traceback.print_exc()
+					sys.exc_clear()
 					time.sleep(0.01)
 				
 				
