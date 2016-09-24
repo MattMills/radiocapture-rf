@@ -27,6 +27,7 @@ from p25_cai import p25_cai
 from frontend_connector import frontend_connector
 
 from client_activemq import client_activemq
+import rs64
 
 class logging_receiver(gr.top_block):
 	def __init__(self, cdr, client_activemq):
@@ -605,6 +606,8 @@ class logging_receiver(gr.top_block):
         def subprocLC(self, bitframe):
 		bitframe = self.rs_24_12_13_decode(bitframe)
                 r = {'short': 'LC', 'long': 'Link Control'}
+		if bitframe == False:
+			return r #Uncorrectable decode
                 r['p'] = int(bitframe[0:1], 2)
                 r['sf'] = int(bitframe[1:2], 2)
                 r['lcf'] = int(bitframe[2:8],2)
@@ -714,7 +717,12 @@ class logging_receiver(gr.top_block):
                 return r
 	# fake (24,12,13) Reed-Solomon decoder, no error correction
         def rs_24_12_13_decode(self, input):
-                return input[:-72]
+		data = rs64.decode_lc(rs64.bstr_conv(input))
+		if data:
+			return rs64.repr_bin(data, False)
+		else:
+			return False
+
 # Demodulator frequency tracker
 #
 class demod_watcher(threading.Thread):
