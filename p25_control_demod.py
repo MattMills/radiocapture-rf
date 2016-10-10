@@ -49,8 +49,6 @@ class p25_control_demod (gr.top_block):
 		self.control_channel_i = system['default_control_channel']
 		
 		
-		self.connector = frontend_connector()
-
 		self.channel_identifier_table = {}
 
 		try:
@@ -159,12 +157,9 @@ class p25_control_demod (gr.top_block):
                 ##################################################
                 # Threads
                 ##################################################
+		self.connector = frontend_connector()
 		self.client_activemq = client_activemq()
 		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
-
-                receive_engine = threading.Thread(target=self.receive_engine)
-                receive_engine.daemon = True
-                receive_engine.start()
 
                 quality_check_0 = threading.Thread(target=self.quality_check)
                 quality_check_0.daemon = True
@@ -174,6 +169,15 @@ class p25_control_demod (gr.top_block):
 		self.tune_next_control_channel()
 
 		#self.receive_engine()
+		sleep(1)
+		self.start()
+
+
+		receive_engine = threading.Thread(target=self.receive_engine)
+                receive_engine.daemon = True
+                receive_engine.start()
+
+		self.wait()
 	def adjust_channel_offset(self, delta_hz):
 		return False #Disable
 	        max_delta_hz = 6000.0
@@ -832,6 +836,6 @@ class demod_watcher(threading.Thread):
 			#print 'Probe: %s' % self.tb.probe.level()
 			offset = self.tb.probe.level()
 			#self.tb.connector.report_offset(offset)
-		sleep(0.05)
+		sleep(0.5)
 
 
