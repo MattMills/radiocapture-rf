@@ -7,6 +7,7 @@ import threading
 import binascii
 import uuid
 import datetime
+import json
 
 from gnuradio import gr, uhd, filter, analog, blocks, digital, zeromq
 from gnuradio.filter import firdes
@@ -24,6 +25,7 @@ from redis_demod_publisher import redis_demod_publisher
 from client_activemq import client_activemq
 
 import logging
+import logging.config
 
 # The P25 receiver
 #
@@ -585,8 +587,9 @@ class p25_control_demod (gr.top_block):
 
 		while self.keep_running:
 			if loops_locked < -50 and time()-loop_start > 0.5:
-				self.log.warning('Unable to lock control channel on %s' % self.control_channel)
-				self.tune_next_control_channel()
+				if len(self.system['channels']) > 1:
+					self.log.warning('Unable to lock control channel on %s' % self.control_channel)
+					self.tune_next_control_channel()
 
 				loops_locked = 0
 				loop_start = time()
@@ -628,7 +631,8 @@ class p25_control_demod (gr.top_block):
 					wrong_duid_count = wrong_duid_count +1
 					if wrong_duid_count > 10:
 						self.log.warning('Hit wrong DUID count on control channel')
-						self.tune_next_control_channel()
+						if len(self.system['channels']) > 1:
+							self.tune_next_control_channel()
 
 						loop_start = time()
 				                loops_locked = 0
@@ -657,6 +661,8 @@ class p25_control_demod (gr.top_block):
 					self.log.info('%s' % e)
 					self.bad_messages = self.bad_messages + 3
 					continue
+				if len(self.system['channels']) == 1:
+					self.log.info('%s' % r)
 				try:
 					r['tsbk']
 				except:
@@ -838,4 +844,17 @@ class demod_watcher(threading.Thread):
 			#self.tb.connector.report_offset(offset)
 		sleep(0.5)
 
+if __name__ == '__main__':
+        with open('config.logging.json', 'rt') as f:
+            config = json.load(f)
 
+        logging.config.dictConfig(config)
+	system_config = { 
+        	'type': 'p25',
+                'id': 0,
+                'default_control_channel': 0,
+                'channels': {
+                	0: 851312500,
+        	}
+        }
+	main = p25_control_demod(system_config, uuid.uuid4(), uuid.uuid4())
