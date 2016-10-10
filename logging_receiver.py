@@ -407,7 +407,7 @@ class logging_receiver(gr.top_block):
 				except:
 					packet_type = 'invalid'
 				try:
-					if last_lc != r['lc']:
+					if last_lc != r['lc'] and r['lc']['lcf_long'] == 'Call Termination / Cancellation':
 						self.client_activemq.send_event_lazy('/topic/raw_voice/%s' %self.cdr['instance_uuid'] , body, {'packet_type': packet_type }, False)
 					last_lc = r['lc']
 				except:
