@@ -35,7 +35,7 @@ class p25_call_manager():
 		self.continue_running = True
 
 		self.amq_clients = {}
-		self.amq_clients['raw_voice'] = client_activemq(10)
+		#self.amq_clients['raw_voice'] = client_activemq(10)
 		#self.amq_clients['raw_voice'].subscribe('/topic/raw_voice', self, self.process_raw_control.im_func, False, 'packet_type = \'Group Voice Channel User\' or packet_type = \'Call Termination / Cancellation\' or packet_type = \'Group Voice Channel Update\'')
 
 		periodic_timeout_thread = threading.Thread(target=self.periodic_timeout_thread)
@@ -84,13 +84,22 @@ class p25_call_manager():
 		if call_uuid not in ict:
 			return #Cant close a call thats not open
 		
-        	self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
+        	self.amq_clients[instance_uuid].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
                 self.log.info('Closing call due to close_call(): %s %s' % (instance_uuid, call_uuid))
 		with self.lock:
-	                del ict[call_uuid]
-        	        del sct[call_uuid]['instances'][instance_uuid]
-                	if len(sct[call_uuid]['instances']) == 0:
-	                	del sct[call_uuid]
+			try:
+		                del ict[call_uuid]
+			except:
+				pass
+			try:
+        		        del sct[call_uuid]['instances'][instance_uuid]
+			except:
+				pass
+				try:
+	                		if len(sct[call_uuid]['instances']) == 0:
+		                		del sct[call_uuid]
+				except:
+					pass
 	def call_user_to_group(self, instance_uuid, channel, group_address, user_address=0):
 		channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
 
@@ -106,16 +115,19 @@ class p25_call_manager():
 
 		closed_calls = []
 		for call in ict.keys():
-			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
-				ict[call]['time_activity'] = time.time()
-				return True
+			try:
+				if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
+					ict[call]['time_activity'] = time.time()
+					return True
 
-			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] != group_address:
-				#different group, kill existing
-				closed_calls.append(call)
-			if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and user_address != 0 and ict[call]['system_user_local'] != 0 and ict[call]['system_user_local'] != user_address:
-				#different user on same group, and neither new or old user = 0, kill existing
-				closed_calls.append(call)
+				if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] != group_address:
+					#different group, kill existing
+					closed_calls.append(call)
+				if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and user_address != 0 and ict[call]['system_user_local'] != 0 and ict[call]['system_user_local'] != user_address:
+					#different user on same group, and neither new or old user = 0, kill existing
+					closed_calls.append(call)
+			except KeyError as e:
+				pass #Required because the ict can change while we're looking at it
 
 
 		for call_uuid in closed_calls:
@@ -185,7 +197,7 @@ class p25_call_manager():
 		
 
 		#event call open to record subsys
-		self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/new_call', cdr)
+		self.amq_clients[instance_uuid].send_event_lazy('/queue/call_management/new_call', cdr)
 		self.redis_demod_manager.publish_call_table(instance_uuid, ict)
 		self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']))
 
@@ -204,7 +216,7 @@ class p25_call_manager():
 					if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
 						closed_calls.append(call_uuid)
 						#event call close to record subsys on call specific queue
-						self.amq_clients['raw_voice'].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
+						self.amq_clients[instance].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
 	
 						self.log.info('CLOSE: %s' % (ict[call_uuid]))
 				for call_uuid in closed_calls:
@@ -322,12 +334,13 @@ class p25_call_manager():
 
 								self.log.debug('call_user_to_group %s %s %s %s' % (instance_uuid, channel, t['packet']['lc']['tgid'], t['packet']['lc']['source_id']))
 								if channel != -1:
+									pass
 									#self.call_continuation(instance_uuid, channel, t['packet']['lc']['tgid'])
-									self.call_user_to_group(instance_uuid, channel,t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
+									#self.call_user_to_group(instance_uuid, channel,t['packet']['lc']['tgid'], t['packet']['lc']['source_id'])
 							elif t['packet']['lc']['lcf_long'] == 'Group Voice Channel Update':
 								self.log.debug('group voice channel update %s %s %s %s' % (t['packet']['lc']['channel_a'], t['packet']['lc']['channel_a_group'], t['packet']['lc']['channel_b'], t['packet']['lc']['channel_b_group']))
-								self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_a'] ,t['packet']['lc']['channel_a_group'], 0)
-								self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_b'] ,t['packet']['lc']['channel_b_group'], 0)
+								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_a'] ,t['packet']['lc']['channel_a_group'], 0)
+								#self.call_user_to_group(instance_uuid, t['packet']['lc']['channel_b'] ,t['packet']['lc']['channel_b_group'], 0)
 						except KeyError:
 							pass
 
