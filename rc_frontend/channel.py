@@ -43,12 +43,12 @@ class channel ( gr.hier_block2):
 		return self.samp_rate
 	def set_samp_rate(self, samp_rate):
 		self.samp_rate = samp_rate
-		self.set_taps(firdes.low_pass(1,self.samp_rate,self.channel_rate,self.channel_rate/2))
+		self.set_taps(firdes.low_pass(1,self.samp_rate,self.channel_rate/2, 2000))
 	def get_channel_rate(self):
 		return self.channel_rate
 	def set_channel_rate(self, channel_rate):
 		self.channel_rate = channel_rate
-		self.set_taps(firdes.low_pass(1,self.samp_rate,self.channel_rate,self.channel_rate/2))
+		self.set_taps(firdes.low_pass(1,self.samp_rate,self.channel_rate/2, 2000))
 	def set_taps(self, taps):
 		self.prefilter.set_taps((taps))
 
