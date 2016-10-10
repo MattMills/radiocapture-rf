@@ -23,8 +23,22 @@ import os
 import time
 
 def tb_worker(func, *args, **kwargs):
+	#multiprocessing.Process(target=tb_worker, args=())
 	new_process = func(*args, **kwargs)
-	new_process.run()
+	#new_process.run()
+
+def worker(func, *args, **kwargs):
+	#multiprocessing.Process(target=worker, args=())
+	new_process = func(*args, **kwargs)
+	while(True):
+		time.sleep(3600)
+def excepthook(exctype, value, traceback):
+    for p in multiprocessing.active_children():
+    	p.terminate()
+    raise
+
+sys.excepthook = excepthook
+
 
 with open('config.logging.json', 'rt') as f:
     config = json.load(f)
@@ -58,15 +72,20 @@ for x in config.systems:
 import time
 
 logger.info('Initializing call managers')
-p25_cm = p25_call_manager()
-moto_cm = moto_call_manager()
-edacs_cm = edacs_call_manager()
+p25_cm = multiprocessing.Process(target=worker, args=(p25_call_manager,))
+p25_cm.start()
+moto_cm = multiprocessing.Process(target=worker, args=(moto_call_manager,))
+moto_cm.start()
+edacs_cm = multiprocessing.Process(target=worker, args=(edacs_call_manager,))
+edacs_cm.start()
 
-p25_md_agent = p25_metadata_agent()
+#p25_md_agent = multiprocessing.Process(target=worker, args=(p25_metadata_agent,))
+#p25_md_agent.start()
 
 logger.info('Initializing call recorder')
 
-call_recorder = call_recorder()
+#call_recorder = multiprocessing.Process(target=worker, args=(call_recorder,))
+#call_recorder.start()
 
 logger.info('Overseer %s initialization complete' % overseer_uuid)
 while 1:
