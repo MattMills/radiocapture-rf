@@ -470,7 +470,10 @@ if __name__ == '__main__':
 					return 'na,%s\n' % block_id
 	                        else:
 					print '%s Released channel %s' % ( time.time(), block_id)
-					clients[c].remove(block_id)
+					try:
+						clients[c].remove(block_id)
+					except ValueError as e:
+						pass
 					return 'release,%s\n'
                         except Exception as e:
 				return 'na\n'
