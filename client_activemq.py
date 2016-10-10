@@ -107,9 +107,9 @@ class client_activemq():
 		try:
 			self.subscriptions[queue] = {'uuid': this_uuid, 'callback': callback, 'callback_class': callback_class, 'selector': selector}
 			if selector != None:
-				self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL, 'selector': selector })
+				self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_AUTO, 'selector': selector })
 			else:
-				self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_CLIENT_INDIVIDUAL,})
+				self.client.subscribe(queue, {StompSpec.ID_HEADER: this_uuid, StompSpec.ACK_HEADER: StompSpec.ACK_AUTO,})
 		except Exception as e:
 			self.log.fatal('%s' % e)
 			self.connection_issue = True
@@ -129,11 +129,13 @@ class client_activemq():
 			self.log.error('%s' % e)
                         self.connection_issue = True
         def send_event_lazy(self, destination, body, headers = {}, persistent = False):
+
+		headers['time_queued'] = time.time()
 		self.outbound_msg_queue_lazy.append({'destination': destination, 'body': body, 'headers': headers, 'persistent': persistent})
 
 	def send_event_lazy_thread(self):
 		while self.continue_running:
-			time.sleep(0.01)
+			time.sleep(0.001)
 	                #If it gets there, then great, if not, well we tried!
         	        if(self.connection_issue == True):
                 	        continue
@@ -157,7 +159,7 @@ class client_activemq():
 	def send_event_hopeful_thread(self):
 
 		while self.continue_running:
-			time.sleep(0.01)
+			time.sleep(0.001)
 			if(self.connection_issue == True):
 				continue
 			while len(self.outbound_msg_queue) > 0 and self.connection_issue == False:
@@ -199,9 +201,13 @@ class client_activemq():
 						queue = frame.headers['destination']
 						try:
 							time_sent = float(frame.headers['time_sent'])
-							latency = (time.time()-time_sent)
-							#if latency > 0.1:
-							#	print 'Packet Latency: %s' % (time.time()-time_sent)
+							time_queued = float(frame.headers['time_queued'])
+							send_latency = (time.time()-time_sent)
+							queue_latency = (time_sent-time_queued)
+							if queue_latency > 0.1:
+								print 'Queue Latency: %s' % (queue_latency)
+							if send_latency > 0.1:
+								print 'Send Latency: %s' % (send_latency)
 						except:
 							pass
 
@@ -211,11 +217,11 @@ class client_activemq():
 								'data': data,
 								'headers': frame.headers,
 								})
-					        self.client.ack(frame)
+					        #self.client.ack(frame)
 					except Exception as e:
 						raise
 						self.log.critical('Except: %s' % e)
-						self.client.nack(frame)
+						#self.client.nack(frame)
 				except Exception as e:
 					self.log.fatal('except: %s' % e)
 					self.connection_issue = True
