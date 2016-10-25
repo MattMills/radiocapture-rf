@@ -114,20 +114,21 @@ class p25_call_manager():
 		ict = self.instance_metadata[instance_uuid]['call_table']
 
 		closed_calls = []
-		for call in ict.keys():
-			try:
-				if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
-					ict[call]['time_activity'] = time.time()
-					return True
+		with self.lock:
+			for call in ict.keys():
+				try:
+					if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
+						ict[call]['time_activity'] = time.time()
+						return True
 
-				if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] != group_address:
-					#different group, kill existing
-					closed_calls.append(call)
-				if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and user_address != 0 and ict[call]['system_user_local'] != 0 and ict[call]['system_user_local'] != user_address:
-					#different user on same group, and neither new or old user = 0, kill existing
-					closed_calls.append(call)
-			except KeyError as e:
-				pass #Required because the ict can change while we're looking at it
+					if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] != group_address:
+						#different group, kill existing
+						closed_calls.append(call)
+					if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and user_address != 0 and ict[call]['system_user_local'] != 0 and ict[call]['system_user_local'] != user_address:
+						#different user on same group, and neither new or old user = 0, kill existing
+						closed_calls.append(call)
+				except KeyError as e:
+					pass #Required because the ict can change while we're looking at it
 
 
 		for call_uuid in closed_calls:
