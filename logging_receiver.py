@@ -31,14 +31,15 @@ import rs64
 
 class logging_receiver(gr.top_block):
 	def __init__(self, cdr, client_activemq):
-		self.audio_capture = True;
+		self.thread_lock = threading.Lock()
+		self.thread_lock.acquire()
+		self.audio_capture = True
 
 		gr.top_block.__init__(self, "logging_receiver")
 
 		self.cdr = cdr
 		self.in_use = False
 		self.client_activemq = client_activemq
-
 		self.thread_id = 'logr-' + str(uuid.uuid4())
 
 		self.filename = "/dev/null"
@@ -94,7 +95,8 @@ class logging_receiver(gr.top_block):
 
 
 		self.open()
-		self.start()	
+		self.start()
+		self.thread_lock.release()
 	def configure_blocks(self, protocol):
 		if protocol == 'provoice': 
 			protocol = 'analog'
@@ -321,10 +323,9 @@ class logging_receiver(gr.top_block):
 
         def debug(self):
             while not self.destroyed:
-		if(time.time()-self.cdr['time_open'] > 120):
-			self.close({})
                 time.sleep(10)
-                self.log.debug('DEBUG: %s %s %s %s %s' % (time.time(), 0, self.time_activity, self.destroyed, self.in_use))
+                print 'DEBUG: %s %s %s %s %s' % (time.time(), self.connector.my_client_id, self.cdr['call_uuid'], self.destroyed, self.in_use)
+
 	def p25_sensor(self, tb):
 
 		import binascii
@@ -451,6 +452,8 @@ class logging_receiver(gr.top_block):
 			return filename
 
 	def close(self, patches, send_event_func=False, emergency=False):
+		self.thread_lock.acquire()
+		self.thread_lock.release()
 		if self.destroyed == True:
 			return True
 		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
@@ -464,12 +467,8 @@ class logging_receiver(gr.top_block):
 				print '%s' % self.sink
 			if self.log_dat:
                                 self.dat_sink.close()
-			filename = self.upload_and_cleanup(self.filename, self.uuid, self.cdr, self.filepath, patches, emergency)
+			filename = self.upload_and_cleanup(self.filename, self.uuid, self.cdr, self.filepath, patches, False)
 			self.client_activemq.send_event_hopeful('/queue/call_management/call_complete', {'cdr': self.cdr, 'filename': filename, 'uuid': self.uuid}, True)
-			#_thread_0 = threading.Thread(target=self.upload_and_cleanup,args=[self.filename, self.uuid, self.cdr, self.filepath, patches, emergency], name='upload_and_cleanup')
-	        	#_thread_0.daemon = True
-			#_thread_0.start()
-		#self.time_open = 0
 		self.time_last_use = time.time()
 		self.uuid =''
 		self.in_use = False
@@ -504,6 +503,8 @@ class logging_receiver(gr.top_block):
 			self.configure_blocks(proto)
 
 	def open(self):
+		if self.destroyed == True:
+			return False
 		if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
 		try:
 			self.decodequeue.flush()
