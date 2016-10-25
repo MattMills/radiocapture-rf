@@ -430,8 +430,9 @@ if __name__ == '__main__':
 	import zmq
 	import thread
 	import time
-	clients = []
+	clients = {}
 	client_hb = {}
+	client_num = 0
 
 	def handler(msg, tb):
 		global clients
@@ -499,12 +500,18 @@ if __name__ == '__main__':
                         clients[c] = []
                         try:
                             del client_hb[c]
+			except:
+			    pass
+			try:
+			    del clients[c]
                         except:
                             pass
 			return 'quit,%s' % c
 		elif data[0] == 'connect':
-			c = len(clients)
-			clients.append([])
+			global client_num
+			c = client_num
+			client_num = client_num + 1
+			clients[c] = []
 			return 'connect,%s' % c
 		elif data[0] == 'hb':
 			c = int(data[1])
@@ -535,6 +542,7 @@ if __name__ == '__main__':
                         deletions.append(client)
                 for c in deletions:
                     del client_hb[c]
+		    del clients[c]
 
 		msg = socket.recv()
 		resp = handler(msg, tb)
