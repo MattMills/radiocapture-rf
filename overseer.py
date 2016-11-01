@@ -25,7 +25,7 @@ import time
 def tb_worker(func, *args, **kwargs):
 	#multiprocessing.Process(target=tb_worker, args=())
 	new_process = func(*args, **kwargs)
-	#new_process.run()
+	new_process.run()
 
 def worker(func, *args, **kwargs):
 	#multiprocessing.Process(target=worker, args=())
@@ -83,6 +83,7 @@ edacs_cm.start()
 #p25_md_agent.start()
 
 logger.info('Initializing call recorder')
+
 
 #call_recorder = multiprocessing.Process(target=worker, args=(call_recorder,))
 #call_recorder.start()

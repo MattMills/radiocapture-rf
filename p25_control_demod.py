@@ -171,15 +171,11 @@ class p25_control_demod (gr.top_block):
 		self.tune_next_control_channel()
 
 		#self.receive_engine()
-		sleep(1)
-		self.start()
-
 
 		receive_engine = threading.Thread(target=self.receive_engine)
                 receive_engine.daemon = True
                 receive_engine.start()
 
-		self.wait()
 	def adjust_channel_offset(self, delta_hz):
 		return False #Disable
 	        max_delta_hz = 6000.0
@@ -841,7 +837,7 @@ class demod_watcher(threading.Thread):
 		if(self.tb.is_locked):
 			#print 'Probe: %s' % self.tb.probe.level()
 			offset = self.tb.probe.level()
-			#self.tb.connector.report_offset(offset)
+			self.tb.connector.report_offset(offset)
 		sleep(0.5)
 
 if __name__ == '__main__':
