@@ -19,13 +19,13 @@ from logging_receiver import logging_receiver
 from client_activemq import client_activemq
 
 class call_recorder():
-        def __init__(self):
+        def __init__(self, instance_uuid):
                 self.log = logging.getLogger('overseer.call_recorder')
                 self.log.info('Initializing call_recorder')
-
+		self.instance_uuid = instance_uuid
                 self.client = None
                 self.connection_issue = True
-		self.continue_running = True
+		self.keep_running = True
 		self.subscriptions = {}
 		self.outbound_msg_queue = []
 	
@@ -33,20 +33,10 @@ class call_recorder():
 		self.call_table_lock = threading.RLock()
 		self.outbound_client = client_activemq(1)
 		self.client_activemq = client_activemq(4)
-		self.client_activemq2 = client_activemq(4)
-		self.client_activemq3 = client_activemq(4)
-		self.client_activemq4 = client_activemq(4)
 		time.sleep(0.25)
 
-		self.client_activemq.subscribe('/queue/call_management/new_call', self, self.process_new_call.im_func)
-		self.client_activemq.subscribe('/queue/call_management/timeout', self, self.process_call_timeout.im_func)
-		self.client_activemq2.subscribe('/queue/call_management/new_call', self, self.process_new_call.im_func)
-                self.client_activemq2.subscribe('/queue/call_management/timeout', self, self.process_call_timeout.im_func)
-		self.client_activemq3.subscribe('/queue/call_management/new_call', self, self.process_new_call.im_func)
-                self.client_activemq3.subscribe('/queue/call_management/timeout', self, self.process_call_timeout.im_func)
-		self.client_activemq4.subscribe('/queue/call_management/new_call', self, self.process_new_call.im_func)
-                self.client_activemq4.subscribe('/queue/call_management/timeout', self, self.process_call_timeout.im_func)
-
+		self.client_activemq.subscribe('/queue/call_management/new_call/%s' % instance_uuid, self, self.process_new_call.im_func)
+		self.client_activemq.subscribe('/queue/call_management/timeout/%s' % instance_uuid, self, self.process_call_timeout.im_func)
 	def process_new_call(self, cdr, headers):
 		if time.time()-cdr['time_open'] > 5:
 			self.log.info('ignored stale call %s %s'  % (cdr['instance_uuid'], cdr['call_uuid']))
@@ -73,7 +63,7 @@ if __name__ == '__main__':
 
 	logging.config.dictConfig(config)
 
-	main = call_recorder()
+	main = call_recorder(instance_uuid)
 	while True:
 		time.sleep(5)
 		#print '%s' % main.call_table
