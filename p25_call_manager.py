@@ -27,6 +27,7 @@ class p25_call_manager():
 		self.redis_demod_manager = redis_demod_manager(self)
 
 		self.lock = threading.RLock()
+		self.instance_locks = {}
 
 		self.patches = {}
 		self.hang_time = 5
@@ -47,11 +48,13 @@ class p25_call_manager():
 		self.amq_clients[demod_instance_uuid] = client_activemq()
 		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False, 'packet_type = \'GRP_V_CH_GRANT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT\' or packet_type = \'GRP_V_CH_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_ADD_CMD\' or packet_type = \'MOT_PAT_GRP_DEL_CMD\' or packet_type = \'IDEN_UP\' or packet_type = \'IDEN_UP_VU\' or packet_type = \'IDEN_UP_TDMA\'')
 		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_voice/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False, 'packet_type = \'Group Voice Channel User\' or packet_type = \'Call Termination / Cancellation\' or packet_type = \'Group Voice Channel Update\'')
+		self.instance_locks[demod_instance_uuid] = threading.RLock()
 
 	def notify_demod_expire(self, demod_instance_uuid):
 		self.log.debug('Notified of expired demod %s' % (demod_instance_uuid))
 		if demod_instance_uuid in self.amq_clients:
 			self.amq_clients[demod_instance_uuid].unsubscribe('/topic/raw_control/%s' % (demod_instance_uuid))
+			self.amq_clients[demod_instance_uuid].unsubscribe('/topic/raw_voice/%s' % (demod_instance_uuid))
 
 	def get_channel_detail(self, instance, channel):
                 chan_ident = (channel & 0xf000)>>12
@@ -84,7 +87,7 @@ class p25_call_manager():
 		if call_uuid not in ict:
 			return #Cant close a call thats not open
 		
-        	self.amq_clients[instance_uuid].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
+        	self.amq_clients[instance_uuid].send_event_lazy('/queue/call_management/timeout/%s' % instance_uuid, {'call_uuid': call_uuid, 'instance_uuid': instance_uuid})
                 self.log.info('Closing call due to close_call(): %s %s' % (instance_uuid, call_uuid))
 		with self.lock:
 			try:
@@ -101,132 +104,137 @@ class p25_call_manager():
 				except:
 					pass
 	def call_user_to_group(self, instance_uuid, channel, group_address, user_address=0):
-		channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
+		with self.instance_locks[instance_uuid]:
+			channel_frequency, channel_bandwidth, slot, modulation = self.get_channel_detail(instance_uuid, channel)
 
-		if channel_frequency == False:
-			return False
+			if channel_frequency == False:
+				return False
 
-		system_uuid = self.get_system_from_instance(instance_uuid)
-		if system_uuid == False:
-			return False
-
-		sct = self.system_metadata[system_uuid]['call_table']
-		ict = self.instance_metadata[instance_uuid]['call_table']
-
-		closed_calls = []
-		with self.lock:
-			for call in ict.keys():
+			system_uuid = self.get_system_from_instance(instance_uuid)
+			if system_uuid == False:
+				return False
+	
+			sct = self.system_metadata[system_uuid]['call_table']
+			ict = self.instance_metadata[instance_uuid]['call_table']
+	
+			closed_calls = []
+			with self.lock:
+				for call in ict.keys():
+					try:
+						if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
+							ict[call]['time_activity'] = time.time()
+							return True
+	
+						if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] != group_address:
+							#different group, kill existing
+							closed_calls.append(call)
+						if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and user_address != 0 and ict[call]['system_user_local'] != 0 and ict[call]['system_user_local'] != user_address:
+							#different user on same group, and neither new or old user = 0, kill existing
+							closed_calls.append(call)
+					except KeyError as e:
+						pass #Required because the ict can change while we're looking at it
+	
+	
+			for call_uuid in closed_calls:
+				self.close_call(instance_uuid, call_uuid)
+				
+			#Not a continuation, new call
+			call_uuid = None
+			call_count = 0
+			for call in sct.keys():
 				try:
-					if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
-						ict[call]['time_activity'] = time.time()
-						return True
-
-					if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] != group_address:
-						#different group, kill existing
-						closed_calls.append(call)
-					if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and user_address != 0 and ict[call]['system_user_local'] != 0 and ict[call]['system_user_local'] != user_address:
-						#different user on same group, and neither new or old user = 0, kill existing
-						closed_calls.append(call)
+					if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
+						call_uuid = sct[call]['call_uuid']
+						call_count + 1
 				except KeyError as e:
-					pass #Required because the ict can change while we're looking at it
-
-
-		for call_uuid in closed_calls:
-			self.close_call(instance_uuid, call_uuid)
-			
-		#Not a continuation, new call
-		call_uuid = None
-		call_count = 0
-		for call in sct.keys():
-			if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
-				call_uuid = sct[call]['call_uuid']
-				call_count + 1
-
-		if call_count >= 3:
-			pass
-			#return False
-
-		if call_uuid == None:
-			#call is new systemwide, assign new UUID
-			call_uuid = '%s' % uuid.uuid4()
-
-		instance = self.redis_demod_manager.demods[instance_uuid]
-		if modulation == 'FDMA' and instance['system_modulation'] == 'C4FM':
-			modulation_type = 'p25'
-		elif modulation == 'TDMA' and instance['system_modulation'] == 'C4FM':
-			modulation_type = 'p25_tdma'
-		elif modulation == 'FDMA' and instance['system_modulation'] == 'CQPSK':
-			modulation_type = 'p25_cqpsk'
-		elif modulation == 'TDMA' and instance['system_modulation'] == 'CQPSK':
-			modulation_type = 'p25_cqpsk_tdma'
-		else:
-			modulation_type = 'ERROR %s %s' % (modulation, instance['system_modulation'])
-
-		patches = []
-
-		#for x in self.instance_metadata[instance_uuid]:
-		#	if self.instance_metadata[instance_uuid][x]
-			
-		cdr = {
-			'call_uuid': call_uuid,
-	                'system_id': system_uuid,
-			'transmit_site_uuid': instance['transmit_site_uuid'],
-			'instance_uuid': instance_uuid,
-                        'system_group_local': group_address,
-                        'system_user_local': user_address,
-                        'system_channel_local': channel,
-                        'type': 'group',
-			'frequency': channel_frequency,
-			'channel_bandwidth': channel_bandwidth,
-			'modulation_type': modulation_type,
-			'slot': slot,
-                        'hang_time': self.hang_time,
-			'time_open': time.time(),
-			'time_activity': time.time(),
-			'p25_wacn': instance['site_detail']['WACN ID'],
-			'p25_system_id': instance['site_detail']['System ID'],
-			
-                        }
-		
-		with self.lock:
-			ict[call_uuid] = cdr
-			if call_uuid not in sct:
-				sct[call_uuid] = cdr
-				sct[call_uuid]['instances'] = {instance_uuid: True}
+					pass #ignore KeyErrors, sct may change while we're iterating it. 
+	
+			if call_count >= 3:
+				pass
+				#return False
+	
+			if call_uuid == None:
+				#call is new systemwide, assign new UUID
+				call_uuid = '%s' % uuid.uuid4()
+	
+			instance = self.redis_demod_manager.demods[instance_uuid]
+			if modulation == 'FDMA' and instance['system_modulation'] == 'C4FM':
+				modulation_type = 'p25'
+			elif modulation == 'TDMA' and instance['system_modulation'] == 'C4FM':
+				modulation_type = 'p25_tdma'
+			elif modulation == 'FDMA' and instance['system_modulation'] == 'CQPSK':
+				modulation_type = 'p25_cqpsk'
+			elif modulation == 'TDMA' and instance['system_modulation'] == 'CQPSK':
+				modulation_type = 'p25_cqpsk_tdma'
 			else:
-				sct[call_uuid]['instances'][instance_uuid] = True
-		
-
-		#event call open to record subsys
-		self.amq_clients[instance_uuid].send_event_lazy('/queue/call_management/new_call', cdr)
-		self.redis_demod_manager.publish_call_table(instance_uuid, ict)
-		self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']))
-
+				modulation_type = 'ERROR %s %s' % (modulation, instance['system_modulation'])
+	
+			patches = []
+	
+			#for x in self.instance_metadata[instance_uuid]:
+			#	if self.instance_metadata[instance_uuid][x]
+				
+			cdr = {
+				'call_uuid': call_uuid,
+		                'system_id': system_uuid,
+				'transmit_site_uuid': instance['transmit_site_uuid'],
+				'instance_uuid': instance_uuid,
+	                        'system_group_local': group_address,
+	                        'system_user_local': user_address,
+	                        'system_channel_local': channel,
+	                        'type': 'group',
+				'frequency': channel_frequency,
+				'channel_bandwidth': channel_bandwidth,
+				'modulation_type': modulation_type,
+				'slot': slot,
+	                        'hang_time': self.hang_time,
+				'time_open': time.time(),
+				'time_activity': time.time(),
+				'p25_wacn': instance['site_detail']['WACN ID'],
+				'p25_system_id': instance['site_detail']['System ID'],
+				
+	                        }
+			
+			with self.lock:
+				ict[call_uuid] = cdr
+				if call_uuid not in sct:
+					sct[call_uuid] = cdr
+					sct[call_uuid]['instances'] = {instance_uuid: True}
+				else:
+					sct[call_uuid]['instances'][instance_uuid] = True
+			
+	
+			#event call open to record subsys
+			self.amq_clients[instance_uuid].send_event_lazy('/queue/call_management/new_call/%s' % instance_uuid, cdr)
+			self.redis_demod_manager.publish_call_table(instance_uuid, ict)
+			self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']))
+	
 	def periodic_timeout_thread(self):
 		while self.continue_running:
 			time.sleep(0.1)
 			for instance in self.instance_metadata.keys():
-				ict = self.instance_metadata[instance]['call_table']
-				system_uuid = self.get_system_from_instance(instance)
-				if system_uuid == False:
-					continue
-				sct = self.system_metadata[system_uuid]['call_table']
-
-				closed_calls = []
-				for call_uuid in ict.keys():
-					if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
-						closed_calls.append(call_uuid)
-						#event call close to record subsys on call specific queue
-						self.amq_clients[instance].send_event_lazy('/queue/call_management/timeout', {'call_uuid': call_uuid, 'instance_uuid': instance})						
+				with self.instance_locks[instance]:
+					ict = self.instance_metadata[instance]['call_table']
+					system_uuid = self.get_system_from_instance(instance)
+					if system_uuid == False:
+						continue
+					sct = self.system_metadata[system_uuid]['call_table']
 	
-						self.log.info('CLOSE: %s' % (ict[call_uuid]))
-				for call_uuid in closed_calls:
-					del ict[call_uuid]
-					del sct[call_uuid]['instances'][instance]
-					if len(sct[call_uuid]['instances']) == 0:
-						del sct[call_uuid]
-				if len(closed_calls) > 0:
-					self.redis_demod_manager.publish_call_table(instance, ict)
+					closed_calls = []
+					for call_uuid in ict.keys():
+						if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
+							closed_calls.append(call_uuid)
+							#event call close to record subsys on call specific queue
+							self.amq_clients[instance].send_event_lazy('/queue/call_management/timeout/%s' % instance, {'call_uuid': call_uuid, 'instance_uuid': instance})						
+		
+							self.log.info('CLOSE: %s' % (ict[call_uuid]))
+					for call_uuid in closed_calls:
+						del ict[call_uuid]
+						del sct[call_uuid]['instances'][instance]
+						if len(sct[call_uuid]['instances']) == 0:
+							del sct[call_uuid]
+					if len(closed_calls) > 0:
+						self.redis_demod_manager.publish_call_table(instance, ict)
 					
 	def process_raw_control(self, t, headers):
 				try:

@@ -41,32 +41,38 @@ class redis_demod_manager():
 		print 'manager_loop()'
 		time.sleep(0.1)
 		while self.continue_running:
-			demod_type = self.parent_call_manager.demod_type
+			if self.parent_call_manager.demod_type == 'all':
+				demod_types = ['p25', 'edacs', 'moto']
+			else:
+				demod_types = [self.parent_call_manager.demod_type,]
 			
 			demods = {}
-			for instance_uuid in self.client.smembers('demod:%s' % demod_type):
-				try:
-					demods[instance_uuid] = json.loads(self.client.get(instance_uuid))	
-				except Exception as e:
-					print 'Error %s' % e
-			
-			deletions = []
-			for demod in demods:
-				if demod not in self.demods:
-					self.parent_call_manager.notify_demod_new(demod)
 
-				timestamp = demods[demod]['timestamp']
-				if(timestamp < time.time()-5):
-					self.client.srem('demod:%s' % demod_type, demod)
-					self.client.delete(demod)
-					deletions.append(demod)
+			for demod_type in demod_types:
+				for instance_uuid in self.client.smembers('demod:%s' % demod_type):
+					try:
+						data = self.client.get(instance_uuid)
+						demods[instance_uuid] = json.loads(data)	
+					except Exception as e:
+						print 'Error %s while processing instance %s %s' % (e, instance_uuid, demod_type)
+			
+				deletions = []
+				for demod in demods:
+					if demod not in self.demods:
+						self.parent_call_manager.notify_demod_new(demod)
+
+					timestamp = demods[demod]['timestamp']
+					if(timestamp < time.time()-5):
+						self.client.srem('demod:%s' % demod_type, demod)
+						self.client.delete(demod)
+						deletions.append(demod)
 		
-					self.parent_call_manager.notify_demod_expire(demod)
-			
-			for deletion in deletions:
-				del demods[deletion]
+						self.parent_call_manager.notify_demod_expire(demod)
+				
+				for deletion in deletions:
+					del demods[deletion]
 
-			self.demods = demods
+				self.demods = demods
 
 			time.sleep(5)
 			
