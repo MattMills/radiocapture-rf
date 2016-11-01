@@ -11,6 +11,9 @@ import math
 import os
 import random
 
+import logging
+import logging.config
+
 import channel
 import copy
 from config import rc_config
@@ -18,6 +21,8 @@ from config import rc_config
 class receiver(gr.top_block):
 	def __init__(self):
 		gr.top_block.__init__(self, 'receiver')
+
+		self.log = logging.getLogger('frontend')
 
 		try:
                         gr.enable_realtime_scheduling()
@@ -50,7 +55,6 @@ class receiver(gr.top_block):
 				transition = channel_rate*0.5
 				
 				taps = firdes.low_pass(1,samp_rate,channel_rate,transition)
-				print taps
 	
 		                filt1 = filter.freq_xlating_fir_filter_ccc(decim, (taps), -samp_rate/4, samp_rate)
 				filt2 = filter.freq_xlating_fir_filter_ccc(decim, (taps), samp_rate/4, samp_rate)
@@ -177,7 +181,6 @@ class receiver(gr.top_block):
                                 transition = channel_rate*0.5
 
                                 taps = firdes.low_pass(1,samp_rate,channel_rate,transition)
-                                print taps
 
                                 filt1 = filter.freq_xlating_fir_filter_ccc(decim, (taps), -samp_rate/4, samp_rate)
                                 filt2 = filter.freq_xlating_fir_filter_ccc(decim, (taps), samp_rate/4, samp_rate)
@@ -282,7 +285,7 @@ class receiver(gr.top_block):
                                 try:
                                         block = channel.channel(port, channel_rate,(source_samp_rate), offset)
                                 except RuntimeError as err:
-                                        print 'Failed to build channel on port: %s attempt: %s' % (port, x)
+                                        self.log.error('Failed to build channel on port: %s attempt: %s' % (port, x))
                                         pass
 
                         block.source_id = source_id
@@ -350,7 +353,7 @@ class receiver(gr.top_block):
 		
 
 		if pfb_offset < (-1*(pfb_samp_rate/2))+(channel_rate/2) or pfb_offset > (pfb_samp_rate/2)-(channel_rate/2):
-			print 'warning: %s edge boundary' % freq
+			self.log.warning('warning: %s edge boundary' % freq)
 		#We have all our parameters, lets see if we can re-use an idling channel
 		self.access_lock.acquire()
 
@@ -370,7 +373,7 @@ class receiver(gr.top_block):
 				try:
 					block = channel.channel(port, channel_rate,(pfb_samp_rate), pfb_offset)
 				except RuntimeError as err:
-					print 'Failed to build channel on port: %s attempt: %s' % (port, x)
+					self.log.error('Failed to build channel on port: %s attempt: %s' % (port, x))
 					pass
 
 			block.source_id = source_id
@@ -415,7 +418,7 @@ class receiver(gr.top_block):
 		if hz_offset < 1 and hz_offset > -1:
 			return True
 		new_center_freq = center_freq+hz_offset
-		print 'Source %s New Center freq %s %s' % (self.channels[block_id].source_id, new_center_freq, offset)
+		self.log.info('Source %s New Center freq %s %s' % (self.channels[block_id].source_id, new_center_freq, offset))
 		self.access_lock.acquire()
 		self.sources[self.channels[block_id].source_id]['block'].set_center_freq(new_center_freq+base_offset,0)
 		self.sources[self.channels[block_id].source_id]['center_freq'] = new_center_freq
@@ -423,6 +426,13 @@ class receiver(gr.top_block):
 		return True
 
 if __name__ == '__main__':
+	with open('config.logging.json', 'rt') as f:
+	    config = json.load(f)
+
+	logging.config.dictConfig(config)
+	log = logging.getLogger('frontend')
+
+
 	tb = receiver()
 	tb.start()
 	#print len(tb.channels)
@@ -453,10 +463,10 @@ if __name__ == '__main__':
 
 			if block_id == -1:
 				#Channel failed to create, probably freq out of range
-				print 'failed to create channel %s' % freq
+				log.error('failed to create channel %s' % freq)
 				return 'na,%s' % freq
 			else:
-	                       	print '%s Created channel ar: %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id)
+	                       	log.info('%s Created channel ar: %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id))
 				clients[c].append(block_id)
 				return 'create,%s,%s' % (block_id, port)
 		elif data[0] ==  'release':
@@ -467,10 +477,10 @@ if __name__ == '__main__':
 				
 				if result == -1:
 	                                #Channel failed to release
-					print 'failed to release %s' % block_id
+					log.error('failed to release %s' % block_id)
 					return 'na,%s\n' % block_id
 	                        else:
-					print '%s Released channel %s' % ( time.time(), block_id)
+					log.info('%s Released channel %s' % ( time.time(), block_id))
 					try:
 						clients[c].remove(block_id)
 					except ValueError as e:
@@ -481,12 +491,12 @@ if __name__ == '__main__':
                 elif data[0] == 'scan_mode_set_freq':
                     freq = int(data[1])
                     try:
-                        print 'attempting to set center freq to %s' % freq
+                        log.info('attempting to set center freq to %s' % freq)
                         if 'offset' in tb.realsources[0]:
                             tb.realsources[0]['block'].set_center_freq(freq+tb.realsources[0]['offset'], 0)
                         else:
                             tb.realsources[0]['block'].set_center_freq(freq, 0)
-                        print 'success'
+                        log.info('success set center freq')
                         return 'success'
                     except:
                         raise
