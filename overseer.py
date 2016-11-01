@@ -8,7 +8,7 @@ from p25_call_manager import p25_call_manager
 from moto_call_manager import moto_call_manager
 from edacs_call_manager import edacs_call_manager
 
-from call_recorder import call_recorder
+from call_recorder_manager import call_recorder_manager
 
 from p25_metadata_agent import p25_metadata_agent
 
@@ -82,11 +82,11 @@ edacs_cm.start()
 #p25_md_agent = multiprocessing.Process(target=worker, args=(p25_metadata_agent,))
 #p25_md_agent.start()
 
-logger.info('Initializing call recorder')
+logger.info('Initializing call recorder manager')
 
 
-#call_recorder = multiprocessing.Process(target=worker, args=(call_recorder,))
-#call_recorder.start()
+call_recorder = multiprocessing.Process(target=worker, args=(call_recorder_manager,))
+call_recorder.start()
 
 logger.info('Overseer %s initialization complete' % overseer_uuid)
 while 1:
