@@ -45,6 +45,8 @@ with open('config.logging.json', 'rt') as f:
 
 logging.config.dictConfig(config)
 
+import multiprocessing_logging
+multiprocessing_logging.install_mp_handler()
 
 logger = logging.getLogger('overseer')
 
