@@ -514,7 +514,7 @@ class logging_receiver(gr.top_block):
 		self.uuid = self.cdr['uuid'] = str(uuid.uuid4())
 
 
-		self.log.info('OPEN %s %s' % (self.cdr['instance_uuid'], self.cdr['call_uuid']))
+		self.log.info('OPEN %s %s %s' % (self.cdr['instance_uuid'], self.cdr['call_uuid'], self.cdr))
 		now = datetime.datetime.utcnow()
 
 		if(self.cdr['type'] == 'group'):
