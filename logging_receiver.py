@@ -28,6 +28,9 @@ from frontend_connector import frontend_connector
 
 from client_activemq import client_activemq
 import rs64
+import golay
+import hamming
+
 
 class logging_receiver(gr.top_block):
 	def __init__(self, cdr, client_activemq):
@@ -567,11 +570,11 @@ class logging_receiver(gr.top_block):
 		return [returnframe, r]
 	# fake (10,6,3) shortened Hamming decoder, no error correction
         def hamming_10_6_3_decode(self, input):
-                output = ''
-                for i in range(0,len(input),10):
-                         codeword = input[i:i+10]
-                         output += codeword[:6]
-                return output
+                #output = ''
+                #for i in range(0,len(input),10):
+                #         codeword = input[i:i+10]
+                #         output += codeword[:6]
+                return hamming.decode_lc(input, True)
         def procLDU1(self, frame):
                 r = {'short':'LDU1', 'long':'Logical Link Data Unit 1'}
                 bitframe = self.bin_to_bit(frame)
@@ -699,11 +702,11 @@ class logging_receiver(gr.top_block):
         # fake (24,12,8) extended Golay decoder, no error correction
         # TODO: make less fake
         def golay_24_12_8_decode(self, input):
-                output = ''
-                for i in range(0,len(input),24):
-                        codeword = input[i:i+24]
-                        output += codeword[:12]
-                return output
+                #output = ''
+                #for i in range(0,len(input),24):
+                #        codeword = input[i:i+24]
+                #        output += codeword[:12]
+                return golay.decode_lc(input)
         def procTLC(self, frame):
                 r = {'short': 'TLC', 'Long' : 'Terminator with Link Control'}
                 bitframe = self.bin_to_bit(frame)
