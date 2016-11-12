@@ -331,6 +331,7 @@ class edacs_control_demod(gr.top_block):
 
 		desired_quality = 666.0 #approx 66.0 packets per sec
 
+		logger = logging.getLogger('overseer.quality.%s' % self.instance_uuid)
                 #global bad_messages, total_messages
 		bad_messages = self.bad_messages
 		total_messages = self.total_messages
@@ -343,7 +344,7 @@ class edacs_control_demod(gr.top_block):
 			current_packets = self.total_messages-last_total
 			current_packets_bad = self.bad_messages-last_bad
 
-                        self.log.info('System Status: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel))
+                        logger.info('System Status: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel))
 
 			if len(self.quality) >= 60:
                                 self.quality.pop(0)

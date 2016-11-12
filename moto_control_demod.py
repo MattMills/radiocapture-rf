@@ -166,6 +166,8 @@ class moto_control_demod(gr.top_block):
 
 		desired_quality = 429.0 # approx 42.9 packets per sec
 
+
+		logger = logging.getLogger('overseer.quality.%s' % self.instance_uuid)
                 #global bad_messages, total_messages
                 bad_messages = self.packets_bad
                 total_messages = self.packets
@@ -178,7 +180,7 @@ class moto_control_demod(gr.top_block):
                         sid = self.system['id']
 			current_packets = self.packets-last_total
 			current_packets_bad = self.packets_bad-last_bad
-                        self.log.info('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.packets, self.packets_bad, self.control_channel))
+                        logger.info('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.packets, self.packets_bad, self.control_channel))
 
 			if len(self.quality) >= 60:
 				self.quality.pop(0)
