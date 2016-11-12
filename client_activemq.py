@@ -23,6 +23,7 @@ class client_activemq():
 
                 self.host = '127.0.0.1' #manually set here until there is a better place
                 self.port = 61613 #manually set here until there is a better place
+		self.worker_threads = worker_threads
 
                 self.client = None
                 self.connection_issue = True
@@ -35,7 +36,7 @@ class client_activemq():
                 connection_handler = threading.Thread(target=self.connection_handler)
                 connection_handler.daemon = True
                 connection_handler.start()
-		
+	
 		send_event_hopeful_thread = threading.Thread(target=self.send_event_hopeful_thread)
                 send_event_hopeful_thread.daemon = True
                 send_event_hopeful_thread.start()
@@ -51,11 +52,8 @@ class client_activemq():
 
 		self.work_queue = Queue.Queue()
 
-		for i in range(worker_threads):
-		     t = threading.Thread(target=self.worker, args=(self.work_queue,))
-		     t.daemon = True
-		     t.start()
-
+		self.threads = []
+		self.build_worker_pool(self.worker_threads)
 
 
         def init_connection(self):
@@ -70,6 +68,16 @@ class client_activemq():
                 self.client = Stomp(config)
                 self.client.connect(heartBeats=(30000, 0), connectTimeout=1, connectedTimeout=1)
 
+	def build_worker_pool(self, capacity):
+		for thread in self.threads:
+			if thread.is_alive() == False:
+				self.threads.remove(thread)
+
+		while len(self.threads) < capacity:
+			t = threading.Thread(target=self.worker, args=(self.work_queue,))
+			t.daemon = True
+			t.start()
+			self.threads.append(t)
         def connection_handler(self):
                 #This func will just try to reconnect repeatedly in a thread if we're flagged as having an issue.
                 while(True):
@@ -90,6 +98,7 @@ class client_activemq():
 					self.client.beat()
 				except:
 					self.log.warning('Failed to heartbeat?')
+			self.build_worker_pool(self.worker_threads)
                         time.sleep(1)
 	def subscribe(self, queue, callback_class, callback, resub=False, selector=None):
 		#This needs to exist so we can keep track of what subs we have and re-sub on reconnect
@@ -173,19 +182,22 @@ class client_activemq():
 	        	                self.connection_issue = True
         def worker(self, queue):
 		while self.continue_running:
-			item = queue.get()
-			for x in 1,2,3:
-				try:
-					item['callback'](item['callback_class'], item['data'], item['headers'])
-					break
-				except Exception as e:
-					self.log.error('Exception in worker thread: %s' % e)
-					traceback.print_exc()
-					sys.exc_clear()
-					time.sleep(0.01)
+			try:
+				item = queue.get()
+				for x in 1,2,3:
+					try:
+						item['callback'](item['callback_class'], item['data'], item['headers'])
+						break
+					except Exception as e:
+						self.log.error('Exception in worker thread: %s' % e)
+						traceback.print_exc()
+						sys.exc_clear()
+						time.sleep(0.01)
 				
 				
-			queue.task_done()	
+				queue.task_done()	
+			except:
+				pass
 
 	def publish_loop(self):
 		self.log.debug('publish_loop() init')
