@@ -40,6 +40,7 @@ class p25_control_demod (gr.top_block):
 		self.instance_uuid = '%s' % uuid.uuid4()
 
                 self.log = logging.getLogger('overseer.p25_control_demod.%s' % self.instance_uuid)
+		self.protocol_log = logging.getLogger('protocol.%s' % self.instance_uuid)
                 self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
 
 		self.site_uuid = site_uuid
@@ -795,11 +796,13 @@ class p25_control_demod (gr.top_block):
 						packet_type = 'invalid'
 
 					self.client_activemq.send_event_lazy('/topic/raw_control/%s' % (self.instance_uuid), t,{'packet_type': packet_type}, False)
+					self.protocol_log.info(t)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
 		desired_quality = 400.0 # approx 40 tsbk per sec
 
+		logger = logging.getLogger('overseer.quality.%s' % self.instance_uuid)
                 bad_messages = self.bad_messages
                 total_messages = self.total_messages
                 last_total = 0
@@ -811,7 +814,7 @@ class p25_control_demod (gr.top_block):
 			current_packets = self.total_messages-last_total
 			current_packets_bad = self.bad_messages-last_bad
 
-                        self.log.info('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel))
+                        logger.info('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel))
                         
 			if len(self.quality) >= 60:
                                 self.quality.pop(0)

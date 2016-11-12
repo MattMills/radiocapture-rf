@@ -20,12 +20,30 @@
             "formatter": "simple",
             "level": "INFO",
             "maxBytes": 10485760
+        },
+	"protocol_handler": {
+            "backupCount": 5,
+            "class": "logging.handlers.RotatingFileHandler",
+            "encoding": "utf8",
+            "filename": "logs/protocol.log",
+            "formatter": "simple",
+            "level": "INFO",
+            "maxBytes": 10485760
         }
     },
-    "loggers": { },
+    "loggers": {
+	"overseer.quality": {
+		"handlers": ["console"]
+	},
+	"protocol": {
+		"handlers": ["protocol_handler"],
+		"propagate": 0
+	}
+		
+     },
     "root": {
         "handlers": [
-            "console", "file_handler"
+       		"file_handler"
         ],
         "level": "INFO"
     },
