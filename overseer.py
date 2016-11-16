@@ -21,17 +21,22 @@ import multiprocessing
 import sys
 import os
 import time
+import manhole
 
 def tb_worker(func, *args, **kwargs):
 	#multiprocessing.Process(target=tb_worker, args=())
 	new_process = func(*args, **kwargs)
-	new_process.run()
+	new_process.start()
+	manhole.install(locals=locals())
+	while(new_process.keep_running):
+		time.sleep(1)
 
 def worker(func, *args, **kwargs):
 	#multiprocessing.Process(target=worker, args=())
 	new_process = func(*args, **kwargs)
+	manhole.install(locals=locals())
 	while(True):
-		time.sleep(3600)
+		time.sleep(1)
 def excepthook(exctype, value, traceback):
     for p in multiprocessing.active_children():
     	p.terminate()
@@ -47,6 +52,8 @@ logging.config.dictConfig(config)
 
 import multiprocessing_logging
 multiprocessing_logging.install_mp_handler()
+multiprocessing_logging.install_mp_handler(logging.getLogger('overseer.quality'))
+multiprocessing_logging.install_mp_handler(logging.getLogger('protocol'))
 
 logger = logging.getLogger('overseer')
 
@@ -70,16 +77,20 @@ for x in config.systems:
 		demods[x] = multiprocessing.Process(target=tb_worker, args=(p25_control_demod, config.systems[x], site_uuid, overseer_uuid))
 		
 	demods[x].start()
+	logger.info('demodulator %s pid: %s' % (x, demods[x].pid))
 
 import time
 
 logger.info('Initializing call managers')
 p25_cm = multiprocessing.Process(target=worker, args=(p25_call_manager,))
 p25_cm.start()
+logger.info('p25_cm pid  %s' % p25_cm.pid)
 moto_cm = multiprocessing.Process(target=worker, args=(moto_call_manager,))
 moto_cm.start()
+logger.info('moto_cm pid  %s' % moto_cm.pid)
 edacs_cm = multiprocessing.Process(target=worker, args=(edacs_call_manager,))
 edacs_cm.start()
+logger.info('edacs_cm pid  %s' % edacs_cm.pid)
 
 #p25_md_agent = multiprocessing.Process(target=worker, args=(p25_metadata_agent,))
 #p25_md_agent.start()
@@ -89,6 +100,7 @@ logger.info('Initializing call recorder manager')
 
 call_recorder = multiprocessing.Process(target=worker, args=(call_recorder_manager,))
 call_recorder.start()
+logger.info('call_recorder pid  %s' % call_recorder.pid)
 
 logger.info('Overseer %s initialization complete' % overseer_uuid)
 while 1:
