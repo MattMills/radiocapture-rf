@@ -35,8 +35,8 @@ class call_recorder():
 		self.client_activemq = client_activemq(4)
 		time.sleep(0.25)
 
-		self.client_activemq.subscribe('/queue/call_management/new_call/%s' % instance_uuid, self, self.process_new_call.im_func)
-		self.client_activemq.subscribe('/queue/call_management/timeout/%s' % instance_uuid, self, self.process_call_timeout.im_func)
+		self.client_activemq.subscribe('/topic/call_management/new_call/%s' % instance_uuid, self, self.process_new_call.im_func)
+		self.client_activemq.subscribe('/topic/call_management/timeout/%s' % instance_uuid, self, self.process_call_timeout.im_func)
 	def process_new_call(self, cdr, headers):
 		if time.time()-cdr['time_open'] > 5:
 			self.log.info('ignored stale call %s %s'  % (cdr['instance_uuid'], cdr['call_uuid']))
