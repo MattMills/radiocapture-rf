@@ -23,13 +23,13 @@ class call_recorder_manager():
 
 		self.call_recorders = {}
 	def notify_demod_new(self, demod_instance_uuid):
-		self.log.debug('Notified of new demod %s' % (demod_instance_uuid))
+		self.log.info('Notified of new demod %s' % (demod_instance_uuid))
 		if demod_instance_uuid not in self.call_recorders:
 			cr = multiprocessing.Process(target=self.worker, args=(call_recorder,demod_instance_uuid, ))
 			cr.start()
 			self.call_recorders[demod_instance_uuid] = call_recorder
 	def notify_demod_expire(self, demod_instance_uuid):
-		self.log.debug('Notified of expired demod %s' % (demod_instance_uuid))
+		self.log.info('Notified of expired demod %s' % (demod_instance_uuid))
 		if demod_instance_uuid in self.call_recorders:
 			self.call_recorders[demod_instance_uuid].keep_running = False
 			del self.call_recorders[demod_instance_uuid]
