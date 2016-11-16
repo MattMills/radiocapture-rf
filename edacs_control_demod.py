@@ -15,9 +15,9 @@ import threading
 import uuid
 import logging
 
-from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
+from client_activemq import client_activemq
 
 class edacs_control_demod(gr.top_block):
 	def __init__(self, system, site_uuid, overseer_uuid):
@@ -56,6 +56,7 @@ class edacs_control_demod(gr.top_block):
 		self.freq_offset = 0
 
 		self.connector = frontend_connector()
+		self.client_activemq = client_activemq()
 
 		################################################
 		# Blocks
@@ -107,7 +108,6 @@ class edacs_control_demod(gr.top_block):
 		###############################################
 		self.patches = {}
 		self.patch_timeout = 3 #seconds
-                self.backend_event_publisher = backend_event_publisher()
 		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
 		control_decode_0 = threading.Thread(target=self.control_decode)
@@ -311,7 +311,7 @@ class edacs_control_demod(gr.top_block):
                 #        print "(%s)[%s] %s" %(time.time(),hex(int(m1, 2)), m)
                 #elif( m != ''):
                 #        print "(%s)[%s][%s] %s" %(time.time(),hex(int(m1, 2)), hex(int(m2,2)), m)
-		self.backend_event_publisher.publish_raw_control(self.instance_uuid, self.system['type'], r)
+		self.client_activemq.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, r)
         def is_double_message(self, m1):
                 if(m1 == -1): return True
                 mta = m1[:3]
