@@ -271,7 +271,7 @@ class receiver(gr.top_block):
 		block = None
 
                 for c in self.channels:
-                        if c.source_id == source_id and c.in_use == False:
+                        if c.source_id == source_id and c.channel_rate == channel_rate and c.in_use == False:
                                 block = c
                                 block_id = c.block_id
 				port = c.port
@@ -415,7 +415,7 @@ class receiver(gr.top_block):
 			hz_offset = offset*10
 		else:
 			hz_offset = offset*4
-		if hz_offset < 1 and hz_offset > -1:
+		if hz_offset < 5 and hz_offset > -5:
 			return True
 		new_center_freq = center_freq+hz_offset
 		self.log.info('Source %s New Center freq %s %s' % (self.channels[block_id].source_id, new_center_freq, offset))
@@ -467,7 +467,11 @@ if __name__ == '__main__':
 				return 'na,%s' % freq
 			else:
 	                       	log.info('%s Created channel ar: %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id))
-				clients[c].append(block_id)
+				try:
+					clients[c].append(block_id)
+				except:
+					tb.release_channel(block_id)
+					return 'na,%s' % freq
 				return 'create,%s,%s' % (block_id, port)
 		elif data[0] ==  'release':
 			try:
@@ -504,15 +508,18 @@ if __name__ == '__main__':
 
 		elif data[0] == 'quit':
 			c = int(data[1])
-			for x in clients[c]:
-				tb.release_channel(x)
+			try:
+				for x in clients[c]:
+					tb.release_channel(x)
+			except:
+				pass
 
-                        clients[c] = []
                         try:
                             del client_hb[c]
 			except:
 			    pass
 			try:
+			    clients[c] = []
 			    del clients[c]
                         except:
                             pass
@@ -544,12 +551,15 @@ if __name__ == '__main__':
 	while 1:
                 deletions = []
                 for client in client_hb:
-                    if time.time()-client_hb[client] > 1:
-                        for x in clients[client]:
-                            tb.release_channel(x)
-                        clients[client] = []
+			try:
+        	            if time.time()-client_hb[client] > 1:
+                	        for x in clients[client]:
+                        	    tb.release_channel(x)
+	                        clients[client] = []
 
-                        deletions.append(client)
+	                        deletions.append(client)
+			except:
+				pass
                 for c in deletions:
                     del client_hb[c]
 		    del clients[c]
