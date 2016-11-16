@@ -423,11 +423,12 @@ class logging_receiver(gr.top_block):
                         
                         if not emergency:
                             self.destroy()
-	                os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '.wav' + ' 2>&1 >/dev/null')
-			try:
-	                	os.makedirs('/nfs/%s' % (filepath, ))
-	                except:
-	                        pass
+			if cdr['modulation_type'] in ['p25', 'p25_cqpsk', 'p25_tdma', 'p25_cqpsk_tdma']:
+				os.system('sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h equalizer 0.25k 0.5k -12 equalizer 0.75k 0.5k -6 equalizer 1.25k 0.5k -6 equalizer 2.5k 1k 6 equalizer 3.5k 1k +4 contrast loudness gain -n -6 dither')
+			else:
+				os.system('sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h contrast loudness gain -n -6 dither')
+	                os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '-sox.wav ' +filename[:-4] + '.mp3 2>&1 >/dev/null')
+
 			filename = filename[:-4] + '.mp3'
 			tags = {}
 			tags['TIT2'] = '%s %s' % (cdr['type'],cdr['system_group_local'])
@@ -452,6 +453,12 @@ class logging_receiver(gr.top_block):
 					os.remove(filename[:-4] + '.wav')
 			except:
 				self.log.info('error removing ' + filename[:-4] + '.wav')
+			try:
+				if not self.log_wav:
+					os.remove(filename[:-4] + '-sox.wav')
+			except:
+				pass
+
 			return filename
 
 	def close(self, patches, send_event_func=False, emergency=False):
