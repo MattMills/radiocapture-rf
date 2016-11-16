@@ -46,13 +46,13 @@ class redis_demod_manager():
 			else:
 				demod_types = [self.parent_call_manager.demod_type,]
 			
-			demods = {}
 
 			for demod_type in demod_types:
+				demods = {}
 				for instance_uuid in self.client.smembers('demod:%s' % demod_type):
 					try:
 						data = self.client.get(instance_uuid)
-						demods[instance_uuid] = json.loads(data)	
+						demods[instance_uuid] = json.loads(data)
 					except Exception as e:
 						print 'Error %s while processing instance %s %s' % (e, instance_uuid, demod_type)
 			
