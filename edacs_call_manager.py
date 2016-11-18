@@ -53,7 +53,7 @@ class edacs_call_manager():
 
 	def get_system_from_instance(self, instance_uuid):
 		try:
-			return self.redis_demod_manager.demods[instance_uuid]['system_uuid']
+			return self.redis_demod_manager.get_instance(instance_uuid)['system_uuid']
 		except:
 			return False
 
@@ -82,7 +82,7 @@ class edacs_call_manager():
 		if call_uuid == None:
 			#call is new systemwide, assign new UUID
 			call_uuid = '%s' % uuid.uuid4()
-		instance = self.redis_demod_manager.demods[instance_uuid]
+		instance = self.redis_demod_manager.get_instance(instance_uuid)
 		cdr = {
 			'call_uuid': call_uuid,
 	                'system_id': system_uuid,
@@ -94,7 +94,7 @@ class edacs_call_manager():
                         'type': 'group',
 			'frequency': frequency,
 			'channel_bandwidth': '12500',
-			'modulation_type': '%s' % ('analog' if digital == False else 'provoice'),
+			'modulation_type': '%s' % ('analog_edacs' if digital == False else 'provoice'),
                         'hang_time': self.hang_time,
 			'time_open': time.time(),
 			'time_activity': time.time(),
@@ -145,7 +145,7 @@ class edacs_call_manager():
 
 	def process_raw_control(self, t, headers):
 		instance_uuid = headers['destination'].replace('/topic/raw_control/', '')
-		instance = self.redis_demod_manager.demods[instance_uuid]
+		instance = self.redis_demod_manager.get_instance(instance_uuid)
 		system_uuid = self.get_system_from_instance(instance_uuid)
 
 		if instance_uuid not in self.instance_metadata:
@@ -158,14 +158,14 @@ class edacs_call_manager():
 			return
 		if t['type'] == 'call_assignment_analog' :
 			#{u'logical_id': 5604, u'group': 1393, u'tx_trunked': True, u'frequency': 858712500, u'system_type': u'edacs', u'type': u'call_assignment_analog', u'channel': 11}
-			self.log.info('call_assignment_analog: %s' % t)
+			self.log.debug('call_assignment_analog: %s' % t)
 			self.call_user_to_group(instance_uuid, t['frequency'], t['group'], t['logical_id'])
 		elif t['type'] == 'call_continuation_analog':
 			#{u'individual': 0, u'frequency': 858712500, u'system_type': u'edacs', u'mtc': 2, u'type': u'call_continuation_analog', u'id': 1393, u'channel': 11}
-			self.log.info('call_continuation_analog: %s' % t)
+			self.log.debug('call_continuation_analog: %s' % t)
 			self.call_user_to_group(instance_uuid, t['frequency'], t['id'])
 		elif t['type'] == 'call_continuation_digital':
-			self.log.info('call_continuation_digital: %s' % t)
+			self.log.debug('call_continuation_digital: %s' % t)
 			self.call_user_to_group(instance_uuid, t['frequency'], t['id'], 0, True)
 
 

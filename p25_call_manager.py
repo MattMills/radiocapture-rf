@@ -75,7 +75,7 @@ class p25_call_manager():
 
 	def get_system_from_instance(self, instance_uuid):
 		try:
-			return self.redis_demod_manager.demods[instance_uuid]['system_uuid']
+			return self.redis_demod_manager.get_instance(instance_uuid)['system_uuid']
 		except:
 			return False
 
@@ -155,7 +155,7 @@ class p25_call_manager():
 				#call is new systemwide, assign new UUID
 				call_uuid = '%s' % uuid.uuid4()
 	
-			instance = self.redis_demod_manager.demods[instance_uuid]
+			instance = self.redis_demod_manager.get_instance(instance_uuid)
 			if modulation == 'FDMA' and instance['system_modulation'] == 'C4FM':
 				modulation_type = 'p25'
 			elif modulation == 'TDMA' and instance['system_modulation'] == 'C4FM':
@@ -235,7 +235,7 @@ class p25_call_manager():
 					else:
 						instance_uuid = headers['destination'].replace('/topic/raw_control/', '')
 						packet_type = 'control'
-					instance = self.redis_demod_manager.demods[instance_uuid]
+					instance = self.redis_demod_manager.get_instance(instance_uuid)
 					system_uuid = self.get_system_from_instance(instance_uuid)
 
 					if instance_uuid not in self.instance_metadata:

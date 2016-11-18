@@ -101,7 +101,7 @@ class logging_receiver(gr.top_block):
 		self.start()
 		self.thread_lock.release()
 	def configure_blocks(self, protocol):
-		if protocol == 'provoice': 
+		if protocol == 'provoice' or protocol == 'analog_edacs': 
 			protocol = 'analog'
 		self.log.debug('configure_blocks(%s)' % protocol)
 		if not (protocol == 'p25' or protocol == 'p25_tdma' or protocol == 'p25_cqpsk' or protocol=='p25_cqpsk_tdma' or protocol == 'provoice' or protocol == 'dsd_p25' or protocol == 'analog' or protocol == 'none'):
@@ -425,6 +425,8 @@ class logging_receiver(gr.top_block):
                             self.destroy()
 			if cdr['modulation_type'] in ['p25', 'p25_cqpsk', 'p25_tdma', 'p25_cqpsk_tdma']:
 				os.system('sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h equalizer 0.25k 0.5k -12 equalizer 0.75k 0.5k -6 equalizer 1.25k 0.5k -6 equalizer 2.5k 1k 6 equalizer 3.5k 1k +4 contrast loudness gain -n -6 dither')
+			elif cdr['modulation_type'] == 'analog_edacs':
+				os.system('sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h trim 0.2 contrast loudness gain -n -6 dither')
 			else:
 				os.system('sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h contrast loudness gain -n -6 dither')
 	                os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '-sox.wav ' +filename[:-4] + '.mp3 2>&1 >/dev/null')

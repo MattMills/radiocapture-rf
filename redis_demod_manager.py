@@ -37,6 +37,11 @@ class redis_demod_manager():
                 pipe.set('call_table:%s' % instance_uuid, json.dumps(call_table))
 		pipe.expire('call_table:%s' % instance_uuid, 300)
                 result = pipe.execute()
+	def get_instance(self, instance_id):
+		for demod_type in self.demods:
+			if instance_id in self.demods[demod_type]:
+				return self.demods[demod_type][instance_id]
+		return False
 	def manager_loop(self):
 		print 'manager_loop()'
 		time.sleep(0.1)
@@ -48,6 +53,8 @@ class redis_demod_manager():
 			
 
 			for demod_type in demod_types:
+				if demod_type not in self.demods:
+					self.demods[demod_type] = {}
 				demods = {}
 				for instance_uuid in self.client.smembers('demod:%s' % demod_type):
 					try:
@@ -58,7 +65,7 @@ class redis_demod_manager():
 			
 				deletions = []
 				for demod in demods:
-					if demod not in self.demods:
+					if demod not in self.demods[demod_type]:
 						self.parent_call_manager.notify_demod_new(demod)
 
 					timestamp = demods[demod]['timestamp']
@@ -66,13 +73,14 @@ class redis_demod_manager():
 						self.client.srem('demod:%s' % demod_type, demod)
 						self.client.delete(demod)
 						deletions.append(demod)
-		
+						
 						self.parent_call_manager.notify_demod_expire(demod)
+						
 				
 				for deletion in deletions:
 					del demods[deletion]
 
-				self.demods = demods
+				self.demods[demod_type] = demods
 
 			time.sleep(5)
 			

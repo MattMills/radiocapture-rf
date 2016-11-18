@@ -131,7 +131,7 @@ class moto_call_manager():
 
 	def get_system_from_instance(self, instance_uuid):
 		try:
-			return self.redis_demod_manager.demods[instance_uuid]['system_uuid']
+			return self.redis_demod_manager.get_instance(instance_uuid)['system_uuid']
 		except:
 			return False
 
@@ -159,7 +159,7 @@ class moto_call_manager():
 		if call_uuid == None:
 			#call is new systemwide, assign new UUID
 			call_uuid = '%s' % uuid.uuid4()
-		instance = self.redis_demod_manager.demods[instance_uuid]	
+		instance = self.redis_demod_manager.get_instance(instance_uuid)
 		cdr = {
 			'call_uuid': call_uuid,
 	                'system_id': system_uuid,
@@ -226,7 +226,7 @@ class moto_call_manager():
 		        		frame = self.client.receiveFrame()
 				        t = json.loads(frame.body)
 					instance_uuid = frame.headers['destination'].replace('/topic/raw_control/', '')
-					instance = self.redis_demod_manager.demods[instance_uuid]
+					instance = self.redis_demod_manager.get_instance(instance_uuid)
 					system_uuid = self.get_system_from_instance(instance_uuid)
 
 					if instance_uuid not in self.instance_metadata:
