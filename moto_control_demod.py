@@ -14,10 +14,9 @@ import threading
 import uuid
 import logging
 
-from logging_receiver import logging_receiver
-from backend_event_publisher import backend_event_publisher
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
+from client_activemq import client_activemq
  
 
 class moto_control_demod(gr.top_block):
@@ -66,7 +65,6 @@ class moto_control_demod(gr.top_block):
 
 		self.option_dc_offset = False
 		self.option_udp_sink = False
-		self.option_logging_receivers = True
 
 		self.enable_capture = True
 		self.keep_running = True
@@ -89,8 +87,8 @@ class moto_control_demod(gr.top_block):
                 quality_check.start()
 
 		self.connector = frontend_connector()
-		self.backend_event_publisher = backend_event_publisher()
 		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
+		self.client_activemq = client_activemq()
 
 
 		##################################################
@@ -222,7 +220,7 @@ class moto_control_demod(gr.top_block):
 		last_data = 0x0
 
 		while self.keep_running:
-			if(sync_loops < -10):
+			if(sync_loops < -100):
 				self.log.warning('NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]]))
 				#print 'b/p: %s %s' % (packets, packets_bad)
 				sync_loops = 0
@@ -493,7 +491,7 @@ class moto_control_demod(gr.top_block):
 						#if p['type'] != 'System status':
 						#	print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
 
-						self.backend_event_publisher.publish_raw_control(self.instance_uuid, self.system['type'], p)
+						self.client_activemq.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, p)
 						last_cmd = cmd
 						last_i = individual
 						last_data = lid
