@@ -692,8 +692,8 @@ class rc_config:
 		del self.systems[7]
 		#del self.systems[6]
 
-		#del self.systems[5]
-		#del self.systems[4]
+		del self.systems[5]
+		del self.systems[4]
 
 		#del self.systems[3]
 		#del self.systems[2]

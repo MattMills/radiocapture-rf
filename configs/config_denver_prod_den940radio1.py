@@ -22,7 +22,7 @@ class rc_config:
 			0:{
 				'type': 'rtlsdr', 
 				'args': 'rtl=4-0,buffers=4',
-				'offset': 100,
+				'offset': 400,
 				'bb_gain': self.if_gain,
 				'rf_gain': self.gain,
 				'center_freq': 855050000,
@@ -31,7 +31,7 @@ class rc_config:
 			1:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-1,buffers=4',
-				'offset': 130,
+				'offset': 0,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 857450000,
@@ -40,7 +40,7 @@ class rc_config:
                         2:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-2,buffers=4',
-				'offset': 330,
+				'offset': 800,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 859850000,
@@ -49,25 +49,25 @@ class rc_config:
                         3:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-3,buffers=4',
-				'offset': 540,
+				'offset': 500,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': 36,
+                                'rf_gain': self.gain,
                                 'center_freq': 852200000,
                                 'samp_rate': self.samp_rate
                         },
                         4:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-4,buffers=4',
-				'offset': -90,
+				'offset': -100,
                                 'bb_gain': self.if_gain,
-                                'rf_gain': 36,
+                                'rf_gain': self.gain,
                                 'center_freq': 853850000,
                                 'samp_rate': self.samp_rate
                         },
 			5:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-5,buffers=4',
-                                'offset': 180,
+                                'offset': 470,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 407500000,
@@ -76,7 +76,7 @@ class rc_config:
 			6:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-6,buffers=4',
-                                'offset': 303,
+                                'offset': 120,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 409500000,
@@ -85,7 +85,7 @@ class rc_config:
 			7:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-7,buffers=4',
-                                'offset': 170,
+                                'offset': 600,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': 36,
                                 'center_freq': 770000000,
@@ -94,7 +94,7 @@ class rc_config:
 			8:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=4-8,buffers=4',
-                                'offset': 444,
+                                'offset': 870,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': 38,
                                 'center_freq': 772000000,
@@ -103,7 +103,7 @@ class rc_config:
 			9:{
 				'type': 'rtlsdr',
 				'args': 'rtl=4-9,buffers=4',
-				'offset': 612,
+				'offset': 1000,
 				'bb_gain': self.if_gain,
 				'rf_gain': 38,
 				'center_freq': 774000000,
@@ -666,15 +666,15 @@ class rc_config:
 	
 		del self.systems[32]
 		del self.systems[31]
-		#del self.systems[30]
+		#del self.systems[30]#
 		del self.systems[29]
 		#del self.systems[28]
 		#del self.systems[27]
-		#del self.systems[26]
+		#del self.systems[26]#
 		#del self.systems[25]
-		#del self.systems[24]
+		#del self.systems[24]#
 
-		#del self.systems[22]
+		#del self.systems[22]#
 
 
 
@@ -682,14 +682,14 @@ class rc_config:
 		del self.systems[17]
 		del self.systems[16]
 		#del self.systems[15]
-		#del self.systems[14]
+		#del self.systems[14]#
 
 
 		#del self.systems[11]
 		#del self.systems[10]
 		
 		#del self.systems[8]
-		#del self.systems[7]
+		#del self.systems[7]#
 		del self.systems[6]
 
 		del self.systems[5]
