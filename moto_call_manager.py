@@ -114,6 +114,7 @@ class moto_call_manager():
 	def periodic_timeout_thread(self):
 		self.log.info('periodic_timeout_thread()')
 		while self.continue_running:
+			time.sleep(0.1)
 			for instance in self.instance_metadata.keys():
 				with self.instance_locks[instance]:
 					ict = self.instance_metadata[instance]['call_table']
