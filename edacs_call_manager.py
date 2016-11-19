@@ -156,17 +156,19 @@ class edacs_call_manager():
 
 		if 'type' not in t.keys():
 			return
-		if t['type'] == 'call_assignment_analog' :
-			#{u'logical_id': 5604, u'group': 1393, u'tx_trunked': True, u'frequency': 858712500, u'system_type': u'edacs', u'type': u'call_assignment_analog', u'channel': 11}
-			self.log.debug('call_assignment_analog: %s' % t)
-			self.call_user_to_group(instance_uuid, t['frequency'], t['group'], t['logical_id'])
-		elif t['type'] == 'call_continuation_analog':
-			#{u'individual': 0, u'frequency': 858712500, u'system_type': u'edacs', u'mtc': 2, u'type': u'call_continuation_analog', u'id': 1393, u'channel': 11}
-			self.log.debug('call_continuation_analog: %s' % t)
-			self.call_user_to_group(instance_uuid, t['frequency'], t['id'])
-		elif t['type'] == 'call_continuation_digital':
-			self.log.debug('call_continuation_digital: %s' % t)
-			self.call_user_to_group(instance_uuid, t['frequency'], t['id'], 0, True)
+
+		with self.instance_locks[instance_uuid]:
+			if t['type'] == 'call_assignment_analog' :
+				#{u'logical_id': 5604, u'group': 1393, u'tx_trunked': True, u'frequency': 858712500, u'system_type': u'edacs', u'type': u'call_assignment_analog', u'channel': 11}
+				self.log.debug('call_assignment_analog: %s' % t)
+				self.call_user_to_group(instance_uuid, t['frequency'], t['group'], t['logical_id'])
+			elif t['type'] == 'call_continuation_analog':
+				#{u'individual': 0, u'frequency': 858712500, u'system_type': u'edacs', u'mtc': 2, u'type': u'call_continuation_analog', u'id': 1393, u'channel': 11}
+				self.log.debug('call_continuation_analog: %s' % t)
+				self.call_user_to_group(instance_uuid, t['frequency'], t['id'])
+			elif t['type'] == 'call_continuation_digital':
+				self.log.debug('call_continuation_digital: %s' % t)
+				self.call_user_to_group(instance_uuid, t['frequency'], t['id'], 0, True)
 
 
 if __name__ == '__main__':
