@@ -87,7 +87,7 @@ class logging_receiver(gr.top_block):
 		self.configure_blocks(self.cdr['modulation_type'])
 		if self.cdr['modulation_type'] == 'p25_tdma' or self.cdr['modulation_type'] == 'p25_cqpsk_tdma' :
 			try:
-				self.set_p25_xor_chars(p25p2_lfsr(0x841,int(self.cdr['p25_system_id'],0),int(self.cdr['p25_wacn'],0)).xor_chars)
+				self.set_p25_xor_chars(p25p2_lfsr(int(self.cdr['p25_nac']),int(self.cdr['p25_system_id'],0),int(self.cdr['p25_wacn'],0)).xor_chars)
 			except:
 				pass
 			self.set_p25_tdma_slot(self.cdr['slot'])
@@ -194,7 +194,10 @@ class logging_receiver(gr.top_block):
 			self.connect(self.source, self.signal_squelch, self.audiodemod, self.high_pass, self.resampler, self.sink)
 		elif protocol == 'p25' or protocol == 'p25_tdma':
 			self.symbol_deviation = symbol_deviation = 600.0
-                        symbol_rate = 4800
+			if protocol == 'p25_tdma':                        
+				symbol_rate = 6000
+			else:
+				symbol_rate = 4800
                         channel_rate = self.input_rate
 		
 			self.prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, self.input_rate)

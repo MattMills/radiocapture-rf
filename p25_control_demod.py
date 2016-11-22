@@ -200,7 +200,13 @@ class p25_control_demod (gr.top_block):
 	                        self.disconnect(self.source, self.resampler)
 		self.connector.release_channel()
 		channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
-		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))		
+		for x in range(0, 3):
+			try:
+				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))		
+				break
+			except Exception as e:
+				self.log.error('Exception in zeromq source creation %s' % e)
+		
 
 		if self.modulation == 'C4FM':
                         self.connect(self.source, self.control_prefilter)
@@ -602,6 +608,7 @@ class p25_control_demod (gr.top_block):
                                         self.site_detail['Site ID'] = None
                                         self.site_detail['RF Sub-system ID'] = None
                                         self.site_detail['RFSS Network Connection'] = None
+					self.site_detail['NAC'] = None
        				self.is_locked = False
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
@@ -620,7 +627,8 @@ class p25_control_demod (gr.top_block):
 				if len(frame) < 10: continue
 				frame_sync = binascii.hexlify(frame[0:6])
 				duid = int(ord(frame[7:8])&0xf)
-				nac = int(ord(frame[6:7]) +(ord(frame[7:8])&0xf0))
+				nac = int((ord(frame[6:7])<<4) +((ord(frame[7:8])&0xf0)>>4))
+				
 				#print 'NAC: %s' % nac
 				self.total_messages = self.total_messages + 3
 				#print 'FSO:%s FSN:%s BS:%s FL:%s - %s - %s' % (fsoffset, fsnext, len(buf), (fsnext-fsoffset), frame_sync, data_unit_ids[duid])
@@ -667,6 +675,7 @@ class p25_control_demod (gr.top_block):
                                         continue
 				for i in range(0, len(r['tsbk'])):
 					t = r['tsbk'][i]
+					t['nac'] = nac
 					try:
 						t['name']
 					except:
@@ -780,6 +789,7 @@ class p25_control_demod (gr.top_block):
 						self.site_detail['System ID'] = hex(int(t['System ID']))
 						self.site_detail['System Service Class'] = t['System Service Class']
 						self.site_detail['Control Channel'], null, null = self.get_channel_detail(t['Channel'])
+						self.site_detail['NAC'] = t['nac']
 					elif t['name'] == 'RFSS_STS_BCST':
 						self.site_detail['Site ID'] = t['Site ID']
 						self.site_detail['RF Sub-system ID'] = t['RF Sub-system ID']

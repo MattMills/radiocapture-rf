@@ -469,7 +469,8 @@ if __name__ == '__main__':
 	                       	log.info('%s Created channel ar: %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id))
 				try:
 					clients[c].append(block_id)
-				except:
+				except Exception as e:
+					self.log.error('Exception in channel creation %s' % e)
 					tb.release_channel(block_id)
 					return 'na,%s' % freq
 				return 'create,%s,%s' % (block_id, port)

@@ -190,6 +190,7 @@ class p25_call_manager():
 				'time_activity': time.time(),
 				'p25_wacn': instance['site_detail']['WACN ID'],
 				'p25_system_id': instance['site_detail']['System ID'],
+				'p25_nac': instance['site_detail']['NAC']
 				
 	                        }
 			
