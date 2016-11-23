@@ -36,7 +36,7 @@ class call_recorder_manager():
 	def worker(self, func, *args, **kwargs):
 	        new_process = func(*args, **kwargs)
 	        while(True):
-        	        time.sleep(3600)
+        	        time.sleep(1)
 
 if __name__ == '__main__':
 	with open('config.logging.json', 'rt') as f:
