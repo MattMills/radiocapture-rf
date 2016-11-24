@@ -24,65 +24,65 @@ site_uuid = '876c1a54-8183-4134-a41c-67a5b6121fcd'
 
 config = rc_config()                           
 
+
+types = ['p25_c4fm']
+
 demods = []
 for x in range(-20, 20):
     offset = x*6250
 
-#    edacs_thread_no_esk = edacs_control_demod({
-#        'type': 'edacs',
-#        'id': 'edacs_no_esk',
-#        'symbol_rate': 9600.0,
-#        'esk': False,
-#        'channels': { 0:offset, 1:offset} ,
-#                                      
-#    }, site_uuid, overseer_uuid)
-#
-#    edacs_thread_esk = edacs_control_demod({
-#        'type': 'edacs',
-#        'id': 'edacs_esk',
-#        'symbol_rate': 9600.0,
-#        'esk': True,
-#        'channels': { 0:offset, 1:offset} ,
-#                                      
-#    }, site_uuid, overseer_uuid)
-#
-#
-#    moto_thread = moto_control_demod({
-#        'type': 'moto',
-#        'id': 'moto',
-#        'channels': { 0:offset, 1:offset },
-#    }, site_uuid, overseer_uuid)
-#
-#
-    p25_thread_cqpsk = p25_control_demod({
-        'type': 'p25',
-        'id': 'cqpsk',
-        'modulation': 'CQPSK',
-        'default_control_channel': 0,
-        'channels': { 0: offset},
-    }, site_uuid, overseer_uuid)
+    if 'edacs_no_esk' in types:
+	    edacs_thread_no_esk = edacs_control_demod({
+	        'type': 'edacs',
+	        'id': 'edacs_no_esk',
+	        'symbol_rate': 9600.0,
+	        'esk': False,
+	        'channels': { 0:offset} ,
+	                                      
+	    }, site_uuid, overseer_uuid)
+	    edacs_thread_no_esk.start()
+	    demods.append(edacs_thread_no_esk)
 
-    #p25_thread_c4fm = p25_control_demod({
-    #    'type': 'p25',
-    #    'id': 'c4fm',
-    #    'modulation': 'C4FM',
-    #    'default_control_channel': 0,
-    #    'channels': { 0: offset},
-    #}, site_uuid, overseer_uuid)
-
-
-
-    #edacs_thread_no_esk.start()
-    #edacs_thread_esk.start()
-    #moto_thread.start()
-    p25_thread_cqpsk.start()
-    #p25_thread_c4fm.start()
-
-    #demods.append(edacs_thread)
-    #demods.append(edacs_thread_no_esk)
-    #demods.append(moto_thread)
-    demods.append(p25_thread_cqpsk)
-    #demods.append(p25_thread_c4fm)
+    if 'edacs_esk' in types:
+	    edacs_thread_esk = edacs_control_demod({
+	        'type': 'edacs',
+	        'id': 'edacs_esk',
+	        'symbol_rate': 9600.0,
+	        'esk': True,
+	        'channels': { 0:offset} ,
+	                                      
+	    }, site_uuid, overseer_uuid)
+	    edacs_thread_esk.start()
+	    demods.append(edacs_thread_esk)
+    if 'moto' in types:
+	    moto_thread = moto_control_demod({
+	        'type': 'moto',
+	        'id': 'moto',
+	        'channels': { 0:offset, 1:offset },
+	    }, site_uuid, overseer_uuid)
+	    moto_thread.start()
+	    demods.append(moto_thread)
+	
+    if 'p25_cqpsk' in types:
+	    p25_thread_cqpsk = p25_control_demod({
+	        'type': 'p25',
+	        'id': 'cqpsk',
+	        'modulation': 'CQPSK',
+	        'default_control_channel': 0,
+	        'channels': { 0: offset},
+	    }, site_uuid, overseer_uuid)
+	    p25_thread_cqpsk.start()
+	    demods.append(p25_thread_cqpsk)
+    if 'p25_c4fm' in types:
+	    p25_thread_c4fm = p25_control_demod({
+	        'type': 'p25',
+	        'id': 'c4fm',
+	        'modulation': 'C4FM',
+	        'default_control_channel': 0,
+	        'channels': { 0: offset},
+	    }, site_uuid, overseer_uuid)
+	    p25_thread_c4fm.start()
+	    demods.append(p25_thread_c4fm)
 
 		
 connector = frontend_connector()
