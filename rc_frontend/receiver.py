@@ -407,6 +407,8 @@ class receiver(gr.top_block):
 		self.access_lock.release()
 		return True
 	def source_offset(self, block_id, offset):
+		if self.scan_mode:
+			return False
 		center_freq = self.sources[self.channels[block_id].source_id]['center_freq']
 		base_offset = self.sources[self.channels[block_id].source_id]['offset']
 		if offset > 1 or offset < -1:

@@ -6,8 +6,17 @@ from moto_control_demod import moto_control_demod
 from config import rc_config
 import uuid
 
+import logging
+import logging.config
+import json
 
 from frontend_connector import frontend_connector
+
+with open('config.logging.json', 'rt') as f:
+    config = json.load(f)
+
+logging.config.dictConfig(config)
+
 
 
 overseer_uuid = '%s' % uuid.uuid4()
@@ -50,7 +59,7 @@ for x in range(-40, 40):
 #        'id': 'cqpsk',
 #        'modulation': 'CQPSK',
 #        'default_control_channel': 0,
-#        'channels': { 0: offset, 1:offset },
+#        'channels': { 0: offset},
 #    }, site_uuid, overseer_uuid)
 
     p25_thread_c4fm = p25_control_demod({
@@ -58,7 +67,7 @@ for x in range(-40, 40):
         'id': 'c4fm',
         'modulation': 'C4FM',
         'default_control_channel': 0,
-        'channels': { 0: offset, 1: offset },
+        'channels': { 0: offset},
     }, site_uuid, overseer_uuid)
 
 
@@ -83,8 +92,8 @@ with open('scan.output', 'w') as f:
 import time
 for mhz in range(850, 863):
     for x in (-5, -2.5, 0, 2.5, 5):
-        offset = x*1000 
-        connector.scan_mode_set_freq((mhz*1000000)+offset)
+        offset = x*100000
+        connector.scan_mode_set_freq(int((mhz*1000000)+offset))
 	time.sleep(5)
         for thread in demods:
             if thread.is_locked == True:
