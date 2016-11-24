@@ -25,8 +25,8 @@ site_uuid = '876c1a54-8183-4134-a41c-67a5b6121fcd'
 config = rc_config()                           
 
 demods = []
-for x in range(-40, 40):
-    offset = x*12500
+for x in range(-20, 20):
+    offset = x*6250
 
 #    edacs_thread_no_esk = edacs_control_demod({
 #        'type': 'edacs',
@@ -54,35 +54,35 @@ for x in range(-40, 40):
 #    }, site_uuid, overseer_uuid)
 #
 #
-#    p25_thread_cqpsk = p25_control_demod({
-#        'type': 'p25',
-#        'id': 'cqpsk',
-#        'modulation': 'CQPSK',
-#        'default_control_channel': 0,
-#        'channels': { 0: offset},
-#    }, site_uuid, overseer_uuid)
-
-    p25_thread_c4fm = p25_control_demod({
+    p25_thread_cqpsk = p25_control_demod({
         'type': 'p25',
-        'id': 'c4fm',
-        'modulation': 'C4FM',
+        'id': 'cqpsk',
+        'modulation': 'CQPSK',
         'default_control_channel': 0,
         'channels': { 0: offset},
     }, site_uuid, overseer_uuid)
+
+    #p25_thread_c4fm = p25_control_demod({
+    #    'type': 'p25',
+    #    'id': 'c4fm',
+    #    'modulation': 'C4FM',
+    #    'default_control_channel': 0,
+    #    'channels': { 0: offset},
+    #}, site_uuid, overseer_uuid)
 
 
 
     #edacs_thread_no_esk.start()
     #edacs_thread_esk.start()
     #moto_thread.start()
-    #p25_thread_cqpsk.start()
-    p25_thread_c4fm.start()
+    p25_thread_cqpsk.start()
+    #p25_thread_c4fm.start()
 
     #demods.append(edacs_thread)
     #demods.append(edacs_thread_no_esk)
     #demods.append(moto_thread)
-    #demods.append(p25_thread_cqpsk)
-    demods.append(p25_thread_c4fm)
+    demods.append(p25_thread_cqpsk)
+    #demods.append(p25_thread_c4fm)
 
 		
 connector = frontend_connector()
@@ -90,8 +90,9 @@ with open('scan.output', 'w') as f:
     pass
 
 import time
-for mhz in range(850, 863):
-    for x in (-5, -2.5, 0, 2.5, 5):
+import itertools
+for mhz in itertools.chain(range(768, 775), range(850, 863)):
+    for x in (-5, -2.5, 0, 2.5):
         offset = x*100000
         connector.scan_mode_set_freq(int((mhz*1000000)+offset))
 	time.sleep(5)
