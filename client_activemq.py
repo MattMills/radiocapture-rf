@@ -33,6 +33,9 @@ class client_activemq():
 		self.outbound_msg_queue_lazy = []
 
 
+		self.threads = []
+		self.work_queue = Queue.Queue()
+
                 connection_handler = threading.Thread(target=self.connection_handler)
                 connection_handler.daemon = True
                 connection_handler.start()
@@ -50,10 +53,7 @@ class client_activemq():
 		publish_loop.daemon = True
 		publish_loop.start()
 
-		self.work_queue = Queue.Queue()
 
-		self.threads = []
-		self.build_worker_pool(self.worker_threads)
 
 
         def init_connection(self):
@@ -99,7 +99,7 @@ class client_activemq():
 				except:
 					self.log.warning('Failed to heartbeat?')
 			self.build_worker_pool(self.worker_threads)
-                        time.sleep(1)
+                        time.sleep(10)
 	def subscribe(self, queue, callback_class, callback, resub=False, selector=None):
 		#This needs to exist so we can keep track of what subs we have and re-sub on reconnect
 		if queue in self.subscriptions and not resub:
