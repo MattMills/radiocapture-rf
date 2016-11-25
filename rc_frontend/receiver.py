@@ -472,7 +472,7 @@ if __name__ == '__main__':
 				try:
 					clients[c].append(block_id)
 				except Exception as e:
-					self.log.error('Exception in channel creation %s' % e)
+					log.error('Exception in channel creation %s' % e)
 					tb.release_channel(block_id)
 					return 'na,%s' % freq
 				return 'create,%s,%s' % (block_id, port)
