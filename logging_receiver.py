@@ -479,6 +479,10 @@ class logging_receiver(gr.top_block):
 		#print "(%s) %s %s" %(time.time(), "Close ", str(self.cdr))
 		self.cdr['time_close'] = time.time()
 		self.log.info('CLOSE %s %s' % (self.cdr['instance_uuid'], self.cdr['call_uuid']))
+
+		if self.cdr['modulation_type'] in ['p25', 'p25_cqpsk', 'p25_tdma', 'p25_cqpsk_tdma']:
+			self.cdr['errors'] = self.decoder.get_errors()
+
 		if(self.audio_capture):
 			self.stop()
 			try:
@@ -723,7 +727,6 @@ class logging_receiver(gr.top_block):
 			r['system_id'] = int(bitframe[12:24], 2)
 			r['target_id'] = int(bitframe[24:48], 2)
 			r['reserved'] = bitframe[48:64]
-		self.log.info('%s' % r)
                 return r
         def golay_24_12_8_decode(self, input):
 		rs_code = bytearray(24)
