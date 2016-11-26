@@ -16,7 +16,7 @@ class Codec:
     # Sentinal value for log(0).
     sentinal_value = 255 
     # The primitive characteristic polynomial used for generating the Galois field (2^6).
-    primative_characteristic_polynomial = int('1000011',2) 
+    primative_characteristic_polynomial = 0b1000011 
     # The exponentiation lookup table for the Galois field
     exponentiation_table = bytearray(63)
     exponentiation_table[0]  = 1
@@ -32,6 +32,7 @@ class Codec:
             exponentiation_table[s] ^= primative_characteristic_polynomial
         # Save the logarithm.
         logarithm_table[exponentiation_table[s]] = s
+    del s
 
     def __init__(self, hamming_distance):
         """ 
@@ -118,7 +119,7 @@ class Codec:
         return syndrome
 
 
-    def find_locator(self, msg, syndrome):
+    def find_locator(self, msg, syndrome, erasures = []):
         """ 
             Find the error locator polynomial with the Berlekamp-Massey 
             algorithm.
@@ -137,10 +138,22 @@ class Codec:
         t = len(syndrome) // 2
         s = syndrome[:2*t]
 
-        a1 = bytearray([1]) # current
-        a2 = bytearray([1]) # previous
+        # Form the erasure polynomial from known positions of error
+        if len(erasures):
+            e = bytearray( len(erasures) + 1)
+            e[-1] = 1
+            for i in range(len(erasures)):
+                c = (63 - erasures[i]) % 63
+                for j in range(-2-i, -1, 1):
+                    if e[j+1]:
+                        e[j] ^= exp[(log[e[j+1] ] + c)% 63 ]
+        else:
+            e = bytearray([1])
 
-        for i in range(2*t):
+        a1 = bytearray(e) # current
+        a2 = bytearray(e) # previous
+
+        for i in range(2*t - len(erasures)):
             delta = s[i]
             for j in range(1, len(a1)):
                 if  a1[-1-j] and s[i-j] :
@@ -170,7 +183,6 @@ class Codec:
                     if a2[j]:
                         a1[c + j ] ^=  exp[(log[a2[j]] + log[delta]) % 63]
 
-        
         locator = a1
 
         # Reverse the locator and trim starting and ending zeros.
@@ -179,7 +191,6 @@ class Codec:
             h+=1
 
         locator = locator[h::][::-1]
-
     
         h = 0
         while len(locator) and not locator[h]:
@@ -187,7 +198,7 @@ class Codec:
 
         return locator[h::]
 
-    def find_upper(self, msg, syndrome, locator):
+    def find_upper(self,syndrome, locator):
         """ Find the coefficients of  syndrome * locator for 0 to t-1 """  
         log = self.logarithm_table
         exp = self.exponentiation_table
@@ -196,15 +207,15 @@ class Codec:
         a = locator
         s = syndrome
 
-        upper = bytearray(t)
-        for i in range(t):
+        upper = bytearray(2*t)
+        for i in range(2*t):
             for j in range(i+1):
                 if j <len(a)  and  s[-1-i+j] and a[-1-j]:
                     upper[-1-i] ^= exp[(log[s[-1-i+j]] + log[a[-1-j]]) % 63]
 
         return upper
 
-    def find_lower(self, msg, locator):
+    def find_lower(self, locator):
         """ Differentiate the locator polynomial """  
         lower = bytearray(len(locator) - 1)
         for i in range(1,len(locator), 2 ):
@@ -212,17 +223,18 @@ class Codec:
         return lower
         
 
-    def decode(self,msg):
+    def decode(self, msg, erasures = [], correct=True):
         """
             Decodes a message containing a RS code word.
             Args:
                 msg (bytearray) - A bytearray of n bytes with k data bytes 
                 followed by d-1 parity bytes. Each byte holds six bits.
+                erasures (list) - The indices of the errors in msg.
+                correct (bool): True to correct detected errors.
             Return:
-                bytearray - A bytearray with k data bytes. 
-                Each byte holds 6 bits. 
-                each byte if the messsage is decoded correctly.  
-                'None' if input cannot be decoded.
+                bytearray - Message decoded. A bytearray with 
+                    k data bytes. Each byte holds 6 bits.
+                None - Message cannot be decoded.
             
         """
 
@@ -232,17 +244,24 @@ class Codec:
         n = len(msg)
         k = n - d + 1
         t = d // 2
-
-
+        
+        if (len(erasures) and not correct) or (len(erasures) > 2*t and correct):
+            return None
+            
+        for i in range(len(erasures)):
+            erasures[i] = n -1 - erasures[i]
+        
         # Calculate the syndrome
         syndrome =  self.calculate_syndrome(msg)
 
         # Return the data bytes if the syndrome is all zeros.
         if not max(syndrome):
             return msg[:k]
+        elif not correct:
+            return None
 
         # Find the error locator polynomial.
-        locator = self.find_locator(msg, syndrome)
+        locator = self.find_locator(msg, syndrome, erasures)
 
         # Search for the locations of the errors
         locations = []
@@ -262,20 +281,23 @@ class Codec:
         # Ref: https://en.wikipedia.org/wiki/Forney_algorithm
         # Ref: Error Control Coding; Fundamentals and Applications by Shu Lin
         # and Daniel J. Costello. Page 245-247
+
+        lower= self.find_lower(locator)
+        upper = self.find_upper(syndrome, locator)
+
         for i in locations:
             ii =  (63 - i) % 63
 
             # Find the denominator of the error evaluator.
             denominator = 0
-            lower= self.find_lower(msg, locator)
             for j in range(len(lower)):
                 if lower[j]:
                     denominator ^=   exp[(log[lower[j]] + (len(lower) -1 - j ) * ii) % 63 ]
 
+
             # Find the numerator of the error evaluator.
             if denominator:
                 numerator = 0
-                upper = self.find_upper(msg, syndrome, locator)
                 for j in range(len(upper)):
                     if upper[j]:
                         numerator ^=  exp[(log[upper[j]] + (len(upper) -1 - j ) * ii) % 63 ]
@@ -284,18 +306,18 @@ class Codec:
                 if numerator:
                     magnitude = exp[ (log[numerator] + 63 - log[denominator]) % 63]
                     msg[-1-i] ^= magnitude
-                    
-                
+
         # Check the the message is correct.
         syndrome =  self.calculate_syndrome(msg)
-        if not max(self.calculate_syndrome(msg) ):
+
+        if not max(self.calculate_syndrome(msg)):
             return msg[:k]
 
         return None
 
     def encode(self,msg):
         """
-            Encodes a message by adding the parity of the data to the message.
+            Encodes a message by adding the parity of the data to the data.
             Args:
                 msg (bytearray) - A byte array of n bytes with k data bytes 
                 followed by d-1 parity bytes. Each byte holds 6 bits.
@@ -319,118 +341,7 @@ class Codec:
                          msg[k+j] ^= exp[(r[j] + c) % 63]
 
 
-
-def repr_bin(ar, split = True):
-    """
-        Converts a bytearray into a string of binary numbers.
-        Each byte holds 6 bits.
-
-        Args:
-            ar (bytearray) - A bytearray.
-            split (bool) - True to add a space between every 6 bits.
-        Return:
-            string - The representation of the data.
-    """
-    output = ""
-    for i in range(len(ar)):
-        if output and split:
-            output += " "
-
-        for t in range(5, -1, -1 ):
-            if ar[i] & (1 << t):
-               output += str(1)
-            else:
-               output += str(0)
-    return output
-
-def bstr_conv(bstr):
-    """
-        Converts a binary string into a bytearray. Each byte holds 6 bits.
-        Each byte holds 6 bits.
-
-        For a string "000001001101111111",
-            bytearray[0] = 0o01,
-            bytearray[1] = 0o15,
-            bytearray[2] = 0o77,
-        
-        Args:
-            bstr (str): A binary string. 
-        Return: 
-            bytearray: A bytearray containing the data.
-
-    """
-    bstr = bstr.replace(" ", "")
-    ar = bytearray((len(bstr) + 5)//6)
-    for i in range(len(bstr)):
-        b = int(bstr[i],2)
-        if b:
-            ar[i//6] |= 1 << (5 - i%6)
-    return ar
-
-def repr_oct(ar, split = True):
-    """
-        Converts a bytearray into a string of octal numbers.
-        Each byte holds 6 bits.
-
-        Args:
-            ar (bytearray) - A bytearray.
-            split (bool) - True to add a space between every 6 bits.
-        Return:
-            string - The representation of the data.
-    """
-    output = ""
-    for i in range(len(ar)):
-        if output and split:
-            output += " "
-        output += str(ar[i] >> 3) + str(ar[i] & 0x7)
-    return output  
-
-def ostr_conv(ostr):
-    """
-        Converts an octal string into a bytearray. Each byte holds 6 bits.
-
-        For a string "01157",
-            bytearray[0] = 0o01,
-            bytearray[1] = 0o15,
-            bytearray[2] = 0o77,
-        
-        Args:
-            bstr (str): An octal string. 
-        Return: 
-            bytearray: A bytearray containing the data. Each byte holds 6 bits.
-    """
-
-    ostr = ostr.replace(" ", "")
-    ar = bytearray(len(ostr)//2)
-    for i in range(0,len(ostr)//2):
-        b = int(ostr[i*2: i*2 + 2],8)
-        if b:
-            ar[i] = b
-    return ar
-
-
 codec_lc = Codec(13)
-
-def decode_lc(msg):
-    """
-        Decodes data from a message.
-
-        Arg:
-            msg (bytearray): A bytearray of 24 bytes containing 12 bytes of 
-            data followed by 12 bytes of parity. Each byte holds 6 bits.
-        Return: 
-            bytearray: A bytearray of 12 bytes containing the data. 
-            Each byte holds 6 bits.   
-            'None' if input cannot be decoded.
-
-    """
-
-    if isinstance(msg,str) :
-        msg = bstr_conv(msg)
-    else:
-        msg = bytearray(msg)
-    
-    return codec_lc.decode(msg)
 
 def encode_lc(data):
     """
@@ -444,14 +355,26 @@ def encode_lc(data):
             followed by with 12 bytes of parity. Each byte holds 6 bits.
 
     """
-    
     msg = data[:12] + bytearray(12)
-
     codec_lc.encode(msg)
-
     return msg
 
+def decode_lc(msg, erasures=[], correct=True):
+    """
+        Decodes data from a message.
 
+        Arg:
+            msg (bytearray): A bytearray of 24 bytes containing 12 bytes of 
+                data followed by 12 bytes of parity. Each byte holds 6 bits.
+            erasures (list): The indices of the errors in message.
+            correct (bool): True to correct detected errors.
+        Return: 
+            bytearray - Message decoded. A bytearray with 
+                k data bytes. Each byte holds 6 bits.
+            None - Message cannot be decoded.
+
+    """
+    return codec_lc.decode(msg, erasures, correct)
 
 
   

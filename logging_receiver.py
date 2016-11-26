@@ -30,6 +30,7 @@ from client_activemq import client_activemq
 import rs64
 import golay
 import hamming
+import util
 
 
 class logging_receiver(gr.top_block):
@@ -279,6 +280,10 @@ class logging_receiver(gr.top_block):
                         self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, True, (False if protocol == 'p25_cqpsk' else True))
                         self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3, False, False)
 
+			#temp for debug
+			#self.debug_sink = blocks.file_sink(1, '/dev/null')
+                        #self.connect(self.slicer, self.debug_sink)
+
                         self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
 
                         self.float_conversion = blocks.short_to_float(1, 8192)
@@ -480,6 +485,7 @@ class logging_receiver(gr.top_block):
 				self.sink.close()
 			except:
 				print '%s' % self.sink
+			#self.debug_sink.close()
 			if self.log_dat:
                                 self.dat_sink.close()
 			filename = self.upload_and_cleanup(self.filename, self.uuid, self.cdr, self.filepath, patches, False)
@@ -544,6 +550,8 @@ class logging_receiver(gr.top_block):
 
 		if(self.audio_capture):
 			self.sink.open('%s' % self.filename)
+			#debug:
+			#self.debug_sink.open('%s.dat' % self.filename)
 			if self.log_dat:
 				self.dat_sink.open('%s/%s.dat' % (filepath, self.uuid))
 
@@ -582,12 +590,17 @@ class logging_receiver(gr.top_block):
 		return [returnframe, r]
 	# fake (10,6,3) shortened Hamming decoder, no error correction
         def hamming_10_6_3_decode(self, input):
-                output = ''
-                for i in range(0,len(input),10):
-                         codeword = input[i:i+10]
-                         output += codeword[:6]
-		return output
-                #return hamming.decode_lc(input, True)
+		rs_code  = bytearray(24)
+        	rs_erasures = []
+		for i in range(24):
+			hamming_code = int(input[i*10: (i+1)*10],2)
+			hamming_decoded = hamming.decode_lc(hamming_code)
+			if hamming_decoded is None:
+		                rs_code[i] =  (hamming_code >> 4)
+                		rs_erasures.append(i)
+            		else:
+                		rs_code[i] =  hamming_decoded	
+		return rs_code, rs_erasures
         def procLDU1(self, frame):
                 r = {'short':'LDU1', 'long':'Logical Link Data Unit 1'}
                 bitframe = self.bin_to_bit(frame)
@@ -616,12 +629,12 @@ class logging_receiver(gr.top_block):
                 r['lsd'] = bitframe[1392:1424]
                 vc.append(bitframe[1424:1568]) #vc9
 
-                lc = self.hamming_10_6_3_decode(lc)
-                r['lc'] = self.subprocLC(lc)
+                rs_code, rs_erasures = self.hamming_10_6_3_decode(lc)
+                r['lc'] = self.subprocLC(rs_code, rs_erasures)
 
 		return r
-        def subprocLC(self, bitframe):
-		bitframe = self.rs_24_12_13_decode(bitframe)
+        def subprocLC(self, rs_code, rs_erasures):
+		bitframe = self.rs_24_12_13_decode(rs_code, rs_erasures)
                 r = {'short': 'LC', 'long': 'Link Control'}
 		if bitframe == False:
 			return r #Uncorrectable decode
@@ -710,17 +723,26 @@ class logging_receiver(gr.top_block):
 			r['system_id'] = int(bitframe[12:24], 2)
 			r['target_id'] = int(bitframe[24:48], 2)
 			r['reserved'] = bitframe[48:64]
-		
+		self.log.info('%s' % r)
                 return r
-        # fake (24,12,8) extended Golay decoder, no error correction
-        # TODO: make less fake
         def golay_24_12_8_decode(self, input):
-                output = ''
-                for i in range(0,len(input),24):
-                        codeword = input[i:i+24]
-                        output += codeword[:12]
-                #return golay.decode_lc(input)
-		return output
+		rs_code = bytearray(24)
+		rs_erasures = []
+	
+		for i in range(12):
+			golay_code = int(input[i*24: (i+1)*24],2)
+			golay_decoded= golay.decode_lc(golay_code)
+			if golay_decoded is None:
+				rs_code[2*i]   = (golay_code >>18 ) & 0x3F
+		                rs_code[2*i+1] = (golay_code >>12 ) & 0x3F
+				rs_erasures.append(2*i)
+	                	rs_erasures.append(2*i+1)
+			else:
+				rs_code[2*i]   = (golay_decoded>> 6) & 0x3F
+		                rs_code[2*i+1] = (golay_decoded) & 0x3F
+
+		return rs_code, rs_erasures
+
         def procTLC(self, frame):
                 r = {'short': 'TLC', 'Long' : 'Terminator with Link Control'}
                 bitframe = self.bin_to_bit(frame)
@@ -728,16 +750,17 @@ class logging_receiver(gr.top_block):
                 r['fs'] = hex(int(bitframe[:48],2))
                 r['nid'] = hex(int(bitframe[48:112],2))
                 bitframe = bitframe[112:-20]
-                bitframe = self.golay_24_12_8_decode(bitframe)
 
-                r['lc'] = self.subprocLC(bitframe)
+
+		rs_code, rs_erasures = self.golay_24_12_8_decode(bitframe)
+                r['lc'] = self.subprocLC(rs_code, rs_erasures)
 
                 return r
-	# fake (24,12,13) Reed-Solomon decoder, no error correction
-        def rs_24_12_13_decode(self, input):
-		data = rs64.decode_lc(rs64.bstr_conv(input))
+        def rs_24_12_13_decode(self, rs_code, rs_erasures):
+		data = rs64.decode_lc(rs_code, rs_erasures)
+
 		if data:
-			return rs64.repr_bin(data, False)
+			return util.bytes_to_binary_str(data)
 		else:
 			return False
 
