@@ -432,11 +432,11 @@ class logging_receiver(gr.top_block):
                         if not emergency:
                             self.destroy()
 			if cdr['modulation_type'] in ['p25', 'p25_cqpsk', 'p25_tdma', 'p25_cqpsk_tdma']:
-				os.system('sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h equalizer 0.25k 0.5k -12 equalizer 0.75k 0.5k -6 equalizer 1.25k 0.5k -6 equalizer 2.5k 1k 6 equalizer 3.5k 1k +4 contrast loudness gain -n -6 dither')
+				os.system('nice -n 19 sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h equalizer 0.25k 0.5k -12 equalizer 0.75k 0.5k -6 equalizer 1.25k 0.5k -6 equalizer 2.5k 1k 6 equalizer 3.5k 1k +4 contrast loudness gain -n -6 dither')
 			elif cdr['modulation_type'] == 'analog_edacs':
-				os.system('sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h trim 0.2 contrast loudness gain -n -6 dither')
+				os.system('nice -n 19 sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h trim 0.2 contrast loudness gain -n -6 dither')
 			else:
-				os.system('sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h contrast loudness gain -n -6 dither')
+				os.system('nice -n 19 sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h contrast loudness gain -n -6 dither')
 	                os.system('nice -n 19 lame -b 32 -q2 --silent ' + filename[:-4] + '-sox.wav ' +filename[:-4] + '.mp3 2>&1 >/dev/null')
 
 			filename = filename[:-4] + '.mp3'
@@ -666,6 +666,8 @@ class logging_receiver(gr.top_block):
 			r['explicit'] = int(bitframe[15:16],2)
                         r['tgid'] = int(bitframe[16:32],2)
                         r['source_id'] = int(bitframe[32:56],2)
+			if self.cdr['system_user_local'] == 0:
+	                        self.cdr['system_user_local'] = r['source_id']
                         #print 'GV %s %s' %(r['tgid'], r['source_id'])
 		elif r['lcf'] == 2:
 			r['lcf_long'] = 'Group Voice Channel Update'
