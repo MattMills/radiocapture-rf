@@ -55,7 +55,7 @@ class logging_receiver(gr.top_block):
 		self.log_dat = False
 
 		#optionally keep wav files around
-		self.log_wav = False
+		self.log_wav = True
 
 		self.sink = blocks.wavfile_sink(self.filepath, 1, 8000)
 
@@ -432,7 +432,7 @@ class logging_receiver(gr.top_block):
                         if not emergency:
                             self.destroy()
 			if cdr['modulation_type'] in ['p25', 'p25_cqpsk', 'p25_tdma', 'p25_cqpsk_tdma']:
-				os.system('nice -n 19 sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h equalizer 0.25k 0.5k -12 equalizer 0.75k 0.5k -6 equalizer 1.25k 0.5k -6 equalizer 2.5k 1k 6 equalizer 3.5k 1k +4 contrast loudness gain -n -6 dither')
+				os.system('nice -n 19 sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h equalizer 0.25k 0.5k -8 equalizer 0.75k 0.5k -6 equalizer 1.25k 0.5k -6  contrast loudness gain -n -6 dither')
 			elif cdr['modulation_type'] == 'analog_edacs':
 				os.system('nice -n 19 sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h trim 0.2 contrast loudness gain -n -6 dither')
 			else:
