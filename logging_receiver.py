@@ -55,7 +55,7 @@ class logging_receiver(gr.top_block):
 		self.log_dat = False
 
 		#optionally keep wav files around
-		self.log_wav = True
+		self.log_wav = False
 
 		self.sink = blocks.wavfile_sink(self.filepath, 1, 8000)
 
