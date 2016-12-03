@@ -228,7 +228,7 @@ class receiver(gr.top_block):
 	                                self.connect((self.sources[source]['pfb'], x), null_sink)
 				self.connect(self.sources[source]['block'], self.sources[source]['pfb'])
 
-		self.channels = []
+		self.channels = {}
 		#for i in self.sources.keys():
 		#	self.channels[i] = []
 
