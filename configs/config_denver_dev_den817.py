@@ -661,7 +661,38 @@ class rc_config:
 					6: 859062500,
 					7: 859537500
 				}
+			},
+			33: { #Airport P25
+				'type': 'p25',
+				'id': 33,
+				'transmit_site_uuid': '32fabbeb-3725-4d08-ae16-75c0a938e515',
+				'system_uuid': '86ed790d-3a7d-4db0-adc8-a9d2e09ac103',
+				'default_control_channel': 0,
+				'channels': {
+					0: 857712500,
+					1: 858437500,
+					2: 859437500
+
+				}
+			},
+			34: { #Westminster P25
+				'type': 'p25',
+                                'id': 34,
+                                'transmit_site_uuid': '7a495f67-7ab2-4b19-a10b-19bbd3ac3fa8',
+                                'system_uuid': '0a41d6d5-c1ef-4b05-acfd-59363d2a397e',
+                                'default_control_channel': 0,
+				'modulation': 'CQPSK',
+                                'channels': {
+                                        0: 851062500,
+                                        1: 851762500,
+                                        2: 852162500,
+					3: 852887500,
+					4: 853350000,
+					5: 856037500,
+					6: 859387500,
+                                }
 			}
+				
 		}
 	
                 del self.systems[32]
