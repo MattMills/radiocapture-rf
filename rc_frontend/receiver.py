@@ -308,8 +308,6 @@ class receiver(gr.top_block):
                                 self.channels[c].destroy()
                                 del self.channels[c]
                         self.unlock()
-			self.lock()
-			self.unlock()
 
                 block.in_use = True
 
@@ -467,6 +465,7 @@ if __name__ == '__main__':
 			c = int(data[1])
 			channel_rate = int(data[2])
 			freq = int(data[3])
+			print 'create attempt %s' % freq
 			try:
 				block_id, port = tb.connect_channel(channel_rate, freq)
 			except Exception as e:
