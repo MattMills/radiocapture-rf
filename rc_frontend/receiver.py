@@ -302,7 +302,7 @@ class receiver(gr.top_block):
 
                         #While we're locked to connect this block, look for any idle channels and disco/destroy.
                         for c in self.channels.keys():
-                            if self.channels[c].channel_close_time != 0 and time.time()-self.channels[c].channel_close_time > 10 and block != self.channels[c]:
+                            if self.channels[c].channel_close_time != 0 and time.time()-self.channels[c].channel_close_time > 120 and block != self.channels[c]:
 				self.log.info('disconnecting channel %s' % self.channels[c].block_id)
                                 self.disconnect(self.sources[self.channels[c].source_id]['block'], self.channels[c])
                                 self.channels[c].destroy()
