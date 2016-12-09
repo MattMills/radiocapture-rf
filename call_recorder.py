@@ -10,6 +10,7 @@ import threading
 import time
 import uuid
 import sys
+import os
 import signal
 import math
 import logging
@@ -22,6 +23,7 @@ class call_recorder():
         def __init__(self, instance_uuid):
                 self.log = logging.getLogger('overseer.call_recorder')
                 self.log.info('Initializing call_recorder')
+		self.log.info('%s call recorder startup pid %s' % (instance_uuid, os.getpid()))
 		self.instance_uuid = instance_uuid
                 self.client = None
                 self.connection_issue = True
