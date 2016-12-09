@@ -587,6 +587,7 @@ class p25_control_demod (gr.top_block):
 		loop_start = time()
 		loops_locked = 0
 		wrong_duid_count = 0
+		no_flow = 0
 
 		while self.keep_running:
 			if loops_locked < -50 and time()-loop_start > 0.5:
@@ -613,7 +614,11 @@ class p25_control_demod (gr.top_block):
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
+				no_flow = 0
 			else:
+				no_flow = no_flow + 1
+				if no_flow % 100 == 0 and self.is_locked:
+					self.log.error('extended no flow event')
 				sleep(0.007) #avg time between packets is 0.007s
 
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))

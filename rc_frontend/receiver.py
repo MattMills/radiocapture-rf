@@ -11,6 +11,7 @@ import math
 import os
 import random
 import json
+import uuid
 import logging
 import logging.config
 
@@ -155,6 +156,7 @@ class receiver(gr.top_block):
                                 this_dev.set_sample_rate(self.realsources[source]['samp_rate'])
                                 this_dev.set_center_freq(self.realsources[source]['center_freq']+self.realsources[source]['offset'], 0)
                                 #this_dev.set_freq_corr(self.realsources[source]['offset'], 0)
+				this_dev.set_max_output_buffer(65535*64)
 
                                 this_dev.set_dc_offset_mode(1, 0)
                                 this_dev.set_iq_balance_mode(1, 0)
@@ -277,6 +279,7 @@ class receiver(gr.top_block):
                                 block_id = block.block_id
 				port = block.port
                                 block.set_offset(offset)
+				block.channel_close_time = 0
                                 #TODO: move UDP output
                                 break
 
@@ -290,9 +293,8 @@ class receiver(gr.top_block):
                                         return False, False
 
                         block.source_id = source_id
-
-                        self.channels[port] = block
-                        block_id = port
+			block_id = '%s' % uuid.uuid4()
+                        self.channels[block_id] = block
                         block.block_id = block_id
 
                         self.lock()
@@ -301,12 +303,13 @@ class receiver(gr.top_block):
                         #While we're locked to connect this block, look for any idle channels and disco/destroy.
                         for c in self.channels.keys():
                             if self.channels[c].channel_close_time != 0 and time.time()-self.channels[c].channel_close_time > 10 and block != self.channels[c]:
-				print 'disconnecting channel'
+				self.log.info('disconnecting channel %s' % self.channels[c].block_id)
                                 self.disconnect(self.sources[self.channels[c].source_id]['block'], self.channels[c])
                                 self.channels[c].destroy()
                                 del self.channels[c]
-			time.sleep(0.001)
                         self.unlock()
+			self.lock()
+			self.unlock()
 
                 block.in_use = True
 
@@ -365,6 +368,7 @@ class receiver(gr.top_block):
 				block = self.channels[c]
 				block_id = self.channels[c].block_id
 				block.set_offset(pfb_offset)
+				block.channel_close_time = 0
 				#TODO: move UDP output
 				break
 
@@ -381,7 +385,7 @@ class receiver(gr.top_block):
 			block.pfb_id = pfb_id
 
 			self.channels[port] = block
-			block_id = port
+			block_id = '%s' % uuid.uuid4()
 			block.block_id = block_id
 
 			self.lock()
@@ -410,7 +414,6 @@ class receiver(gr.top_block):
 		self.access_lock.release()
 		return True
 	def source_offset(self, block_id, offset):
-		return 
 		if self.scan_mode:
 			return False
 		try:
@@ -490,7 +493,7 @@ if __name__ == '__main__':
 		elif data[0] ==  'release':
 			try:
 				c = int(data[1])
-				block_id = int(data[2])
+				block_id = data[2]
 				result = tb.release_channel(block_id)
 				
 				if result == -1:
@@ -552,7 +555,7 @@ if __name__ == '__main__':
 			return 'hb,%s' % c
 		elif data[0] == 'offset':
 			client_id = int(data[1])
-			block_id = int(data[2])
+			block_id = data[2]
 			offset = float(data[3])
 	
 			tb.source_offset(block_id, offset)
