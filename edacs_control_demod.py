@@ -65,7 +65,7 @@ class edacs_control_demod(gr.top_block):
 	
 
 		self.channel_rate = 12500
-		self.receive_rate = self.channel_rate #Decimation adds 50% on either side
+		self.receive_rate = self.channel_rate*2 #Decimation adds 50% on either side
 
 		self.source = None
 

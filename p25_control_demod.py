@@ -84,7 +84,7 @@ class p25_control_demod (gr.top_block):
 
 
 	        # channel filter
-	        channel_rate = self.channel_rate
+	        channel_rate = self.channel_rate*2
 		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, channel_rate)
 	
 	        # power squelch

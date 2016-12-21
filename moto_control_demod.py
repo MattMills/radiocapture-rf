@@ -98,7 +98,7 @@ class moto_control_demod(gr.top_block):
 		self.source = None
 
 		control_sample_rate = 12500
-		channel_rate = control_sample_rate
+		channel_rate = control_sample_rate*2
 
 		self.control_quad_demod = analog.quadrature_demod_cf(0.1)
 
