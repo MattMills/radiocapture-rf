@@ -776,6 +776,9 @@ class p25_control_demod (gr.top_block):
 						except:
 							pass	
 					elif t['name'] == 'GRP_V_CH_GRANT':
+						if 'Source Address' in t and t['Source Address'] == 0:
+							#super hacky fix for DTRS weirdness when dispatch console has no source address (comes across as 0)
+							t['Source Address'] = 1
 						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						pass
