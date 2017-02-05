@@ -56,61 +56,62 @@ class moto_call_manager():
 			return False
 
 	def call_user_to_group(self, instance_uuid, frequency, group_address, user_address=0, digital=False):
-		system_uuid = self.get_system_from_instance(instance_uuid)
-		if system_uuid == False:
-			return False
-
-		sct = self.system_metadata[system_uuid]['call_table']
-		ict = self.instance_metadata[instance_uuid]['call_table']
-
-		for call in ict:
-			if ict[call]['system_channel_local'] == frequency and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
-				ict[call]['time_activity'] = time.time()
-				return True
-					
+		with self.instance_locks[instance_uuid]:
+			system_uuid = self.get_system_from_instance(instance_uuid)
+			if system_uuid == False:
+				return False
+	
+			sct = self.system_metadata[system_uuid]['call_table']
+			ict = self.instance_metadata[instance_uuid]['call_table']
+	
+			for call in ict:
+				if ict[call]['system_channel_local'] == frequency and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
+					ict[call]['time_activity'] = time.time()
+					return True
+						
+				
+			#Not a continuation, new call
+				call_uuid = None
+			for call in sct:
+				if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
+					call_uuid = sct[call]['call_uuid']
+					break
+	
+			if call_uuid == None:
+				#call is new systemwide, assign new UUID
+				call_uuid = '%s' % uuid.uuid4()
+			instance = self.redis_demod_manager.get_instance(instance_uuid)
+			cdr = {
+				'call_uuid': call_uuid,
+		                'system_id': system_uuid,
+				'transmit_site_uuid': instance['transmit_site_uuid'],
+				'instance_uuid': instance_uuid,
+	                        'system_group_local': group_address,
+	                        'system_user_local': user_address,
+	                        'system_channel_local': frequency,
+	                        'type': 'group',
+				'frequency': frequency,
+				'channel_bandwidth': 12500,
+				'modulation_type': '%s' % ('p25' if digital == True else 'analog'),
+	                        'hang_time': self.hang_time,
+				'time_open': time.time(),
+				'time_activity': time.time(),
+	                        }
+	
+			ict[call_uuid] = cdr
+			if call_uuid not in sct:
+				sct[call_uuid] = cdr
+				sct[call_uuid]['instances'] = {instance_uuid: True}
+			else:
+				sct[call_uuid]['instances'][instance_uuid] = True
+				
 			
-		#Not a continuation, new call
-		call_uuid = None
-		for call in sct:
-			if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
-				call_uuid = sct[call]['call_uuid']
-				break
-
-		if call_uuid == None:
-			#call is new systemwide, assign new UUID
-			call_uuid = '%s' % uuid.uuid4()
-		instance = self.redis_demod_manager.get_instance(instance_uuid)
-		cdr = {
-			'call_uuid': call_uuid,
-	                'system_id': system_uuid,
-			'transmit_site_uuid': instance['transmit_site_uuid'],
-			'instance_uuid': instance_uuid,
-                        'system_group_local': group_address,
-                        'system_user_local': user_address,
-                        'system_channel_local': frequency,
-                        'type': 'group',
-			'frequency': frequency,
-			'channel_bandwidth': 12500,
-			'modulation_type': '%s' % ('p25' if digital == True else 'analog'),
-                        'hang_time': self.hang_time,
-			'time_open': time.time(),
-			'time_activity': time.time(),
-                        }
-
-		ict[call_uuid] = cdr
-		if call_uuid not in sct:
-			sct[call_uuid] = cdr
-			sct[call_uuid]['instances'] = {instance_uuid: True}
-		else:
-			sct[call_uuid]['instances'][instance_uuid] = True
-			
-		
-
-		#event call open to record subsys
-		self.amq_clients[instance_uuid].send_event_lazy('/topic/call_management/new_call/%s' % instance_uuid, cdr)
-		self.redis_demod_manager.publish_call_table(instance_uuid, ict)
-		self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']) )
-
+	
+			#event call open to record subsys
+			self.amq_clients[instance_uuid].send_event_lazy('/topic/call_management/new_call/%s' % instance_uuid, cdr)
+			self.redis_demod_manager.publish_call_table(instance_uuid, ict)
+			self.log.info('OPEN: %s %s %s %s' % (cdr['instance_uuid'], cdr['call_uuid'], cdr['system_group_local'], cdr['system_user_local']) )
+	
 	def periodic_timeout_thread(self):
 		self.log.info('periodic_timeout_thread()')
 		while self.continue_running:

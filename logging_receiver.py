@@ -76,8 +76,13 @@ class logging_receiver(gr.top_block):
 
 		#Setup connector
 		self.connector = frontend_connector()
-		channel_id, port = self.connector.create_channel(int(self.cdr['channel_bandwidth']), int(self.cdr['frequency']))
-		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+		for retry in 1,2,3:
+			try:
+				channel_id, port = self.connector.create_channel(int(self.cdr['channel_bandwidth']), int(self.cdr['frequency']))
+				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+				break
+			except:
+				pass
 
 		if self.log_dat:
                         self.dat_sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
@@ -429,8 +434,8 @@ class logging_receiver(gr.top_block):
 
         def upload_and_cleanup(self, filename, uuid, cdr, filepath, patches, emergency=False):
                         
-                        if not emergency:
-                            self.destroy()
+                        #if not emergency:
+                        self.destroy()
 			if cdr['modulation_type'] in ['p25', 'p25_cqpsk', 'p25_tdma', 'p25_cqpsk_tdma']:
 				os.system('nice -n 19 sox ' + filename[:-4] + '.wav ' + filename[:-4] +'-sox.wav gain -h equalizer 0.25k 0.5k -8 equalizer 0.75k 0.5k -6 equalizer 1.25k 0.5k -6  contrast loudness gain -n -6 dither')
 			elif cdr['modulation_type'] == 'analog_edacs':

@@ -32,6 +32,8 @@ class receiver(gr.top_block):
 
 		self.access_lock = threading.RLock()
 		self.access_lock.acquire()
+		self.last_channel_cleanup = time.time()
+		self.channel_idle_timeout = 30
 
 	
 		self.config = config = rc_config()
@@ -301,8 +303,9 @@ class receiver(gr.top_block):
                         self.connect(source, block)
 
                         #While we're locked to connect this block, look for any idle channels and disco/destroy.
+			self.last_channel_cleanup = time.time()
                         for c in self.channels.keys():
-                            if self.channels[c].channel_close_time != 0 and time.time()-self.channels[c].channel_close_time > 120 and block != self.channels[c]:
+                            if self.channels[c].channel_close_time != 0 and time.time()-self.channels[c].channel_close_time > self.channel_idle_timeout and block != self.channels[c]:
 				self.log.info('disconnecting channel %s' % self.channels[c].block_id)
                                 self.disconnect(self.sources[self.channels[c].source_id]['block'], self.channels[c])
                                 self.channels[c].destroy()
@@ -397,15 +400,11 @@ class receiver(gr.top_block):
 		return block.block_id, port
 	def release_channel(self, block_id):
 		self.access_lock.acquire()
-		try:
-			self.channels[block_id].in_use = False
-                        self.channels[block_id].channel_close_time = time.time()
-		except KeyError as e:
-			pass #Since this is called during HB and quit I think it might cause problems
-		except:
-			self.access_lock.release()
-			raise
-			raise Exception('Failed to release channel')
+		if block_id not in self.channels:
+			return True
+		
+		self.channels[block_id].in_use = False
+                self.channels[block_id].channel_close_time = time.time()
 
 		#TODO: move UDP output
 		
@@ -416,9 +415,18 @@ class receiver(gr.top_block):
 			return False
 		try:
 			center_freq = self.sources[self.channels[block_id].source_id]['center_freq']
-			base_offset = self.sources[self.channels[block_id].source_id]['offset']
 		except:
 			return False
+		try:
+			accumulated_offset = self.sources[self.channels[block_id].source_id]['accumulated_offset']
+		except:
+			accumulated_offset = 0
+			
+		try:
+			base_offset = self.sources[self.channels[block_id].source_id]['offset']
+		except:	
+			base_offset = 0
+
 		if offset > 1 or offset < -1:
 			hz_offset = offset*50
 		elif offset > 0.5 or offset < -0.5:
@@ -427,11 +435,18 @@ class receiver(gr.top_block):
 			hz_offset = offset*4
 		if hz_offset < 5 and hz_offset > -5:
 			return True
-		new_center_freq = center_freq+hz_offset
-		self.log.info('Source %s New Center freq %s %s' % (self.channels[block_id].source_id, new_center_freq, offset))
+
+		total_offset = accumulated_offset+hz_offset
+		if abs(total_offset) > self.channels[block_id].channel_rate/2:
+			#if we've gone further than 1/2 of our channel width something is clearly wrong, lets try inverting our offset, but /2 so we don't immediately trip this again.
+			total_offset = (total_offset/2)*-1
+
+		new_center_freq = center_freq+total_offset
+		
+		self.log.info('Source %s New Center freq %s %s' % (self.channels[block_id].source_id, new_center_freq, total_offset))
 		self.access_lock.acquire()
 		self.sources[self.channels[block_id].source_id]['block'].set_center_freq(new_center_freq+base_offset,0)
-		self.sources[self.channels[block_id].source_id]['center_freq'] = new_center_freq
+		self.sources[self.channels[block_id].source_id]['accumulated_offset'] = total_offset
 		self.access_lock.release()
 		return True
 
@@ -476,14 +491,11 @@ if __name__ == '__main__':
 				log.error('failed to create channel %s' % freq)
 				return 'na,%s' % freq
 			else:
-	                       	log.info('%s Created channel ar: %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id))
+	                       	log.info('%s Created channel ar: %s %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id, c))
 				try:
 					clients[c].append(block_id)
-				except KeyError as e:
-					pass
 				except Exception as e:
 					print clients
-					raise
 					log.error('Exception in channel creation %s' % e)
 					tb.release_channel(block_id)
 					return 'na,%s' % freq
@@ -496,10 +508,10 @@ if __name__ == '__main__':
 				
 				if result == -1:
 	                                #Channel failed to release
-					log.error('failed to release %s' % block_id)
+					log.error('failed to release %s %s' % (block_id, c))
 					return 'na,%s\n' % block_id
 	                        else:
-					log.info('%s Released channel %s' % ( time.time(), block_id))
+					log.info('Released channel %s %s' % ( block_id,c))
 					try:
 						clients[c].remove(block_id)
 					except ValueError as e:
@@ -527,28 +539,34 @@ if __name__ == '__main__':
 			try:
 				for x in clients[c]:
 					tb.release_channel(x)
-			except:
+			except KeyError as e:
 				pass
-
-                        try:
-                            del client_hb[c]
 			except:
-			    pass
-			try:
-			    clients[c] = []
-			    del clients[c]
-                        except:
-                            pass
+				raise
+			finally:
+
+	                        try:
+        	                    del client_hb[c]
+				except:
+				    pass
+				try:
+				    del clients[c]
+                	        except:
+                        	    pass
+
 			return 'quit,%s' % c
 		elif data[0] == 'connect':
 			global client_num
 			c = client_num
 			client_num = client_num + 1
 			clients[c] = []
+			client_hb[c] = time.time()
 			log.info('connect received from %s' % c)
 			return 'connect,%s' % c
 		elif data[0] == 'hb':
 			c = int(data[1])
+			if c not in client_hb:
+				return 'fail,%s' % c
 			client_hb[c] = time.time()
 			return 'hb,%s' % c
 		elif data[0] == 'offset':
@@ -564,26 +582,73 @@ if __name__ == '__main__':
 	socket = context.socket(zmq.REP)
 	socket.bind("tcp://0.0.0.0:50000")
 	start_time = time.time()
+	last_status = time.time()
 
 	while 1:
+		if time.time()-last_status > 10:
+			log.info('Frontend Status: client: %s client_hb: %s channels: %s uptime: %s' % (len(clients), len(client_hb), len(tb.channels), int(time.time()-start_time)))
+			log.info('%s %s %s' % (clients, client_hb, tb.channels))
+			last_status = time.time()
+
+			owned_channels = []
+			orphans = []
+			for client in clients:
+				for c in clients[client]:
+					owned_channels.append(c)
+			if time.time()-tb.last_channel_cleanup > tb.channel_idle_timeout*2:
+				tb.last_channel_cleanup = time.time()
+				deletables = []
+				for c in tb.channels.keys():
+	                            if tb.channels[c].channel_close_time != 0 and time.time()-tb.channels[c].channel_close_time > tb.channel_idle_timeout:
+					deletables.append(c)
+				if len(deletables) > 0:
+					log.info('Channel cleanup initiated due to rf idle timeout')
+					tb.lock()
+					for c in deletables:
+		                                log.info('disconnecting channel %s' % tb.channels[c].block_id)
+		                                tb.disconnect(tb.sources[tb.channels[c].source_id]['block'], tb.channels[c])
+		                                tb.channels[c].destroy()
+		                                del tb.channels[c]
+	        	                tb.unlock()
+
                 deletions = []
-                for client in client_hb:
+                for client in client_hb.keys():
 			try:
         	            if time.time()-client_hb[client] > 5:
 				log.warning('Client heartbeat timeout %s' % client)
+				if client not in clients:
+					log.warning('Cleaning up client_hb, as client has already quit')
+					del client_hb[client]
                 	        for x in clients[client]:
-                        	    tb.release_channel(x)
+					log.info('Attempting to release channel %s due to heartbeat timeout of client %s' % (x, client))
+					tb.release_channel(x)
 	                        clients[client] = []
 
 	                        deletions.append(client)
+			except KeyError as e:
+				raise
+				pass
 			except:
 				raise
 				pass
                 for c in deletions:
-                    del client_hb[c]
-		    del clients[c]
+			log.info('Deleting %s from client_hb and clients' % c)
+			try:
+	                	del client_hb[c]
+			except:
+				pass
+			try:
+				del clients[c]
+			except:
+				pass
 
-		msg = socket.recv()
-		resp = handler(msg, tb)
-		socket.send(resp)
+                msg = socket.recv()
+                resp = handler(msg, tb)
+                socket.send(resp)
+		#try:
+		#	msg = socket.recv(flags=zmq.NOBLOCK)
+		#	resp = handler(msg, tb)
+		#	socket.send(resp)
+		#except zmq.Again as e:
+		#	time.sleep(0.001)
                 #print(tb.channels)
