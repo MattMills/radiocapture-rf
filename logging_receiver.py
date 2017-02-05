@@ -72,7 +72,7 @@ class logging_receiver(gr.top_block):
 
                 #debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
                 #debug.daemon = True
-                #debug.start()
+                #debug.[tart()
 
 		#Setup connector
 		self.connector = frontend_connector()
@@ -89,7 +89,7 @@ class logging_receiver(gr.top_block):
                         self.connect(self.source, self.dat_sink)
 
 
-		self.set_rate(int(self.cdr['channel_bandwidth']))
+		self.set_rate(int(self.cdr['channel_bandwidth']*2))
 		self.configure_blocks(self.cdr['modulation_type'])
 		if self.cdr['modulation_type'] == 'p25_tdma' or self.cdr['modulation_type'] == 'p25_cqpsk_tdma' :
 			try:
