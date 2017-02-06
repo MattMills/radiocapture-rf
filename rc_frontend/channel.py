@@ -26,7 +26,7 @@ class channel ( gr.hier_block2):
 		self.source_id = None
 
 		decim = int(samp_rate/(channel_rate))/2
-		taps = firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2,2000)
+		taps = firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2,4000)
 		#print 'taps: %s' % len(taps)
 		self.prefilter = filter.freq_xlating_fir_filter_ccc(decim, (taps), offset, samp_rate)
 		self.sink = zeromq.pub_sink(gr.sizeof_gr_complex*1, 1, 'tcp://0.0.0.0:%s' % port)
@@ -43,12 +43,12 @@ class channel ( gr.hier_block2):
 		return self.samp_rate
 	def set_samp_rate(self, samp_rate):
 		self.samp_rate = samp_rate
-		self.set_taps(firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2, 2000))
+		self.set_taps(firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2, 4000))
 	def get_channel_rate(self):
 		return self.channel_rate
 	def set_channel_rate(self, channel_rate):
 		self.channel_rate = channel_rate
-		self.set_taps(firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2, 2000))
+		self.set_taps(firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2, 4000))
 	def set_taps(self, taps):
 		self.prefilter.set_taps((taps))
 
