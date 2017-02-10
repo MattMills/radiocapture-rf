@@ -135,7 +135,12 @@ class edacs_control_demod(gr.top_block):
 			self.disconnect(self.source, self.control_quad_demod)
 		self.connector.release_channel()
                 channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
-		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+		for tries in 1,2,3:
+			try:
+				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+				break
+			except:
+				pass
 		self.connect(self.source, self.control_quad_demod)
 		self.unlock()
 	
