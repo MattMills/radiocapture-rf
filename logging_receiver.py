@@ -83,7 +83,7 @@ class logging_receiver(gr.top_block):
 				break
 			except:
 				pass
-		if self.source == None
+		if self.source == None:
 			self.connector.exit()
 			return False
 
