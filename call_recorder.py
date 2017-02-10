@@ -48,7 +48,11 @@ class call_recorder():
 				if cdr['instance_uuid'] not in self.call_table:
 					self.call_table[cdr['instance_uuid']] = {}
 				if cdr['call_uuid'] not in self.call_table[cdr['instance_uuid']]:
-					self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver(cdr, self.outbound_client)
+					logging_receiver = logging_receiver(cdr, self.outbound_client)
+					if logging_receiver == False:
+						self.log.error('Unable to open logging receiver for cdr: %s' %cdr)
+						return False
+					self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver
 	def process_call_timeout(self, cdr, headers):
 		self.log.info('Call Timeout received %s %s' % (cdr['instance_uuid'], cdr['call_uuid']))
 		try:

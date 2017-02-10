@@ -76,13 +76,16 @@ class logging_receiver(gr.top_block):
 
 		#Setup connector
 		self.connector = frontend_connector()
-		for retry in 1,2,3:
+		for retry in 1,2,3,4,5:
 			try:
 				channel_id, port = self.connector.create_channel(int(self.cdr['channel_bandwidth']), int(self.cdr['frequency']))
 				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
 				break
 			except:
 				pass
+		if self.source == None
+			self.connector.exit()
+			return False
 
 		if self.log_dat:
                         self.dat_sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
