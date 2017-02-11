@@ -619,6 +619,9 @@ class p25_control_demod (gr.top_block):
 				no_flow = no_flow + 1
 				if no_flow % 100 == 0 and self.is_locked:
 					self.log.error('extended no flow event')
+				if no_flow > 1000:
+					self.log.error('No flow retune')
+					self.tune_next_control_channel()
 				sleep(0.007) #avg time between packets is 0.007s
 
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
