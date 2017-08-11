@@ -98,7 +98,7 @@ class moto_control_demod(gr.top_block):
 		self.source = None
 
 		control_sample_rate = 12500
-		channel_rate = control_sample_rate
+		channel_rate = control_sample_rate*2
 
 		self.control_quad_demod = analog.quadrature_demod_cf(0.1)
 
@@ -151,8 +151,12 @@ class moto_control_demod(gr.top_block):
 	
 		self.connector.release_channel()
                 channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
-
-		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+		for tries in 1,2,3:
+                        try:
+				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+				break
+			except:
+				pass
 		self.connect(self.source, self.control_quad_demod)
 
 		self.unlock()

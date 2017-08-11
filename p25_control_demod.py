@@ -84,7 +84,7 @@ class p25_control_demod (gr.top_block):
 
 
 	        # channel filter
-	        channel_rate = self.channel_rate
+	        channel_rate = self.channel_rate*2
 		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, channel_rate)
 	
 	        # power squelch
@@ -587,6 +587,7 @@ class p25_control_demod (gr.top_block):
 		loop_start = time()
 		loops_locked = 0
 		wrong_duid_count = 0
+		no_flow = 0
 
 		while self.keep_running:
 			if loops_locked < -50 and time()-loop_start > 0.5:
@@ -613,7 +614,14 @@ class p25_control_demod (gr.top_block):
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
+				no_flow = 0
 			else:
+				no_flow = no_flow + 1
+				if no_flow % 100 == 0 and self.is_locked:
+					self.log.error('extended no flow event')
+				if no_flow > 1000:
+					self.log.error('No flow retune')
+					self.tune_next_control_channel()
 				sleep(0.007) #avg time between packets is 0.007s
 
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
@@ -771,6 +779,9 @@ class p25_control_demod (gr.top_block):
 						except:
 							pass	
 					elif t['name'] == 'GRP_V_CH_GRANT':
+						if 'Source Address' in t and t['Source Address'] == 0:
+							#super hacky fix for DTRS weirdness when dispatch console has no source address (comes across as 0)
+							t['Source Address'] = 1
 						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
 						pass
@@ -847,7 +858,7 @@ class demod_watcher(threading.Thread):
     def run(self):
 	sleep(1)
         while(self.keep_running):
-		if(self.tb.is_locked):
+		if(self.tb.is_locked and self.tb.modulation == 'C4FM'):
 			#print 'Probe: %s' % self.tb.probe.level()
 			if self.tb.modulation == 'C4FM':
 				offset = self.tb.probe.level()

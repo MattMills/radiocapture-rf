@@ -13,22 +13,22 @@
             "stream": "ext://sys.stdout"
         },
         "file_handler": {
-            "backupCount": 5,
+            "backupCount": 10,
             "class": "logging.handlers.RotatingFileHandler",
             "encoding": "utf8",
             "filename": "logs/overseer.log",
             "formatter": "simple",
             "level": "INFO",
-            "maxBytes": 10485760
+            "maxBytes": 104857600
         },
 	"protocol_handler": {
-            "backupCount": 5,
+            "backupCount": 10,
             "class": "logging.handlers.RotatingFileHandler",
             "encoding": "utf8",
             "filename": "logs/protocol.log",
             "formatter": "simple",
             "level": "INFO",
-            "maxBytes": 10485760
+            "maxBytes": 104857600
         }
     },
     "loggers": {

@@ -10,6 +10,7 @@ import threading
 import time
 import uuid
 import sys
+import os
 import signal
 import math
 import logging
@@ -22,6 +23,7 @@ class call_recorder():
         def __init__(self, instance_uuid):
                 self.log = logging.getLogger('overseer.call_recorder')
                 self.log.info('Initializing call_recorder')
+		self.log.info('%s call recorder startup pid %s' % (instance_uuid, os.getpid()))
 		self.instance_uuid = instance_uuid
                 self.client = None
                 self.connection_issue = True
@@ -46,7 +48,11 @@ class call_recorder():
 				if cdr['instance_uuid'] not in self.call_table:
 					self.call_table[cdr['instance_uuid']] = {}
 				if cdr['call_uuid'] not in self.call_table[cdr['instance_uuid']]:
-					self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = logging_receiver(cdr, self.outbound_client)
+					lr = logging_receiver(cdr, self.outbound_client)
+					if lr == False:
+						self.log.error('Unable to open logging receiver for cdr: %s' %cdr)
+						return False
+					self.call_table[cdr['instance_uuid']][cdr['call_uuid']] = lr
 	def process_call_timeout(self, cdr, headers):
 		self.log.info('Call Timeout received %s %s' % (cdr['instance_uuid'], cdr['call_uuid']))
 		try:

@@ -11,6 +11,7 @@ import math
 import os
 import random
 import json
+import uuid
 import logging
 import logging.config
 
@@ -31,6 +32,8 @@ class receiver(gr.top_block):
 
 		self.access_lock = threading.RLock()
 		self.access_lock.acquire()
+		self.last_channel_cleanup = time.time()
+		self.channel_idle_timeout = 300
 
 	
 		self.config = config = rc_config()
@@ -155,6 +158,7 @@ class receiver(gr.top_block):
                                 this_dev.set_sample_rate(self.realsources[source]['samp_rate'])
                                 this_dev.set_center_freq(self.realsources[source]['center_freq']+self.realsources[source]['offset'], 0)
                                 #this_dev.set_freq_corr(self.realsources[source]['offset'], 0)
+				this_dev.set_max_output_buffer(65535*64)
 
                                 this_dev.set_dc_offset_mode(1, 0)
                                 this_dev.set_iq_balance_mode(1, 0)
@@ -228,10 +232,11 @@ class receiver(gr.top_block):
 	                                self.connect((self.sources[source]['pfb'], x), null_sink)
 				self.connect(self.sources[source]['block'], self.sources[source]['pfb'])
 
-		self.channels = []
+		self.channels = {}
 		#for i in self.sources.keys():
 		#	self.channels[i] = []
 
+		self.start()
 		self.access_lock.release()
         def connect_channel(self, channel_rate, freq):
 
@@ -270,12 +275,13 @@ class receiver(gr.top_block):
                 self.access_lock.acquire()
 		block = None
 
-                for c in self.channels:
-                        if c.source_id == source_id and c.channel_rate == channel_rate and c.in_use == False:
-                                block = c
-                                block_id = c.block_id
-				port = c.port
+                for c in self.channels.keys():
+                        if self.channels[c].source_id == source_id and self.channels[c].channel_rate == channel_rate and self.channels[c].in_use == False:
+                                block = self.channels[c]
+                                block_id = block.block_id
+				port = block.port
                                 block.set_offset(offset)
+				block.channel_close_time = 0
                                 #TODO: move UDP output
                                 break
 
@@ -286,30 +292,29 @@ class receiver(gr.top_block):
                                         block = channel.channel(port, channel_rate,(source_samp_rate), offset)
                                 except RuntimeError as err:
                                         self.log.error('Failed to build channel on port: %s attempt: %s' % (port, x))
-                                        pass
+                                        return False, False
 
                         block.source_id = source_id
-
-                        self.channels.append(block)
-                        block_id = len(self.channels)-1
+			block_id = '%s' % uuid.uuid4()
+                        self.channels[block_id] = block
                         block.block_id = block_id
 
                         self.lock()
                         self.connect(source, block)
 
                         #While we're locked to connect this block, look for any idle channels and disco/destroy.
-                        for c in self.channels:
-                            if c.channel_close_time != 0 and time.time()-c.channel_close_time > 10 and block != c:
-                                self.disconnect(source, c)
-                                c.destroy()
-                                c = None
-                                del c
+			self.last_channel_cleanup = time.time()
+                        for c in self.channels.keys():
+                            if self.channels[c].channel_close_time != 0 and time.time()-self.channels[c].channel_close_time > self.channel_idle_timeout and block != self.channels[c]:
+				self.log.info('disconnecting channel %s' % self.channels[c].block_id)
+                                self.disconnect(self.sources[self.channels[c].source_id]['block'], self.channels[c])
+                                self.channels[c].destroy()
+                                del self.channels[c]
                         self.unlock()
 
                 block.in_use = True
 
                 self.access_lock.release()
-
                 return block.block_id, port
 
 	def connect_channel_pfb(self, channel_rate, freq):
@@ -359,11 +364,12 @@ class receiver(gr.top_block):
 
 		block = None	
 
-		for c in self.channels:
-			if c.source_id == source_id and c.pfb_id == pfb_id and c.in_use == False:
-				block = c
-				block_id = c.block_id
+		for c in self.channels.keys():
+			if self.channels[c].source_id == source_id and self.channels[c].pfb_id == pfb_id and self.channels[c].in_use == False:
+				block = self.channels[c]
+				block_id = self.channels[c].block_id
 				block.set_offset(pfb_offset)
+				block.channel_close_time = 0
 				#TODO: move UDP output
 				break
 
@@ -379,8 +385,8 @@ class receiver(gr.top_block):
 			block.source_id = source_id
 			block.pfb_id = pfb_id
 
-			self.channels.append(block)
-			block_id = len(self.channels)-1
+			self.channels[port] = block
+			block_id = '%s' % uuid.uuid4()
 			block.block_id = block_id
 
 			self.lock()
@@ -394,13 +400,11 @@ class receiver(gr.top_block):
 		return block.block_id, port
 	def release_channel(self, block_id):
 		self.access_lock.acquire()
-		try:
-			self.channels[block_id].in_use = False
-                        self.channel_close_time = time.time()
-		except:
-			self.access_lock.release()
-			raise
-			raise Exception('Failed to release channel')
+		if block_id not in self.channels:
+			return True
+		
+		self.channels[block_id].in_use = False
+                self.channels[block_id].channel_close_time = time.time()
 
 		#TODO: move UDP output
 		
@@ -409,8 +413,20 @@ class receiver(gr.top_block):
 	def source_offset(self, block_id, offset):
 		if self.scan_mode:
 			return False
-		center_freq = self.sources[self.channels[block_id].source_id]['center_freq']
-		base_offset = self.sources[self.channels[block_id].source_id]['offset']
+		try:
+			center_freq = self.sources[self.channels[block_id].source_id]['center_freq']
+		except:
+			return False
+		try:
+			accumulated_offset = self.sources[self.channels[block_id].source_id]['accumulated_offset']
+		except:
+			accumulated_offset = 0
+			
+		try:
+			base_offset = self.sources[self.channels[block_id].source_id]['offset']
+		except:	
+			base_offset = 0
+
 		if offset > 1 or offset < -1:
 			hz_offset = offset*50
 		elif offset > 0.5 or offset < -0.5:
@@ -419,11 +435,18 @@ class receiver(gr.top_block):
 			hz_offset = offset*4
 		if hz_offset < 5 and hz_offset > -5:
 			return True
-		new_center_freq = center_freq+hz_offset
-		self.log.info('Source %s New Center freq %s %s' % (self.channels[block_id].source_id, new_center_freq, offset))
+
+		total_offset = accumulated_offset+hz_offset
+		if abs(total_offset) > self.channels[block_id].channel_rate/2:
+			#if we've gone further than 1/2 of our channel width something is clearly wrong, lets try inverting our offset, but /2 so we don't immediately trip this again.
+			total_offset = (total_offset/2)*-1
+
+		new_center_freq = center_freq+total_offset
+		
+		self.log.info('Source %s New Center freq %s %s' % (self.channels[block_id].source_id, new_center_freq, total_offset))
 		self.access_lock.acquire()
 		self.sources[self.channels[block_id].source_id]['block'].set_center_freq(new_center_freq+base_offset,0)
-		self.sources[self.channels[block_id].source_id]['center_freq'] = new_center_freq
+		self.sources[self.channels[block_id].source_id]['accumulated_offset'] = total_offset
 		self.access_lock.release()
 		return True
 
@@ -436,12 +459,13 @@ if __name__ == '__main__':
 
 
 	tb = receiver()
-	tb.start()
 	#print len(tb.channels)
 	#tb.wait()
 	import zmq
 	import thread
 	import time
+        import sys
+        import os 
 	clients = {}
 	client_hb = {}
 	client_num = 0
@@ -460,18 +484,20 @@ if __name__ == '__main__':
 			freq = int(data[3])
 			try:
 				block_id, port = tb.connect_channel(channel_rate, freq)
-			except:
+			except Exception as e:
 				block_id = -1
+				log.error('Exception: %s' % e)
 
-			if block_id == -1:
+			if block_id == -1 or block_id == False:
 				#Channel failed to create, probably freq out of range
 				log.error('failed to create channel %s' % freq)
 				return 'na,%s' % freq
 			else:
-	                       	log.info('%s Created channel ar: %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id))
+	                       	log.info('%s Created channel ar: %s %s %s %s %s %s' % ( time.time(), len(tb.channels), channel_rate, freq, port, block_id, c))
 				try:
 					clients[c].append(block_id)
 				except Exception as e:
+					print clients
 					log.error('Exception in channel creation %s' % e)
 					tb.release_channel(block_id)
 					return 'na,%s' % freq
@@ -479,15 +505,15 @@ if __name__ == '__main__':
 		elif data[0] ==  'release':
 			try:
 				c = int(data[1])
-				block_id = int(data[2])
+				block_id = data[2]
 				result = tb.release_channel(block_id)
 				
 				if result == -1:
 	                                #Channel failed to release
-					log.error('failed to release %s' % block_id)
+					log.error('failed to release %s %s' % (block_id, c))
 					return 'na,%s\n' % block_id
 	                        else:
-					log.info('%s Released channel %s' % ( time.time(), block_id))
+					log.info('Released channel %s %s' % ( block_id,c))
 					try:
 						clients[c].remove(block_id)
 					except ValueError as e:
@@ -511,35 +537,43 @@ if __name__ == '__main__':
 
 		elif data[0] == 'quit':
 			c = int(data[1])
+			log.info('quit received from client %s' % c)
 			try:
 				for x in clients[c]:
 					tb.release_channel(x)
-			except:
+			except KeyError as e:
 				pass
-
-                        try:
-                            del client_hb[c]
 			except:
-			    pass
-			try:
-			    clients[c] = []
-			    del clients[c]
-                        except:
-                            pass
+				raise
+			finally:
+
+	                        try:
+        	                    del client_hb[c]
+				except:
+				    pass
+				try:
+				    del clients[c]
+                	        except:
+                        	    pass
+
 			return 'quit,%s' % c
 		elif data[0] == 'connect':
 			global client_num
 			c = client_num
 			client_num = client_num + 1
 			clients[c] = []
+			client_hb[c] = time.time()
+			log.info('connect received from %s' % c)
 			return 'connect,%s' % c
 		elif data[0] == 'hb':
 			c = int(data[1])
+			if c not in client_hb:
+				return 'fail,%s' % c
 			client_hb[c] = time.time()
 			return 'hb,%s' % c
 		elif data[0] == 'offset':
 			client_id = int(data[1])
-			block_id = int(data[2])
+			block_id = data[2]
 			offset = float(data[3])
 	
 			tb.source_offset(block_id, offset)
@@ -550,24 +584,76 @@ if __name__ == '__main__':
 	socket = context.socket(zmq.REP)
 	socket.bind("tcp://0.0.0.0:50000")
 	start_time = time.time()
+	last_status = time.time()
 
 	while 1:
+		if time.time()-last_status > 10:
+			log.info('Frontend Status: client: %s client_hb: %s channels: %s uptime: %s' % (len(clients), len(client_hb), len(tb.channels), int(time.time()-start_time)))
+			log.info('%s %s %s' % (clients, client_hb, tb.channels))
+			last_status = time.time()
+
+			if int(time.time()-start_time) > 300 and len(tb.channels) < 5:
+				sys.exit(os.EX_SOFTWARE)
+	
+			owned_channels = []
+			orphans = []
+			for client in clients:
+				for c in clients[client]:
+					owned_channels.append(c)
+			if time.time()-tb.last_channel_cleanup > tb.channel_idle_timeout*2:
+				tb.last_channel_cleanup = time.time()
+				deletables = []
+				for c in tb.channels.keys():
+	                            if tb.channels[c].channel_close_time != 0 and time.time()-tb.channels[c].channel_close_time > tb.channel_idle_timeout:
+					deletables.append(c)
+				if len(deletables) > 0:
+					log.info('Channel cleanup initiated due to rf idle timeout')
+					tb.lock()
+					for c in deletables:
+		                                log.info('disconnecting channel %s' % tb.channels[c].block_id)
+		                                tb.disconnect(tb.sources[tb.channels[c].source_id]['block'], tb.channels[c])
+		                                tb.channels[c].destroy()
+		                                del tb.channels[c]
+	        	                tb.unlock()
+
                 deletions = []
-                for client in client_hb:
+                for client in client_hb.keys():
 			try:
-        	            if time.time()-client_hb[client] > 1:
+        	            if time.time()-client_hb[client] > 5:
+				log.warning('Client heartbeat timeout %s' % client)
+				if client not in clients:
+					log.warning('Cleaning up client_hb, as client has already quit')
+					del client_hb[client]
                 	        for x in clients[client]:
-                        	    tb.release_channel(x)
+					log.info('Attempting to release channel %s due to heartbeat timeout of client %s' % (x, client))
+					tb.release_channel(x)
 	                        clients[client] = []
 
 	                        deletions.append(client)
+			except KeyError as e:
+				raise
+				pass
 			except:
+				raise
 				pass
                 for c in deletions:
-                    del client_hb[c]
-		    del clients[c]
+			log.info('Deleting %s from client_hb and clients' % c)
+			try:
+	                	del client_hb[c]
+			except:
+				pass
+			try:
+				del clients[c]
+			except:
+				pass
 
-		msg = socket.recv()
-		resp = handler(msg, tb)
-		socket.send(resp)
+                msg = socket.recv()
+                resp = handler(msg, tb)
+                socket.send(resp)
+		#try:
+		#	msg = socket.recv(flags=zmq.NOBLOCK)
+		#	resp = handler(msg, tb)
+		#	socket.send(resp)
+		#except zmq.Again as e:
+		#	time.sleep(0.001)
                 #print(tb.channels)

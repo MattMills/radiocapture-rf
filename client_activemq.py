@@ -136,6 +136,8 @@ class client_activemq():
 			del self.subscriptions[queue]
                 except Exception as e:
 			self.log.error('%s' % e)
+			self.log.error('%s' % traceback.format_exc())
+                        sys.exc_clear()
                         self.connection_issue = True
         def send_event_lazy(self, destination, body, headers = {}, persistent = False):
 

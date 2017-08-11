@@ -1,0 +1,18 @@
+[Unit]
+Description=RadioCapture Front end service
+After=syslog.target activemq.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/radiocapture-motorola/
+LimitNOFILE=491520
+ExecStart=/opt/radiocapture-motorola/overseer.py
+StandardOutput=syslog
+StandardError=syslog
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

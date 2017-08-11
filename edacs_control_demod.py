@@ -27,6 +27,7 @@ class edacs_control_demod(gr.top_block):
 		self.system = system
 		self.instance_uuid = '%s' % uuid.uuid4()
                 self.log = logging.getLogger('overseer.edacs_control_demod.%s' % self.instance_uuid)
+		self.protocol_log = logging.getLogger('protocol.%s' % self.instance_uuid)
                 self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
 
 		self.overseer_uuid = overseer_uuid
@@ -64,7 +65,7 @@ class edacs_control_demod(gr.top_block):
 	
 
 		self.channel_rate = 12500
-		self.receive_rate = self.channel_rate #Decimation adds 50% on either side
+		self.receive_rate = self.channel_rate*2 #Decimation adds 50% on either side
 
 		self.source = None
 
@@ -134,7 +135,12 @@ class edacs_control_demod(gr.top_block):
 			self.disconnect(self.source, self.control_quad_demod)
 		self.connector.release_channel()
                 channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
-		self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+		for tries in 1,2,3:
+			try:
+				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+				break
+			except:
+				pass
 		self.connect(self.source, self.control_quad_demod)
 		self.unlock()
 	
@@ -264,12 +270,12 @@ class edacs_control_demod(gr.top_block):
                                         r['index'] = int(m1[16:19], 2)
                                         r['site_id'] = int(m1[19:22],2)
 
-                                        #m = 'Adjacent site control channel - ' + str(r)
+                                        m = 'Adjacent site control channel - ' + str(r)
                                 elif(mtd == '00010'): #extended site options
                                         r['messageno'] = int(m1[12:15], 2)
                                         r['data'] = int(m1[15:28],2)
 
-                                        #m = 'Extended site options - ' +str(r)
+                                        m = 'Extended site options - ' +str(r)
                                 elif(mtd == '00100'): #System dynamic regroup plan bitmap
                                         r['bank'] = int(m1[11:12], 2)
                                         r['residency'] = int(m1[12:20], 2)
@@ -291,7 +297,7 @@ class edacs_control_demod(gr.top_block):
                                         r['site_id'] = int(m1[23:28], 2)
 
                                         self.site_detail = r
-                                        #m = 'SiteID - ' + str(r)
+                                        m = 'SiteID - ' + str(r)
                                 elif(mtd[:1] == '1'):   #Dynamic regroup
                                         if(m1 == -1 or m2 == -1): return False
                                         r['fleet_bits'] = m1[11:14]
@@ -311,7 +317,9 @@ class edacs_control_demod(gr.top_block):
                 #        print "(%s)[%s] %s" %(time.time(),hex(int(m1, 2)), m)
                 #elif( m != ''):
                 #        print "(%s)[%s][%s] %s" %(time.time(),hex(int(m1, 2)), hex(int(m2,2)), m)
+		r['message'] = m
 		self.client_activemq.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, r)
+		self.protocol_log.info(r)
         def is_double_message(self, m1):
                 if(m1 == -1): return True
                 mta = m1[:3]
