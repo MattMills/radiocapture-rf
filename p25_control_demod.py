@@ -849,8 +849,9 @@ class demod_watcher(threading.Thread):
         while(self.keep_running):
 		if(self.tb.is_locked):
 			#print 'Probe: %s' % self.tb.probe.level()
-			offset = self.tb.probe.level()
-			self.tb.connector.report_offset(offset)
+			if self.tb.modulation == 'C4FM':
+				offset = self.tb.probe.level()
+				self.tb.connector.report_offset(offset)
 		sleep(0.5)
 
 if __name__ == '__main__':
