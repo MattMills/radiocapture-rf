@@ -33,7 +33,7 @@ class receiver(gr.top_block):
 		self.access_lock = threading.RLock()
 		self.access_lock.acquire()
 		self.last_channel_cleanup = time.time()
-		self.channel_idle_timeout = 30
+		self.channel_idle_timeout = 300
 
 	
 		self.config = config = rc_config()
@@ -464,6 +464,8 @@ if __name__ == '__main__':
 	import zmq
 	import thread
 	import time
+        import sys
+        import os 
 	clients = {}
 	client_hb = {}
 	client_num = 0
@@ -590,6 +592,9 @@ if __name__ == '__main__':
 			log.info('%s %s %s' % (clients, client_hb, tb.channels))
 			last_status = time.time()
 
+			if int(time.time()-start_time) > 300 and len(tb.channels) < 5:
+				sys.exit(os.EX_SOFTWARE)
+	
 			owned_channels = []
 			orphans = []
 			for client in clients:
