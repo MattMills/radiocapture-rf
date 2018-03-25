@@ -8,19 +8,22 @@ class rc_config:
 	def __init__(self):
 		self.receiver_split2 = False	#Does the frontend receiver split each inbound source by 1/2
 		self.frontend_mode = 'xlat'
+		self.scan_mode = False
 
                 self.frontend_ip = '127.0.0.1'
                 self.backend_ip = '127.0.0.1'
 		
-		self.if_gain = 46
-		self.gain = 20
+		self.if_gain = 0
+		self.gain = 45
 		self.samp_rate = 2000000
+
+		self.site_uuid = '0bc6e731-6328-4119-b2f7-7687d7502e83'
 
 		self.sources = {
 			0:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=2-1,buffers=4',
-                                'offset': 1278,
+                                'offset': 1640,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 851018000,
@@ -29,7 +32,7 @@ class rc_config:
                         1:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=2-2,buffers=4',
-                                'offset': 1160,
+                                'offset': 1600,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 852518000,
@@ -38,7 +41,7 @@ class rc_config:
                         2:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=2-3,buffers=4',
-                                'offset': 1092,
+                                'offset': 1800,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 854018000,
@@ -47,7 +50,7 @@ class rc_config:
                         3:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=2-4,buffers=4',
-                                'offset': 1360,
+                                'offset': 1960,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 855518000,
@@ -56,7 +59,7 @@ class rc_config:
 			4:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=2-5,buffers=4',
-                                'offset': 1277,
+                                'offset': 2110,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 857018000,
@@ -65,7 +68,7 @@ class rc_config:
 			5:{
                                 'type': 'rtlsdr',
                                 'args': 'rtl=2-6,buffers=4',
-                                'offset': 604,
+                                'offset': 946,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
                                 'center_freq': 858518000,
@@ -74,7 +77,16 @@ class rc_config:
 			6:{
 				'type': 'rtlsdr',
                                 'args': 'rtl=2-7,buffers=4',
-                                'offset': 1660,
+                                'offset': 1950,
+                                'bb_gain': 15,
+                                'rf_gain': 39,
+                                'center_freq': 859918000,
+                                'samp_rate': self.samp_rate
+                        },
+			7:{
+                                'type': 'rtlsdr',
+                                'args': 'rtl=2-8,buffers=4',
+                                'offset': 1340,
                                 'bb_gain': 15,
                                 'rf_gain': 39,
                                 'center_freq': 859918000,
@@ -228,9 +240,11 @@ class rc_config:
                                         11: 856837500,
                                 },
                         },
-			14: { #Future col springs simulcast
+			14: { #DTRS - col springs simulcast - 04-028
 				'type': 'p25',
-				'id': 'simulcast',
+				'id': '04028',
+				'transmit_site_uuid': '6a57d644-a5a9-4b5f-bcff-fb79b6939616',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
 				'default_control_channel': 0,
 				'modulation': 'CQPSK',
 				'channels': {
@@ -255,16 +269,49 @@ class rc_config:
 					18: 858612500,
 					19: 859012500,
 				}
-			}
+			},
+			15: {
+				'type': 'p25',
+                                'id': '06060',
+				'transmit_site_uuid': '98086b66-9865-45c3-9245-af580eed34c2',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
+                                'default_control_channel': 0,
+                                'modulation': 'C4FM',
+                                'channels': {
+                                        0: 852600000,
+                                }
+			},
+			16: {
+                                'type': 'p25',
+                                'id': '06039',
+				'transmit_site_uuid': '76053b69-c8a7-44d2-98a0-4d910a4eb0b6',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
+                                'default_control_channel': 0,
+                                'modulation': 'C4FM',
+                                'channels': {
+                                        0: 859837500,
+                                }
+                        },
+			17: {
+                                'type': 'p25',
+                                'id': '06001',
+				'transmit_site_uuid': 'f6fa9a93-aec9-4ed5-b511-e2aed9c94121',
+                                'system_uuid': 'ff38e81a-6aa6-4279-85fd-4e3cc448e007',
+                                'default_control_channel': 0,
+                                'modulation': 'CQPSK',
+                                'channels': {
+                                        0: 853987500,
+                                }
+                        }
 		}
 
 
                 del self.systems[0]
                 #del self.systems[8]
                 del self.systems[6]
-                #del self.systems[7]
+                del self.systems[7]
                 del self.systems[10]
-                del self.systems[14]
+		del self.systems[11]
 
 		self.blacklists = {}
 
