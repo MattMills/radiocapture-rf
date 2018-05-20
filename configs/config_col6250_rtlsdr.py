@@ -78,8 +78,8 @@ class rc_config:
 				'type': 'rtlsdr',
                                 'args': 'rtl=2-7,buffers=4',
                                 'offset': 1950,
-                                'bb_gain': 15,
-                                'rf_gain': 39,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
                                 'center_freq': 859918000,
                                 'samp_rate': self.samp_rate
                         },
@@ -87,9 +87,36 @@ class rc_config:
                                 'type': 'rtlsdr',
                                 'args': 'rtl=2-8,buffers=4',
                                 'offset': 1340,
-                                'bb_gain': 15,
-                                'rf_gain': 39,
-                                'center_freq': 859918000,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 406000000,
+                                'samp_rate': self.samp_rate
+                        },
+                        8:{
+                                'type': 'rtlsdr',
+                                'args': 'rtl=2-9,buffers=4',
+                                'offset': 1630,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 408000000,
+                                'samp_rate': self.samp_rate
+                        },
+                        9:{
+                                'type': 'rtlsdr',
+                                'args': 'rtl=2-10,buffers=4',
+                                'offset': 1610,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 410000000,
+                                'samp_rate': self.samp_rate
+                        },
+			10:{
+				'type': 'rtlsdr',
+                                'args': 'rtl=2-11,buffers=4',
+                                'offset': 1610,
+                                'bb_gain': self.if_gain,
+                                'rf_gain': self.gain,
+                                'center_freq': 387000000,
                                 'samp_rate': self.samp_rate
                         },
 		}
@@ -302,7 +329,73 @@ class rc_config:
                                 'channels': {
                                         0: 853987500,
                                 }
-                        }
+                        },
+			18: {
+                                'type': 'p25',
+                                'id': '1-1',
+                                'transmit_site_uuid': '5e04e2c2-b794-4371-ae33-b5c9b8b8ff6b',
+                                'system_uuid': '0d05c0b9-6461-499a-8c09-ba71fe060d02',
+                                'default_control_channel': 0,
+                                'modulation': 'C4FM',
+                                'channels': {
+                                        0: 407075000,
+                                }
+                        },
+			19: {
+                                'type': 'p25',
+                                'id': '1-2',
+                                'transmit_site_uuid': 'a5df7fb4-354d-4ab5-8fa9-d3dc0bac63c1',
+                                'system_uuid': '0d05c0b9-6461-499a-8c09-ba71fe060d02',
+                                'default_control_channel': 0,
+                                'modulation': 'C4FM',
+                                'channels': {
+                                        0: 406775000,
+                                }
+                        },
+			20: {
+                                'type': 'p25',
+                                'id': '1-6',
+                                'transmit_site_uuid': '254f8534-bfc8-4eac-ac5e-07ce7788510d',
+                                'system_uuid': '0d05c0b9-6461-499a-8c09-ba71fe060d02',
+                                'default_control_channel': 0,
+                                'modulation': 'C4FM',
+                                'channels': {
+                                        0: 407175000,
+                                }
+                        },
+			21: {
+                                'type': 'p25',
+                                'id': 'usaf1-1',
+                                'transmit_site_uuid': 'f6bede95-e1f8-40a7-8248-d09defa2a39e',
+                                'system_uuid': '3ec0d7a4-4b2b-4c13-b880-5f0c297e0423',
+                                'default_control_channel': 0,
+                                'modulation': 'C4FM',
+                                'channels': {
+                                        0: 406150000,
+					1: 407562500,
+					2: 408087500,
+					3: 408162500,
+					4: 408562500,
+					5: 409312500,
+					6: 409350000,
+					7: 409512500,
+                                }
+                        },
+			22: {
+                                'type': 'p25',
+                                'id': 'usaf1-5',
+                                'transmit_site_uuid': '1420b5a3-f0f4-4e93-8151-afd5c71db675',
+                                'system_uuid': '3ec0d7a4-4b2b-4c13-b880-5f0c297e0423',
+                                'default_control_channel': 0,
+                                'modulation': 'C4FM',
+                                'channels': {
+                                        0: 386275000,
+                                        1: 386425000,
+                                        2: 387475000,
+                                        3: 387575000,
+                                        4: 387700000,
+                                }
+                        },
 		}
 
 
@@ -312,6 +405,9 @@ class rc_config:
                 del self.systems[7]
                 del self.systems[10]
 		del self.systems[11]
+		del self.systems[16]
+		del self.systems[17]
+		del self.systems[20]
 
 		self.blacklists = {}
 
