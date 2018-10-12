@@ -8,9 +8,13 @@ from rtlsdr import librtlsdr
 from ctypes import *
 import socket
 import hashlib
+import logging
+import logging.config
 
 class device_discovery():
         def __init__(self, host=None, port=None):
+		self.log = logging.getLogger('device_discovery')
+
 		
 		if(host != None):
 			self.host = host
@@ -67,13 +71,20 @@ class device_discovery():
 		return dongles
 			
 	def manager_loop(self):
-		print 'manager_loop()'
+		self.log.info('manager_loop() starting')
 
 		while self.continue_running:
 			rtlsdr_devices = self.build_device_table_rtlsdr()
-	                print 'Device auto detect published, current state (RTLSDR): %s' % rtlsdr_devices
+	                self.log.info('Device auto detect published, current state (RTLSDR) device count: %s' % len(rtlsdr_devices))
+			self.log.debug('device table: %s' % rtlsdr_devices)
 			time.sleep(10)
 		
-device_discovery = device_discovery()
-while True:
+with open('config.logging.json', 'rt') as f:
+    config = json.load(f)
+
+    logging.config.dictConfig(config)
+    log = logging.getLogger('frontend')
+    device_discovery = device_discovery()
+    while True:
+
 	time.sleep(3600)
