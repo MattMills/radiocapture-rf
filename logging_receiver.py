@@ -489,7 +489,11 @@ class logging_receiver(gr.top_block):
 		self.log.info('CLOSE %s %s' % (self.cdr['instance_uuid'], self.cdr['call_uuid']))
 
 		if self.cdr['modulation_type'] in ['p25', 'p25_cqpsk', 'p25_tdma', 'p25_cqpsk_tdma']:
-			self.cdr['errors'] = self.decoder.get_errors()
+			try:
+				self.cdr['errors'] = self.decoder.get_errors()
+			except e:
+				self.log.error('Exception calling decoder.get_errors(): ' %s)
+				self.cdr['errors'] = 9999999
 
 		if(self.audio_capture):
 			self.stop()
