@@ -41,7 +41,7 @@ class device_discovery():
 		self.client = redis.StrictRedis(host=self.host, port=self.port, db=0)
 	def publish_device(self, device_id, device_detail):
 		pipe = self.client.pipeline()
-                pipe.set('device_table:%s' % device_id, json.dumps(device_detail))
+                pipe.set('device_table:%s' % device_id, json.dumps(device_detail), )
 		#pipe.expire('device_table:%s' % device_id, 300)
                 result = pipe.execute()
 	def build_device_table_rtlsdr(self):
