@@ -207,7 +207,7 @@ class client_activemq():
 		while self.continue_running:
 			if self.connection_issue == False:
 				try:
-					if not self.client.canRead(0.1):
+					if not self.client.canRead(0.01):
 						continue
 					try:
 			        		frame = self.client.receiveFrame()
