@@ -1,6 +1,6 @@
 #!/usr/env/python
 
-from gnuradio import gr, digital, blocks, filter, analog
+from gnuradio import gr, digital, blocks, filter, analog, zeromq
 try:
         from gnuradio.gr import firdes
 except:
@@ -12,20 +12,26 @@ import time
 import os
 import random
 import threading
-from logging_receiver import logging_receiver
-from backend_event_publisher import backend_event_publisher
+import uuid
+import logging
 
-class edacs_control_receiver(gr.hier_block2):
-	def __init__(self, system, top_block, block_id):
-		gr.hier_block2.__init__(self, "edacs_control_receiver",
-                                gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
-                                gr.io_signature(0, 0, 0)) # Output signature
-	
-		self.hang_time = 0.5
+from frontend_connector import frontend_connector
+from redis_demod_publisher import redis_demod_publisher
+from client_activemq import client_activemq
 
-		self.tb = top_block
+class edacs_control_demod(gr.top_block):
+	def __init__(self, system, site_uuid, overseer_uuid):
+		gr.top_block.__init__(self, "edacs receiver")
+                self.log = logging.getLogger('overseer.edacs_control_demod')
+
 		self.system = system
-		self.block_id = block_id
+		self.instance_uuid = '%s' % uuid.uuid4()
+                self.log = logging.getLogger('overseer.edacs_control_demod.%s' % self.instance_uuid)
+		self.protocol_log = logging.getLogger('protocol.%s' % self.instance_uuid)
+                self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
+
+		self.overseer_uuid = overseer_uuid
+		self.site_uuid = site_uuid
 
 		self.audio_rate = audio_rate = 12500
 		self.symbol_rate = symbol_rate = system['symbol_rate']
@@ -41,6 +47,7 @@ class edacs_control_receiver(gr.hier_block2):
 		self.bad_messages = 0
 		self.total_messages = 0
 		self.quality = []
+		self.site_detail = {}
 
 		self.is_locked = False
 
@@ -49,6 +56,9 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.freq_offset = 0
 
+		self.connector = frontend_connector()
+		self.client_activemq = client_activemq()
+
 		################################################
 		# Blocks
 		################################################
@@ -56,6 +66,9 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.channel_rate = 12500
 		self.receive_rate = self.channel_rate*2 #Decimation adds 50% on either side
+
+		self.source = None
+
 
 		try:
 			self.control_quad_demod = gr.quadrature_demod_cf(5)
@@ -67,7 +80,7 @@ class edacs_control_receiver(gr.hier_block2):
 			self.control_unpacked_to_packed = gr.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
 		except:
 			self.control_unpacked_to_packed = blocks.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
-		self.control_msg_queue = gr.msg_queue(1024)
+		self.control_msg_queue = gr.msg_queue(1024000)
 		try:
 			self.control_msg_sink = gr.message_sink(gr.sizeof_char, self.control_msg_queue,True)
 		except:
@@ -79,22 +92,12 @@ class edacs_control_receiver(gr.hier_block2):
                 divide_const = blocks.multiply_const_vff((0.0001, ))
                 self.probe = blocks.probe_signal_f()
 
-		#Local websocket output
-		#self.websocket_sink = gr.udp_sink(gr.sizeof_char, "127.0.0.1", (10000+self.system['id']), 1472, True)
-		#self.connect(self.control_unpacked_to_packed, self.websocket_sink)
-
-		#self.udp_sink = blocks.udp_sink(gr.sizeof_gr_complex, "127.0.0.1", (9999+self.system['id']), 1472, True)
-		#self.connect(self, self.udp_sink)
-	
-		#self.null_sink0 = gr.null_sink(gr.sizeof_gr_complex*1)
-                #self.null_sink1 = gr.null_sink(gr.sizeof_gr_complex*1)
 
 		################################################
 		# Connections
 		################################################
 	
-		self.connect(   self,
-                                self.control_quad_demod,
+		self.connect(   self.control_quad_demod,
                                 self.control_clock_recovery,
                                 self.control_binary_slicer,
                                 self.control_unpacked_to_packed,
@@ -102,13 +105,11 @@ class edacs_control_receiver(gr.hier_block2):
 
 		self.connect(self.control_quad_demod, moving_sum, divide_const, self.probe)
 		
-		#self.connect((self.source,0), self.null_sink0)
-                #self.connect((self.source,1), self.null_sink1)
 
 		###############################################
 		self.patches = {}
 		self.patch_timeout = 3 #seconds
-                self.backend_event_publisher = backend_event_publisher()
+		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
 		control_decode_0 = threading.Thread(target=self.control_decode)
 		control_decode_0.daemon = True
@@ -118,7 +119,7 @@ class edacs_control_receiver(gr.hier_block2):
                 quality_check_0.daemon = True
                 quality_check_0.start()
 
-
+		self.tune_next_control_channel()
 
 	def tune_next_control_channel(self):
                 self.control_channel_key += 1
@@ -128,11 +129,23 @@ class edacs_control_receiver(gr.hier_block2):
 		self.control_lcn = self.control_channel_key
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 		
-		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
+
+		self.lock()
+		if self.source != None:
+			self.disconnect(self.source, self.control_quad_demod)
+		self.connector.release_channel()
+                channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+		for tries in 1,2,3:
+			try:
+				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+				break
+			except:
+				pass
+		self.connect(self.source, self.control_quad_demod)
+		self.unlock()
 	
-                print 'CC Change - %s' % (self.control_channel)
+                self.log.info('CC Change - %s' % (self.control_channel))
                 self.control_msg_queue.flush()
-                time.sleep(0.1)
 
 
 
@@ -189,14 +202,18 @@ class edacs_control_receiver(gr.hier_block2):
                 #       print 'Chan Assignment - Emergency Group Voice - ' + str(r)
                 if(mta=='000' or mta == '010' or mta == '011' or mta == '101'):
                         if(m1 == -1 or m2 == -1): return False
+			r['type'] = 'call_assignment_analog'
                         r['logical_id'] = int(m1[3:10] + m2[4:11], 2)
                         r['channel'] = int(m1[11:16],2)
+			try:
+				r['frequency'] = self.system['channels'][r['channel']]
+			except:
+				self.log.warning('ERROR BAD CHANNEL %s' % r)
+				return False
                         r['tx_trunked'] = bool(int(m1[16:17],2))
                         r['group'] = int(m1[17:28],2 )
 
                         m = 'Chan Assignment - Data - ' + str(r)
-                        if( r['channel'] in system['channels'].keys() and r['channel'] != self.control_lcn): # nd r['group'] == 609): #and r['channel'] in self.wav_sinks):
-                                self.new_call_group(system, r['channel'], r['group'], r['logical_id'], r['tx_trunked'])
                 elif(mta == '111'):
                         mtb = m1[3:6]
                         if(mtb == '010'):
@@ -205,37 +222,21 @@ class edacs_control_receiver(gr.hier_block2):
                                 #unknown
                         elif(mtb == '011'): #Channel Update
                                 r['mtc'] = int(m1[6:8], 2)
+
+				if r['mtc'] != 3:
+					r['type'] = 'call_continuation_analog'
+				else:
+					r['type'] = 'call_continuation_digital'
+
                                 r['channel'] = int(m1[8:13],2)
+				try:
+					r['frequency'] = self.system['channels'][r['channel']]
+				except:
+					self.log.warning('ERROR BAD CHANNEL %s' % r)
+					return False
                                 r['individual'] = int(m1[13:14],2)
                                 r['id'] = int(m1[14:28],2)
 
-                                #if(r['channel'] in active_channels):
-                                channel_matched = False
-				self.tb.ar_lock.acquire()
-                                for v in self.tb.active_receivers:
-					if v == None: continue
-                                        if(v.cdr != {} and v.in_use and v.cdr['system_id'] == system['id'] and v.cdr['system_channel_local'] == r['channel']):
-				                self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  v.cdr['system_group_local'], v.cdr['system_user_local'], system['channels'][r['channel']], 'continuation')
-                                                v.activity()
-						if(r['mtc'] == 3):
-							v.configure_blocks('provoice')
-						else:
-							v.configure_blocks('analog')
-                                                channel_matched = True
-				self.tb.ar_lock.release()
-                                if(not channel_matched and r['mtc'] != 1 and r['mtc'] != 0):
-                                        if( r['channel'] in system['channels'].keys() and r['channel'] != self.control_lcn):
-                                                if(r['individual'] == 0):
-                                                        if(r['mtc'] == 3):
-                                                                self.new_call_group(system, r['channel'],r['id'], 0, False, True)
-                                                        else:
-                                                                self.new_call_group(system, r['channel'],r['id'], 0, False)
-
-                                                else:
-							#pass
-                                                        self.new_call_individual(system, r['channel'] ,0, r['id'], False)
-
-                                        #active_channels[r['channel']] = time()
                                 m = 'Channel Update - ' + str(r)
                         elif(mtb == '100'):
                                 r['sgid'] = int(m1[6:17],2)
@@ -256,10 +257,6 @@ class edacs_control_receiver(gr.hier_block2):
                                 r['caller_logical_id'] = int(m2[14:28], 2)
 
                                 m = 'iCall - ' + str(r)
-                                if( r['channel'] in system['channels'].keys() and r['channel'] != self.control_lcn): # nd r['group'] == 609): #and r['channel'] in self.wav_sinks):
-                                        #check if channel is already tuned to
-					#pass
-                                        self.new_call_individual(system, r['channel'], r['callee_logical_id'], r['caller_logical_id'], r['tx_trunked'])
                         elif(mtb == '110'):
                                 r['drop'] = True if m1[8:9] == '1' else False
                                 r['unkey'] = True if m1[8:9] == '0' else False
@@ -273,12 +270,12 @@ class edacs_control_receiver(gr.hier_block2):
                                         r['index'] = int(m1[16:19], 2)
                                         r['site_id'] = int(m1[19:22],2)
 
-                                        #m = 'Adjacent site control channel - ' + str(r)
+                                        m = 'Adjacent site control channel - ' + str(r)
                                 elif(mtd == '00010'): #extended site options
                                         r['messageno'] = int(m1[12:15], 2)
                                         r['data'] = int(m1[15:28],2)
 
-                                        #m = 'Extended site options - ' +str(r)
+                                        m = 'Extended site options - ' +str(r)
                                 elif(mtd == '00100'): #System dynamic regroup plan bitmap
                                         r['bank'] = int(m1[11:12], 2)
                                         r['residency'] = int(m1[12:20], 2)
@@ -299,7 +296,8 @@ class edacs_control_receiver(gr.hier_block2):
                                         r['auxmain'] = int(m1[22:23], 2)
                                         r['site_id'] = int(m1[23:28], 2)
 
-                                        #m = 'SiteID - ' + str(r)
+                                        self.site_detail = r
+                                        m = 'SiteID - ' + str(r)
                                 elif(mtd[:1] == '1'):   #Dynamic regroup
                                         if(m1 == -1 or m2 == -1): return False
                                         r['fleet_bits'] = m1[11:14]
@@ -319,6 +317,9 @@ class edacs_control_receiver(gr.hier_block2):
                 #        print "(%s)[%s] %s" %(time.time(),hex(int(m1, 2)), m)
                 #elif( m != ''):
                 #        print "(%s)[%s][%s] %s" %(time.time(),hex(int(m1, 2)), hex(int(m2,2)), m)
+		r['message'] = m
+		self.client_activemq.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, r)
+		self.protocol_log.info(r)
         def is_double_message(self, m1):
                 if(m1 == -1): return True
                 mta = m1[:3]
@@ -338,6 +339,7 @@ class edacs_control_receiver(gr.hier_block2):
 
 		desired_quality = 666.0 #approx 66.0 packets per sec
 
+		logger = logging.getLogger('overseer.quality.%s' % self.instance_uuid)
                 #global bad_messages, total_messages
 		bad_messages = self.bad_messages
 		total_messages = self.total_messages
@@ -350,8 +352,7 @@ class edacs_control_receiver(gr.hier_block2):
 			current_packets = self.total_messages-last_total
 			current_packets_bad = self.bad_messages-last_bad
 
-                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
-			print 'System: %s %s' % (sid, self.probe.level())
+                        logger.info('System Status: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.total_messages) + '/'+ str(self.bad_messages) + ') CC: ' + str(self.control_channel))
 
 			if len(self.quality) >= 60:
                                 self.quality.pop(0)
@@ -360,67 +361,6 @@ class edacs_control_receiver(gr.hier_block2):
 
                         last_total = self.total_messages
                         last_bad = self.bad_messages
-
-        def new_call_group(self, system, channel, group, logical_id, tx_trunked, provoice = False):
-		if provoice == False:
-			call_type = 'group_analog'
-		else:
-			call_type = 'group_provoice'
-
-		self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  group, logical_id, system['channels'][channel], call_type)
-
-		if not self.enable_capture:
-			return True
-		self.tb.ar_lock.acquire()
-
-		receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate, self)
-                #receiver.set_call_details_group(system, logical_id, channel, tx_trunked, group)
-                print 'Tuning new group call - %s' % ( system['channels'][channel])
-		if provoice:
-			receiver.configure_blocks('provoice')
-		else:
-			receiver.configure_blocks('analog')
-		cdr = {
-			'system_id': self.system['id'], 
-			'system_type': self.system['type'],
-			'system_group_local': group,
-			'system_user_local': logical_id,
-			'system_channel_local': channel,
-			'type': 'group',
-			'hang_time': self.hang_time
-		}
-		receiver.set_rate(self.audio_rate)
-		receiver.open(cdr)
-		self.tb.ar_lock.release()
-        def new_call_individual(self, system, channel, callee_logical_id, caller_logical_id, tx_trunked, provoice = False):
-                return True
-		if provoice == False:
-                        call_type = 'individual_analog'
-                else:
-                        call_type = 'individual_provoice'
-
-                self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  callee_logical_id, caller_logical_id, system['channels'][channel], call_type)
-		if not self.enable_capture:
-			return True
-		self.tb.ar_lock.acquire()
-	        receiver = self.tb.connect_channel(system['channels'][channel], self.audio_rate, self)
-                #receiver.set_call_details_individual(system, callee_logical_id, caller_logical_id, channel, tx_trunked)
-                if provoice:
-                        receiver.configure_blocks('provoice')
-                else:
-                        receiver.configure_blocks('analog')
-                cdr = {
-                        'system_id': self.system['id'],
-			'system_type': self.system['type'],
-                        'system_callee_local': callee_logical_id,
-                        'system_caller_local': caller_logical_id,
-                        'system_channel_local': channel,
-                        'type': 'individual',
-			'hang_time': self.hang_time
-                }
-		receiver.set_rate(self.audio_rate)
-		receiver.open(cdr, self.audio_rate)
-		self.tb.ar_lock.release()
 
         def packet_framer(self, system, frame, bad_messages, total_messages):
                 m1_1 = frame[0:40]
@@ -461,19 +401,19 @@ class edacs_control_receiver(gr.hier_block2):
                 else:
                         self.failed_loops = self.failed_loops + 1
                         buf = buf[288:]
-                        if(self.failed_loops > 100 and loop_start+2 < time.time()):
+                        if(self.failed_loops > 10 and loop_start+0.25 < time.time()):
                                 #print 'Failed loops: ' + str(self.failed_loops)
 
                                 self.failed_loops = 0
                                 self.loop_start = time.time()
 
-                                print 'Cant get framesync lock, SYS: %s trying next control ' % (self.system['id'])
+                                self.log.info('Cant get framesync lock, SYS: %s trying next control ' % (self.system['id']))
 				self.is_locked = False
                                 self.tune_next_control_channel()
                                 buf = ''
                         return (buf, False)
                 if(len(frame) < 240):
-                        print 'Buffer Underrun in Framer: ' + str(len(frame))
+                        self.log.warning('Buffer Underrun in Framer! Length: %s '% len(frame))
                 if(self.failed_loops > -1000):
                         self.failed_loops = self.failed_loops - 10
 		else: # if their have been >100 non failed loops we should signify a signal lock for freq tuning
@@ -571,7 +511,7 @@ class edacs_control_receiver(gr.hier_block2):
 ############################################################################################################
 
 	def control_decode(self):
-		print self.thread_id + ': control_decode() start'
+		self.log.info('%s: control_decode() start' % self.thread_id)
 	        self.framesync = framesync = '010101010101010101010111000100100101010101010101'
 	        self.buf = buf = ''
 		self.total_messages = total_messages = 0
@@ -596,14 +536,14 @@ class edacs_control_receiver(gr.hier_block2):
 					deletes.append(patch)
 
 			for patch in deletes:
-				print 'Patch closed ' + str(patch)
+				self.log.info('Patch closed %s' % patch)
 				del self.patches[patch]
 
                         pkt = self.recv_pkt()
                         for b in pkt:
                                 buf = buf + str("{0:08b}" . format(ord(b)))
-                        if(len(buf) > 288*4):
-                                print 'Buffer Overflow ' + str(len(buf))
+                        if(len(buf) > 288*8):
+                                self.log.warning('Buffer Overflow! Length: %s ' % len(buf))
                         while(len(buf) > 288*3): #frame+framesync len in binary is 288; buffer 4 frames
                                 buf, frame = self.get_next_frame(system, buf)
                                 if(frame == False): continue #Failed to get packet

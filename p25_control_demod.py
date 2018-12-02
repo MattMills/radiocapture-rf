@@ -7,80 +7,84 @@ import threading
 import binascii
 import uuid
 import datetime
+import json
 
-from gnuradio import gr, uhd, filter, analog, blocks, digital
+from gnuradio import gr, uhd, filter, analog, blocks, digital, zeromq
 from gnuradio.filter import firdes
 from math import pi, floor
 import op25_repeater as repeater
 import op25
 from time import sleep,time
 
+
 from p25_cai import p25_cai
 from p25_moto import p25_moto
-from logging_receiver import logging_receiver
-from backend_event_publisher import backend_event_publisher
 
+from frontend_connector import frontend_connector
+from redis_demod_publisher import redis_demod_publisher
+from client_activemq import client_activemq
+
+import logging
+import logging.config
 
 # The P25 receiver
 #
-class p25_control_receiver (gr.hier_block2):
-	def __init__(self, system, top_block, block_id):
-
-		gr.hier_block2.__init__(self, "p25_control_receiver",
-	        	gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
-	                gr.io_signature(0, 0, 0)) # Output signature
+class p25_control_demod (gr.top_block):
+	def __init__(self, system, site_uuid, overseer_uuid):
 	
-		self.hang_time = 0.5 #500 ms hang time	
+		gr.top_block.__init__(self, "p25 receiver")
 
 		#set globals
-		self.patches = {}
-		self.patch_timeout = 3
-
-		self.tb = top_block
+		self.is_locked = False
 		self.system = system
-		self.block_id = block_id
-		self.channel_rate = 12500
-		self.audio_rate = self.channel_rate
+		self.instance_uuid = '%s' % uuid.uuid4()
+
+                self.log = logging.getLogger('overseer.p25_control_demod.%s' % self.instance_uuid)
+		self.protocol_log = logging.getLogger('protocol.%s' % self.instance_uuid)
+                self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
+
+		self.site_uuid = site_uuid
+		self.overseer_uuid = overseer_uuid
+
+
 
 		self.control_channel = system['channels'][system['default_control_channel']]
 		self.control_channel_i = system['default_control_channel']
-		self.control_source = 0
-
-		self.call_table = {}
+		
+		
 		self.channel_identifier_table = {}
-
-		self.thread_id = '%s-%s' % (self.system['type'], self.system['id'])
 
 		try:
 			self.modulation = system['modulation']
 		except:
 			self.modulation = 'C4FM'
 
-		self.P25 = {}
-		self.P25['WACN ID'] = None
-		self.P25['System ID'] = None
-		self.P25['Control Channel'] = None
-		self.P25['System Service Class'] = None
-		self.P25['Site ID'] = None
-		self.P25['RF Sub-system ID'] = None
-		self.P25['RFSS Network Connection'] = None
+		self.channel_rate = 12500
+		symbol_rate = 4800
+
+		self.site_detail = {}
+		self.site_detail['WACN ID'] = None
+		self.site_detail['System ID'] = None
+		self.site_detail['Control Channel'] = None
+		self.site_detail['System Service Class'] = None
+		self.site_detail['Site ID'] = None
+		self.site_detail['RF Sub-system ID'] = None
+		self.site_detail['RFSS Network Connection'] = None
 
 
-	        # Setup receiver attributes
-	        symbol_rate = 4800
 
 		self.bad_messages = 0
 		self.total_messages = 0
 		self.quality = []
 	
-		self.enable_capture = True
 		self.keep_running = True
 	
 	      
+		self.source = None
+
+
 	        # channel filter
 	        channel_rate = self.channel_rate*2
-	        trans_width = 12.5e3 / 2;
-	        trans_centre = trans_width + (trans_width / 2)
 		self.control_prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, channel_rate)
 	
 	        # power squelch
@@ -88,19 +92,19 @@ class p25_control_receiver (gr.hier_block2):
 	        #self.connect(self.channel_filter, power_squelch)
 
                 autotuneq = gr.msg_queue(2)
-                self.demod_watcher = demod_watcher(autotuneq, self.adjust_channel_offset)
+                self.demod_watcher = demod_watcher(self)
 		self.symbol_deviation = 600.0
 
 		if self.modulation == 'C4FM':
 		        # FM demodulator
 		        fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
-		        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
+		        self.fm_demod = fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 
 	                moving_sum = blocks.moving_average_ff(10000, 1, 40000)
 	                subtract = blocks.sub_ff(1)
         	        divide_const = blocks.multiply_const_vff((0.0001, ))
                 	self.probe = blocks.probe_signal_f()
-	                self.connect(fm_demod, moving_sum, divide_const, self.probe)
+	                self.connect(self.fm_demod, moving_sum, divide_const, self.probe)
 	
 		        # symbol filter        
 		        symbol_decim = 1
@@ -112,7 +116,7 @@ class p25_control_receiver (gr.hier_block2):
 		elif self.modulation == 'CQPSK':
 			# FM demodulator
                         fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
-                        fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
+                        self.fm_demod = fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 
                         moving_sum = blocks.moving_average_ff(10000, 1, 40000)
                         subtract = blocks.sub_ff(1)
@@ -132,7 +136,8 @@ class p25_control_receiver (gr.hier_block2):
 	                alpha = 0.04
 	                beta = 0.125 * alpha * alpha
 	                fmax = 1200     # Hz
-	                fmax = 2*pi * fmax / channel_rate
+	                fmax = 2*pi * fmax / float(channel_rate)
+
 			self.clock = repeater.gardner_costas_cc(omega, gain_mu, gain_omega, alpha,  beta, fmax, -fmax)
 			self.diffdec = digital.diff_phasor_cc()
 			self.to_float = blocks.complex_to_arg()
@@ -148,46 +153,70 @@ class p25_control_receiver (gr.hier_block2):
 		self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False, False)
 	
 		if self.modulation == 'C4FM':
-		        self.connect(self, self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
+		        self.connect(self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
 		elif self.modulation == 'CQPSK':
-			self.connect(self, fm_demod)
-			self.connect(self, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
+			self.connect(self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
 	
                 ##################################################
                 # Threads
                 ##################################################
-
-		self.backend_event_publisher = backend_event_publisher()
-
-                receive_engine = threading.Thread(target=self.receive_engine)
-                receive_engine.daemon = True
-                receive_engine.start()
+		self.connector = frontend_connector()
+		self.client_activemq = client_activemq()
+		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
                 quality_check_0 = threading.Thread(target=self.quality_check)
                 quality_check_0.daemon = True
                 quality_check_0.start()
 	    # Adjust the channel offset
 	    #
+		self.tune_next_control_channel()
+
+		#self.receive_engine()
+
+		receive_engine = threading.Thread(target=self.receive_engine)
+                receive_engine.daemon = True
+                receive_engine.start()
+
 	def adjust_channel_offset(self, delta_hz):
-	        max_delta_hz = 12000.0
+		return False #Disable
+	        max_delta_hz = 6000.0
 	        delta_hz *= self.symbol_deviation      
 	        delta_hz = max(delta_hz, -max_delta_hz)
 	        delta_hz = min(delta_hz, max_delta_hz)
-	        self.control_prefilter.set_center_freq(0 + delta_hz)
-		print 'adjust control %s' % (delta_hz)
+	        #self.control_prefilter.set_center_freq(0 + delta_hz)
+		self.log.info('adjust control deltz_hz = %s' % (delta_hz))
         def tune_next_control_channel(self):
                 self.control_channel_i += 1
                 if(self.control_channel_i >= len(self.system['channels'])):
                         self.control_channel_i = 0
 
                 self.control_channel = self.system['channels'][self.control_channel_i]
+		self.lock()
+		if self.source != None:
+			if self.modulation == 'C4FM':
+				self.disconnect(self.source, self.control_prefilter)
+	                elif self.modulation == 'CQPSK':
+				self.disconnect(self.source, self.fm_demod)
+	                        self.disconnect(self.source, self.resampler)
+		self.connector.release_channel()
+		channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+		for x in range(0, 3):
+			try:
+				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))		
+				break
+			except Exception as e:
+				self.log.error('Exception in zeromq source creation %s' % e)
+		
 
-                self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
+		if self.modulation == 'C4FM':
+                        self.connect(self.source, self.control_prefilter)
+                elif self.modulation == 'CQPSK':
+                        self.connect(self.source, self.fm_demod)
+                        self.connect(self.source, self.resampler)
 
-                #self.control_prefilter.set_center_freq(self.control_channel-self.sources[self.control_source]['center_freq'])
-                #print '%s: CC Change - %s - %s - %s' % (self.thread_id, self.control_channel, se)
+		self.unlock()
+		self.log.info('CC Change %s' % self.control_channel)
                 self.decodequeue.flush()
-                sleep(0.1)
 	def procHDU(self, frame):
 		r = {'short':'HDU', 'long':'Header Data Unit'}
 		bitframe = self.bin_to_bit(frame)
@@ -305,22 +334,18 @@ class p25_control_receiver (gr.hier_block2):
                 r['opcode'] = int(bitframe[2:8],2)
                 r['mfid'] = int(bitframe[8:16],2)
 		if r['mfid'] == 0x0 or r['mfid'] == 0x1: 
-			#CAI MFID
 			p = p25_cai()
 		elif r['mfid'] == 0x90:
-			#Motorola MFID
 			p = p25_moto()
 		else:
-			#unknown MFID, we cant decode.
-			r['name'] = 'UNKNOWN'
-			r['raw'] = hex(int(bitframe[16:80], 2)).lstrip('0x').rstrip('L').zfill(16)
+			r['name'] = 'UNKnOWN MFID'
+			r['data'] = hex(int(bitframe,2))
 			return r
-
                 try:
                         r['name'] = p.tsbk_osp_single[r['opcode']]['name']
                 except:
-                        r['name'] = 'UNKNOWN'
-			r['raw'] = hex(int(bitframe[16:80], 2)).lstrip('0x').rstrip('L').zfill(16)
+                        r['name'] = 'UNKNOWN OPCODE'
+			r['data'] = hex(int(bitframe,2))
 			return r
 		if(len(bitframe[16:]) < 80): return r
 		bitframe = bitframe[16:]
@@ -331,7 +356,9 @@ class p25_control_receiver (gr.hier_block2):
 	def subprocLC(self, bitframe):
 		bitframe = self.rs_24_12_13_decode(bitframe)
 		r = {'short': 'LC', 'long': 'Link Control'}
-		r['lcf'] = int(bitframe[:8],2)
+		r['p'] = int(bitframe[0:1], 2)
+		r['p'] = int(bitframe[1:2], 2)
+		r['lcf'] = int(bitframe[2:8],2)
                 r['mfid'] = int(bitframe[8:16],2)
 
 		if(r['lcf'] == 0x0): #Group Voice Channel User (LCGVR)
@@ -341,6 +368,9 @@ class p25_control_receiver (gr.hier_block2):
 			r['tgid'] = int(bitframe[32:48],2)
 			r['source_id'] = int(bitframe[48:72],2)
 			#print 'GV %s %s' %(r['tgid'], r['source_id'])
+		elif(r['lcf'] == 0x15):	#Call Termination / Cancellation
+			r['lcf_long'] = 'Call Termination / Cancellation'
+			
 		return r
 	def procStatus(self, bitframe):
 		r = []
@@ -437,7 +467,8 @@ class p25_control_receiver (gr.hier_block2):
 			else:
 				match = False
 			if not match and not previous_match:
-				print "Trellis failure at length: %i" % len(output)
+				#print "Trellis failure at length: %i" % len(output)
+                                self.log.warning('Trellis failure at length %i' % len(output))
 				#raise Exception('Irrecoverable error in Trellis encoding.')
 				return output
 					
@@ -508,7 +539,7 @@ class p25_control_receiver (gr.hier_block2):
 		return output
 	def int_to_bit(self, input):
 		output = ''
-		print input
+		#print input
 		for i in range(0, len(input)):
                         output += bin(input[i])[2:].zfill(8)
                 return output
@@ -539,88 +570,8 @@ class p25_control_receiver (gr.hier_block2):
 
 		return channel_frequency, channel_bandwidth, slot_number
 
-	def new_call(self, channel, group, user):
-		channel_frequency, channel_bandwidth, slot = self.get_channel_detail(channel)
-
-		self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  group, user, channel_frequency, 'd')
-
-		if not self.enable_capture:
-			return False
-
-		if(self.system['id'] in self.tb.blacklists.keys() and group in self.tb.blacklists[self.system['id']]):
-			return False
-			#Ignore blacklisted groups
-		
-		if(channel_frequency == False):
-			return False
-
-		self.tb.ar_lock.acquire()
-		allocated_receiver = False
-		for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
-			#If we're on the same channel with a different group, close and reopen
-			#If we're on the same group and channel mark as activity
-			#If we're on the same group and different channel, ignore
-
-			if receiver.cdr != {} and receiver.cdr['system_channel_local'] == channel and receiver.cdr['system_id'] == self.system['id']:
-				if receiver.cdr['system_group_local'] != group or (receiver.cdr['system_user_local'] != user and user != 0):
-					#Quick close, new user/group.
-					old_cdr = receiver.cdr
-					receiver.close({}, emergency=True)
-					receiver.set_rate(int(channel_bandwidth))
-					if self.modulation == 'CQPSK':
-						receiver.configure_blocks('p25')#_cqpsk')
-					else:
-						receiver.configure_blocks('p25')
-		
-		                        cdr = {
-		                                'system_id': self.system['id'],
-		                                'system_group_local': group,
-		                                'system_user_local': user,
-		                                'system_channel_local': channel,
-		                                'type': 'group',
-						'hang_time': self.hang_time
-		                        }
-		                        receiver.open(cdr)
-					allocated_receiver = receiver
-				else:
-			
-					receiver.activity()
-	                                allocated_receiver = receiver
-                                break
-		if allocated_receiver == False: #If not an existing call
-			try:
-				allocated_receiver = self.tb.connect_channel(int(channel_frequency), int(channel_bandwidth), self)
-			except:
-				#raise
-				
-				self.tb.ar_lock.release()
-				return False
-			
-			#self.tb.active_receivers.append(allocated_receiver)
-			allocated_receiver.set_rate(int(channel_bandwidth))
-			if self.modulation == 'CQPSK':
-	                        allocated_receiver.configure_blocks('p25')#_cqpsk')
-                        else:
-                                allocated_receiver.configure_blocks('p25')
-			
-			cdr = {
-				'system_id': self.system['id'],
-				'system_group_local': group,
-				'system_user_local': user,
-				'system_channel_local': channel,
-				'type': 'group',
-				'hang_time': self.hang_time
-			}
-
-			allocated_receiver.open(cdr)
-		self.tb.ar_lock.release()
-		return allocated_receiver
-	def progress_call(self, channel):
-                for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
-                        if receiver.cdr != {} and receiver.cdr['system_channel_local'] == channel and receiver.cdr['system_id'] == self.system['id']:
-                                receiver.activity()
 	def receive_engine(self):
-		print '%s: Receive_engine() start' %self.thread_id
+                self.log.info('receive_engine() initializing')
 		buf = ''
 		data_unit_ids = {
 				0x0: 'Header Data Unit',
@@ -632,42 +583,46 @@ class p25_control_receiver (gr.hier_block2):
 				0xF: 'Terminator with Link Control'
 				}
 
-		channel_timeout = 0.5
-		last_chan_status = 0
 
 		loop_start = time()
 		loops_locked = 0
 		wrong_duid_count = 0
+		no_flow = 0
 
 		while self.keep_running:
-			for patch in self.patches:
-                                deletes = []
-                                for group in self.patches[patch]:
-                                        if ((time()-self.patches[patch][group]) > self.patch_timeout):
-                                                deletes.append(group)
-                                for group in deletes:
-                                        del self.patches[patch][group]
-
-                        deletes = []
-                        for patch in self.patches:
-                                if len(self.patches[patch]) == 0:
-                                        deletes.append(patch)
-
-                        for patch in deletes:
-                                print 'Patch closed ' + str(patch)
-                                del self.patches[patch]
-
-
-			if loops_locked < -1000 and time()-loop_start > 2:
-				self.tune_next_control_channel()
+			if loops_locked < -50 and time()-loop_start > 0.5:
+				if len(self.system['channels']) > 1:
+					self.log.warning('Unable to lock control channel on %s' % self.control_channel)
+					self.tune_next_control_channel()
 
 				loops_locked = 0
 				loop_start = time()
+			if loops_locked > 500:
+				self.is_locked = True
+			else:
+                                if self.is_locked == True:
+                                        self.site_detail = {}
+                                        self.site_detail['WACN ID'] = None
+                                        self.site_detail['System ID'] = None
+                                        self.site_detail['Control Channel'] = None
+                                        self.site_detail['System Service Class'] = None
+                                        self.site_detail['Site ID'] = None
+                                        self.site_detail['RF Sub-system ID'] = None
+                                        self.site_detail['RFSS Network Connection'] = None
+					self.site_detail['NAC'] = None
+       				self.is_locked = False
 			if self.decodequeue.count():
 				pkt = self.decodequeue.delete_head().to_string()
                                 buf += pkt
+				no_flow = 0
 			else:
-				sleep(0.010) #avg time between packets is 0.007s
+				no_flow = no_flow + 1
+				if no_flow % 100 == 0 and self.is_locked:
+					self.log.error('extended no flow event')
+				if no_flow > 1000:
+					self.log.error('No flow retune')
+					self.tune_next_control_channel()
+				sleep(0.007) #avg time between packets is 0.007s
 
 			fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
 			fsnext   = buf.find(binascii.unhexlify('5575f5ff77ff'), fsoffset+6)
@@ -680,18 +635,24 @@ class p25_control_receiver (gr.hier_block2):
 				if len(frame) < 10: continue
 				frame_sync = binascii.hexlify(frame[0:6])
 				duid = int(ord(frame[7:8])&0xf)
-				nac = int(ord(frame[6:7]) +ord(frame[7:8])&0xf0)
+				nac = int((ord(frame[6:7])<<4) +((ord(frame[7:8])&0xf0)>>4))
+				
+				#print 'NAC: %s' % nac
 				self.total_messages = self.total_messages + 3
 				#print 'FSO:%s FSN:%s BS:%s FL:%s - %s - %s' % (fsoffset, fsnext, len(buf), (fsnext-fsoffset), frame_sync, data_unit_ids[duid])
 				if duid != 0x7:
 					wrong_duid_count = wrong_duid_count +1
-					if wrong_duid_count > 50:
-						self.tune_next_control_channel()
+					if wrong_duid_count > 10:
+						self.log.warning('Hit wrong DUID count on control channel')
+						if len(self.system['channels']) > 1:
+							self.tune_next_control_channel()
 
 						loop_start = time()
 				                loops_locked = 0
 				                wrong_duid_count = 0
-						
+				elif duid == 0x7:
+					wrong_duid_count = 0
+
 				try:
 					if duid == 0x0:
 						r = self.procHDU(frame)
@@ -709,10 +670,12 @@ class p25_control_receiver (gr.hier_block2):
 						r = self.procTLC(frame)
 					else:
 						pass
-						#print "%s: ERROR: Unknown DUID %s" % (self.thread_id, duid)
 				except Exception as e:
+					self.log.info('%s' % e)
 					self.bad_messages = self.bad_messages + 3
 					continue
+				if len(self.system['channels']) == 1:
+					self.log.info('%s' % r)
 				try:
 					r['tsbk']
 				except:
@@ -720,6 +683,7 @@ class p25_control_receiver (gr.hier_block2):
                                         continue
 				for i in range(0, len(r['tsbk'])):
 					t = r['tsbk'][i]
+					t['nac'] = nac
 					try:
 						t['name']
 					except:
@@ -737,7 +701,7 @@ class p25_control_receiver (gr.hier_block2):
 
 					if t['name'] == 'IDEN_UP_VU':
 						t['Base Frequency'] = t['Base Frequency']*0.000005
-						#t['BW'] = t['BW']*0.125
+						
 						if t['BW VU'] == 4:
 							t['BW VU'] = 6.25
 						elif t['BW VU'] == 5:
@@ -759,7 +723,6 @@ class p25_control_receiver (gr.hier_block2):
 							'Type': 'FDMA',
 							'Slots': 1,
 							}
-						#print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'IDEN_UP':
 						t['Base Frequency'] = t['Base Frequency']*0.000005
                                                 t['BW'] = t['BW']*0.125
@@ -778,12 +741,7 @@ class p25_control_receiver (gr.hier_block2):
 							'Type': 'FDMA',
 							'Slots': 1,
                                                         }
-						#print '%s: %s' % (self.thread_id, t)
 					elif t['name'] == 'IDEN_UP_TDMA':
-						#p25-1-001: {'lb': '0', 'name': 'IDEN_UP_TDMA', 
-						#'p': '0', 'Transmit Offset TDMA': 10592, 'Channel Type': 3, 
-						#'crc': 0, 'Base Frequency': 152401250, 'opcode': 51, 
-						#'Channel Spacing': 100, 'Identifier': 3, 'mfid': 0}
 						t['Base Frequency'] = t['Base Frequency']*0.000005
 						t['Channel Spacing'] = t['Channel Spacing']*0.125
 						t['Transmit Offset TDMA'] = int(t['Transmit Offset TDMA'])
@@ -809,8 +767,8 @@ class p25_control_receiver (gr.hier_block2):
 							t['BW'] = 6.25
 						elif(t['Channel Type'] == 4):
 							t['BW'] = 25
-
-						self.channel_identifier_table[t['Identifier']] = {
+						try:
+							self.channel_identifier_table[t['Identifier']] = {
                                                         'BW': t['BW'],
                                                         'Base Frequency': t['Base Frequency'],
                                                         'Channel Spacing': t['Channel Spacing'],
@@ -818,94 +776,67 @@ class p25_control_receiver (gr.hier_block2):
                                                         'Type': t['Access Type'],
 							'Slots': t['Slots'],
                                                         }
-						
-						#print '%s: %s' % (self.thread_id, t)
+						except:
+							pass	
 					elif t['name'] == 'GRP_V_CH_GRANT':
-						self.new_call(t['Channel'], t['Group Address'], t['Source Address'])
-						print '[%s]%s: %s' % (time(), self.thread_id, t)
-					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT':
-                                                self.new_call(t['Channel'], t['Super Group'], t['Source Address'])
-                                                print '[%s]%s: %s' % (time(), self.thread_id, t)
+						if 'Source Address' in t and t['Source Address'] == 0:
+							#super hacky fix for DTRS weirdness when dispatch console has no source address (comes across as 0)
+							t['Source Address'] = 1
+						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT':
-						self.new_call(t['Channel 0'], t['Group Address 0'], 0)
-						self.new_call(t['Channel 1'], t['Group Address 1'], 0)
-						print '[%s]%s: %s' % (time(), self.thread_id, t)
-					elif t['name'] == 'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT':
-                                                self.new_call(t['Channel 0'], t['Super Group 0'], 0)
-                                                self.new_call(t['Channel 1'], t['Super Group 1'], 0)
-                                                print '[%s]%s: %s' % (time(), self.thread_id, t)
+						pass
 					elif t['name'] == 'UU_V_CH_GRANT':
-						print '%s: %s' % (self.thread_id, t)
+						pass
 					elif t['name'] == 'UU_ANS_REQ':
-						print '%s: %s' % (self.thread_id, t)
+						pass
 					elif t['name'] == 'GRP_V_CH_GRANT_UPDT_EXP':
-						print '%s: %s' % (self.thread_id, t)
+						pass
 					elif t['name'] == 'GRP_AFF_RSP':
-						pass #print '%s: %s' % (self.thread_id, t)
+						pass
 					elif t['name'] == 'U_REG_RSP':
-						pass #print '%s: %s' % (self.thread_id, t)
+						pass
 					elif t['name'] == 'NET_STS_BCST':
-						self.P25['WACN ID'] = hex(int(t['WACN ID']))
-						self.P25['System ID'] = hex(int(t['System ID']))
-						self.P25['System Service Class'] = t['System Service Class']
-						self.P25['Control Channel'] = t['Channel']
+						self.site_detail['WACN ID'] = hex(int(t['WACN ID']))
+						self.site_detail['System ID'] = hex(int(t['System ID']))
+						self.site_detail['System Service Class'] = t['System Service Class']
+						self.site_detail['Control Channel'], null, null = self.get_channel_detail(t['Channel'])
+						self.site_detail['NAC'] = t['nac']
 					elif t['name'] == 'RFSS_STS_BCST':
-						self.P25['Site ID'] = t['Site ID']
-						self.P25['RF Sub-system ID'] = t['RF Sub-system ID']
-						self.P25['RFSS Network Connection'] = t['A']
+						self.site_detail['Site ID'] = t['Site ID']
+						self.site_detail['RF Sub-system ID'] = t['RF Sub-system ID']
+						self.site_detail['RFSS Network Connection'] = t['A']
 					elif t['name'] == 'ADJ_STS_BCST':
 						t['Channel'] = self.get_channel_detail(t['Channel'])
 						del t['lb']
 						del t['crc']
 						del t['mfid']
 						del t['opcode']
-					elif t['name'] == 'MOT_PAT_GRP_ADD_CMD':
-						for group in [t['Group 1'], t['Group 2'], t['Group 3']]:
-							if(t['Super Group'] in self.patches):
-			                                        self.patches[t['Super Group']][group] = time()
-			                                else:
-			                                        self.patches[t['Super Group']] = {group: time()}
+					try:
+						packet_type = t['name']
+					except:
+						packet_type = 'invalid'
 
-						print '%s: %s' % (self.thread_id, t)
-					elif t['name'] == 'MOT_PAT_GRP_DEL_CMD':
-						#not sure if this is right, but it looks like all 4 groups are the "super" group, so I'll iterate all and teardown any patches in that supergroup
-						for group in [t['Super Group'], t['Group 1'], t['Group 2'], t['Group 3']]:
-							if(group in self.patches):
-								for subgroup in self.patches[group]:
-									pass
-									#do nothing, not sure the timing works out on this, in example dump there is voice activity 1s before deletion
-									#since we take 0.5-3s to timeout a voice call, lets just let the timeout handle patch deletion.
-									#self.patches[group][subgroup] = time()-(self.patch_timeout*2) #time immedietly?
-
-						print '%s: %s' % (self.thread_id, t)
-
-
-						#print '%s: %s' % (self.thread_id, t)
-					elif t['name'] == 'UNKNOWN':
-						if(t['mfid'] == 0x90 and (t['opcode'] == 0x05 or t['opcode'] == 0x09)):
-							pass
-						else:
-							print '%s: %s' % (self.thread_id, t)
-					#else:
-						#print '%s: %s' % (self.thread_id, t)
-					#print '%s: %s' % (self.thread_id, t)
+					self.client_activemq.send_event_lazy('/topic/raw_control/%s' % (self.instance_uuid), t,{'packet_type': packet_type}, False)
+					self.protocol_log.info(t)
 			else:
 				loops_locked = loops_locked - 1
         def quality_check(self):
 		desired_quality = 400.0 # approx 40 tsbk per sec
 
+		logger = logging.getLogger('overseer.quality.%s' % self.instance_uuid)
                 bad_messages = self.bad_messages
                 total_messages = self.total_messages
                 last_total = 0
                 last_bad = 0
                 while True:
                         sleep(10); #only check messages once per 10second
-                        sid = '%s %s-%s %s-%s' % (self.system['id'], self.P25['System ID'], self.P25['WACN ID'], self.P25['RF Sub-system ID'], self.P25['Site ID'])
+                        sid = '%s %s-%s %s-%s' % (self.system['id'], self.site_detail['System ID'], self.site_detail['WACN ID'], self.site_detail['RF Sub-system ID'], self.site_detail['Site ID'])
 			
 			current_packets = self.total_messages-last_total
 			current_packets_bad = self.bad_messages-last_bad
 
-                        print 'System: %s (%s/%s) (%s/%s) CC: %s AR: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel, len(self.tb.active_receivers))
+                        logger.info('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.total_messages, self.bad_messages, self.control_channel))
+                        
 			if len(self.quality) >= 60:
                                 self.quality.pop(0)
 
@@ -917,20 +848,34 @@ class p25_control_receiver (gr.hier_block2):
 #
 class demod_watcher(threading.Thread):
 
-    def __init__(self, msgq,  callback, **kwds):
-        threading.Thread.__init__ (self, **kwds)
+    def __init__(self, tb):
+        threading.Thread.__init__ (self)
         self.setDaemon(1)
-        self.msgq = msgq
-        self.callback = callback
+	self.tb = tb
         self.keep_running = True
         self.start()
 
     def run(self):
+	sleep(1)
         while(self.keep_running):
-            msg = self.msgq.delete_head()
-            frequency_correction = msg.arg1()
-	    if frequency_correction == 0.0:
-		continue
-	    print '%s' % (msg.arg2())
-            print 'Freq correction %s' % (frequency_correction)
-            self.callback(frequency_correction)
+		if(self.tb.is_locked and self.tb.modulation == 'C4FM'):
+			#print 'Probe: %s' % self.tb.probe.level()
+			if self.tb.modulation == 'C4FM':
+				offset = self.tb.probe.level()
+				self.tb.connector.report_offset(offset)
+		sleep(0.5)
+
+if __name__ == '__main__':
+        with open('config.logging.json', 'rt') as f:
+            config = json.load(f)
+
+        logging.config.dictConfig(config)
+	system_config = { 
+        	'type': 'p25',
+                'id': 0,
+                'default_control_channel': 0,
+                'channels': {
+                	0: 851312500,
+        	}
+        }
+	main = p25_control_demod(system_config, uuid.uuid4(), uuid.uuid4())

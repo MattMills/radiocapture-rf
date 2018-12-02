@@ -5,40 +5,48 @@
 # Generated: Thu Oct  4 23:49:39 2012
 ##################################################
 
-from gnuradio import digital, blocks, analog, filter
+from gnuradio import digital, blocks, analog, filter, zeromq
 from gnuradio.filter import firdes
 from gnuradio import gr
 
 import time
 import threading
+import uuid
+import logging
 
-from logging_receiver import logging_receiver
-from backend_event_publisher import backend_event_publisher
+from frontend_connector import frontend_connector
+from redis_demod_publisher import redis_demod_publisher
+from client_activemq import client_activemq
+ 
 
-class moto_control_receiver(gr.hier_block2):
+class moto_control_demod(gr.top_block):
 
-	def __init__(self, system, top_block, block_id):
+	def __init__(self, system, site_uuid, overseer_uuid):
 
-                gr.hier_block2.__init__(self, "moto_control_receiver",
-                                gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
-                                gr.io_signature(0, 0, 0)) # Output signature
+		gr.top_block.__init__(self, "moto receiver")
+
 
 		##################################################
 		# Variables
 		##################################################
-		self.tb = top_block
+
+		self.instance_uuid = '%s' % uuid.uuid4()
+                self.log = logging.getLogger('overseer.moto_control_demod.%s' % self.instance_uuid)
+                self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
+		self.overseer_uuid = overseer_uuid
+		self.site_uuid = site_uuid
+
 		self.channel_rate = 12500
-		self.audio_rate = self.channel_rate
-		self.hang_time = 0.5
+
 		self.packets = 0
 		self.packets_bad = 0
 		self.patches = {}
 	
 		self.quality = []
+		self.site_detail = {}
 
 		self.symbol_rate = symbol_rate = 3600.0
 		self.control_source = 0
-		self.block_id = block_id
 
 		
 		self.offset = offset = 0
@@ -57,7 +65,6 @@ class moto_control_receiver(gr.hier_block2):
 
 		self.option_dc_offset = False
 		self.option_udp_sink = False
-		self.option_logging_receivers = True
 
 		self.enable_capture = True
 		self.keep_running = True
@@ -79,11 +86,16 @@ class moto_control_receiver(gr.hier_block2):
                 quality_check.daemon = True
                 quality_check.start()
 
+		self.connector = frontend_connector()
+		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
+		self.client_activemq = client_activemq()
+
+
 		##################################################
 		# Blocks
 		##################################################
 
-		self.source = self
+		self.source = None
 
 		control_sample_rate = 12500
 		channel_rate = control_sample_rate*2
@@ -114,7 +126,7 @@ class moto_control_receiver(gr.hier_block2):
 		# Connections
 		##################################################
 
-		self.connect(self, self.control_quad_demod, self.control_clock_recovery)
+		self.connect(self.control_quad_demod, self.control_clock_recovery)
                 self.connect(self.control_clock_recovery, self.control_binary_slicer, self.control_byte_pack, self.control_msg_sink)
 
 		if(self.option_dc_offset):
@@ -122,8 +134,8 @@ class moto_control_receiver(gr.hier_block2):
 
 		if(self.option_udp_sink):
 			self.connect(self.control_prefilter, self.udp)
-		self.backend_event_publisher = backend_event_publisher()
 		
+		self.tune_next_control()
 	def get_msgq(self):
 		return self.control_msg_sink_msgq.delete_head().to_string()
 	def tune_next_control(self):
@@ -132,16 +144,32 @@ class moto_control_receiver(gr.hier_block2):
                         self.control_channel_key = 0
                 self.control_channel = self.channels[self.channels_list[self.control_channel_key]]
 
-		self.control_source = self.tb.retune_control(self.block_id, self.control_channel)
+		self.lock()
 
-		print 'CC Change - %s' % (self.control_channel)
+		if self.source != None:
+			self.disconnect(self.source, self.control_quad_demod)
+	
+		self.connector.release_channel()
+                channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+		for tries in 1,2,3:
+                        try:
+				self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
+				break
+			except:
+				pass
+		self.connect(self.source, self.control_quad_demod)
+
+		self.unlock()
+		self.log.info('Control Channel retuned to %s' % (self.control_channel))
+                
 		self.control_msg_sink_msgq.flush()
-		time.sleep(0.1)
 
         def quality_check(self):
 
 		desired_quality = 429.0 # approx 42.9 packets per sec
 
+
+		logger = logging.getLogger('overseer.quality.%s' % self.instance_uuid)
                 #global bad_messages, total_messages
                 bad_messages = self.packets_bad
                 total_messages = self.packets
@@ -154,7 +182,7 @@ class moto_control_receiver(gr.hier_block2):
                         sid = self.system['id']
 			current_packets = self.packets-last_total
 			current_packets_bad = self.packets_bad-last_bad
-                        print 'System: ' + str(sid) + ' (' + str(current_packets) + '/' + str(current_packets_bad) + ')' + ' (' +str(self.packets) + '/'+ str(self.packets_bad) + ') CC: ' + str(self.control_channel) + ' AR: ' + str(len(self.tb.active_receivers))
+                        logger.info('System Status: %s (%s/%s) (%s/%s) CC: %s' % (sid, current_packets, current_packets_bad, self.packets, self.packets_bad, self.control_channel))
 
 			if len(self.quality) >= 60:
 				self.quality.pop(0)
@@ -182,8 +210,7 @@ class moto_control_receiver(gr.hier_block2):
 	         return True
 ####################################################################################################
 	def receive_engine(self):
-		print self.thread_id + ': receive_engine() startup'
-		time.sleep(1)
+		self.log.info('receive_engine() startup')
 
 		frame_len = 76 #bits
 		frame_sync = '10101100'
@@ -197,8 +224,8 @@ class moto_control_receiver(gr.hier_block2):
 		last_data = 0x0
 
 		while self.keep_running:
-			if(sync_loops < -200):
-				print 'NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]])
+			if(sync_loops < -100):
+				self.log.warning('NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]]))
 				#print 'b/p: %s %s' % (packets, packets_bad)
 				sync_loops = 0
 				self.tune_next_control()
@@ -212,7 +239,7 @@ class moto_control_receiver(gr.hier_block2):
 				fs_next_loc = buf[fs_loc+fs_len:].find(frame_sync)+fs_loc+fs_len
 				if locked > 2 or (fs_loc > -1 and fs_next_loc > -1 and fs_next_loc-fs_loc == frame_len+fs_len):
 					if fs_loc != 0:
-						print 'Packet jump %s - %s' % (fs_loc, buf[:fs_loc])
+						self.log.warning('Packet jump %s - %s' % (fs_loc, buf[:fs_loc]))
 						locked -= 1
 					elif locked < 5:
 						locked += 1
@@ -229,7 +256,7 @@ class moto_control_receiver(gr.hier_block2):
 						pkt = buf[fs_len:fs_len+frame_len]
 						buf = buf[fs_len+frame_len:]
 					else:
-						print '--- no lock ---'
+						self.log.warning('--- no lock ---')
 						pkt = buf[fs_loc+fs_len:fs_loc+fs_len+frame_len]
 						buf = buf[fs_loc+fs_len+frame_len:]
 
@@ -287,7 +314,10 @@ class moto_control_receiver(gr.hier_block2):
 							'sys': self.system_id,
 							'cmd': hex(cmd),
 							'ind': ind_l,
-							'lid': hex(lid)
+							'lid': hex(lid),
+							'tg': tg,
+							'status': status,
+							
 						}
 
 						if last_cmd == 0x304 or last_cmd == 0x308 or last_cmd == 0x309 or last_cmd == 0x321: 
@@ -451,77 +481,21 @@ class moto_control_receiver(gr.hier_block2):
 
 							if 'force_p25' in self.system.keys() and self.system['force_p25']:
 								call_type = 'd'
+								p['type'] = 'Digital Call'
 
-							user_local = last_data if dual else 0
+							p['user_local'] = last_data if dual else 0
+							p['frequency'] = self.channels[cmd]
 
-							if(self.option_logging_receivers):
-								self.backend_event_publisher.publish_call('test', self.system['id'], self.system['type'],  tg, user_local, self.channels[cmd], call_type)
-								if self.channels[cmd] == self.control_channel:
-									continue
-								#This allows the upstream control to disable capture during receiver handoff.
-								if not self.enable_capture:
-									continue 
-							
-								allocated_receiver = False
-								#self.tb.ar_lock.acquire()
-								for receiver in self.tb.active_receivers: #find any active channels and mark them as progressing
-									if receiver.cdr != {} and receiver.cdr['system_channel_local'] == cmd and receiver.cdr['system_id'] == self.system['id']:
-										if dual and receiver.cdr['system_user_local'] != last_data:
-											#existing call but user LID does not match!
-											self.tb.connector.release_channel(receiver.channel_id)
-											receiver.close({})
-											allocated_receiver = receiver
-										else:
-											receiver.activity()
-											allocated_receiver = -1
-											break
-								
-								if allocated_receiver != -1:
-									#for receiver in self.tb.active_receivers: #look for an empty channel
-									#	if receiver.in_use == False and abs(receiver.center_freq-self.channels[cmd]) < (self.samp_rate/2):
-									#		allocated_receiver = receiver
-									#		center = receiver.center_freq
-									#		break
-								
-									#if allocated_receiver == False: #or create a new one if there arent any empty channels
-									#	allocated_receiver = logging_receiver(self.samp_rate)
-									#	center = self.tb.connect_channel(self.channels[cmd], allocated_receiver)
-									#	self.tb.active_receivers.append(allocated_receiver)
-
-									if(call_type == 'd'):
-										bandwidth = 12500
-									else:
-										bandwidth = 12500
-
-									try:
-						                                allocated_receiver = self.tb.connect_channel(self.channels[cmd], bandwidth, self)
-					        	                except:
-										self.tb.ar_lock.release()
-					                	                continue
-								
-									#allocated_receiver.tuneoffset(self.channels[cmd], center)
-									if(call_type == 'd'):
-										allocated_receiver.configure_blocks('p25')
-									else:
-										 allocated_receiver.configure_blocks('analog')
-									cdr = {
-										'system_id': self.system['id'], 
-										'system_group_local': tg, 
-										'system_user_local': user_local,
-										'system_channel_local': cmd, 
-										'type': 'group', 
-									}
-									allocated_receiver.set_rate(bandwidth)
-									allocated_receiver.open(cdr)
-								#self.tb.ar_lock.release()
-										
+							if self.channels[cmd] == self.control_channel:
+								#I dont know what the fuck this is, but moto systems signal calls on their own CC all the time.
+								continue				
 						else:
                                                         p['type'] = 'Unknown OSW'
 
-						if p['type'] != 'System status':
-							print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
+						#if p['type'] != 'System status':
+						#	print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
 
-						self.backend_event_publisher.publish_raw_control('test', self.system['id'], self.system['type'], p)
+						self.client_activemq.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, p)
 						last_cmd = cmd
 						last_i = individual
 						last_data = lid
