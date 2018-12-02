@@ -1,0 +1,18 @@
+[Unit]
+Description=RadioCapture device discovery service
+After=syslog.target redis.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/radiocapture-motorola/rc_frontend
+LimitNOFILE=491520
+ExecStart=/opt/radiocapture-motorola/rc_frontend/device_discovery.py
+StandardOutput=syslog
+StandardError=syslog
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
