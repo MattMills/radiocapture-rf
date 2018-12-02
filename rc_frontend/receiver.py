@@ -647,13 +647,14 @@ if __name__ == '__main__':
 			except:
 				pass
 
-                msg = socket.recv()
-                resp = handler(msg, tb)
-                socket.send(resp)
 		#try:
-		#	msg = socket.recv(flags=zmq.NOBLOCK)
-		#	resp = handler(msg, tb)
-		#	socket.send(resp)
-		#except zmq.Again as e:
-		#	time.sleep(0.001)
+	        #        msg = socket.recv()
+        	#        resp = handler(msg, tb)
+	        #        socket.send(resp)
+		try:
+			msg = socket.recv(flags=zmq.NOBLOCK)
+			resp = handler(msg, tb)
+			socket.send(resp)
+		except zmq.Again as e:
+			time.sleep(0.001)
                 #print(tb.channels)
