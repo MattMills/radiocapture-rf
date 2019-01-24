@@ -5,9 +5,13 @@ import threading
 import time
 import redis
 
+import logging
+import logging.config
+
 class redis_demod_manager():
         def __init__(self, parent_call_manager, host=None, port=None):
-		
+		self.log = logging.getLogger('redis_demod_manager')
+
 		if(host != None):
 			self.host = host
 		else:
@@ -43,7 +47,7 @@ class redis_demod_manager():
 				return self.demods[demod_type][instance_id]
 		return False
 	def manager_loop(self):
-		print 'manager_loop()'
+		self.log.info('manager_loop() startup')
 		time.sleep(0.1)
 		while self.continue_running:
 			if self.parent_call_manager.demod_type == 'all':
@@ -56,12 +60,18 @@ class redis_demod_manager():
 				if demod_type not in self.demods:
 					self.demods[demod_type] = {}
 				demods = {}
-				for instance_uuid in self.client.smembers('demod:%s' % demod_type):
+                                try:
+                                    instances = self.client.smembers('demod:%s' % demod_type)
+                                except Exception as e:
+                                    self.log.error('Unable to get demod instances for demod_type: %s Exception: %s' % (demod_type, e))
+                                    instances = {}
+
+				for instance_uuid in instances:
 					try:
 						data = self.client.get(instance_uuid)
 						demods[instance_uuid] = json.loads(data)
 					except Exception as e:
-						print 'Error %s while processing instance %s %s' % (e, instance_uuid, demod_type)
+						self.log.error('Error %s while processing instance %s %s' % (e, instance_uuid, demod_type))
 			
 				deletions = []
 				for demod in demods:
