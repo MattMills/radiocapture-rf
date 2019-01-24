@@ -5,9 +5,13 @@ import threading
 import time
 import redis
 
+import logging
+import logging.config
+
 class redis_demod_publisher():
         def __init__(self, host=None, port=None, parent_demod=None):
-		
+		self.log = logging.getLogger('redis_demod_publisher')
+
 		if(host != None):
 			self.host = host
 		else:
@@ -34,7 +38,7 @@ class redis_demod_publisher():
 		self.client = redis.StrictRedis(host=self.host, port=self.port, db=0)
 
 	def publish_loop(self):
-		print 'publish_loop()'
+		self.log.info('publish_loop() startup')
 		while self.continue_running:
 			system_type = self.parent_demod.system['type']
 			try:
@@ -68,6 +72,9 @@ class redis_demod_publisher():
 			pipe = self.client.pipeline()
 			pipe.sadd('demod:%s' % system_type, self.parent_demod.instance_uuid)
 			pipe.set(self.parent_demod.instance_uuid, json.dumps(publish_data))
-			result = pipe.execute()
+                        try:
+    			    result = pipe.execute()
+                        except Exception as e:
+                            self.log.error('Exception submitting redis demod publish: %s' % e)
 			time.sleep(1)
 			
