@@ -93,7 +93,7 @@ class edacs_call_manager():
 	                        'system_channel_local': frequency,
 	                        'type': 'group',
 				'frequency': frequency,
-				'channel_bandwidth': '12500',
+				'channel_bandwidth': 12500,
 				'modulation_type': '%s' % ('analog_edacs' if digital == False else 'provoice'),
 	                        'hang_time': self.hang_time,
 				'time_open': time.time(),
