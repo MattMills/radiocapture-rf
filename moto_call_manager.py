@@ -15,7 +15,7 @@ import math
 import logging
 
 from redis_demod_manager import redis_demod_manager
-from client_activemq import client_activemq
+from client_redis import client_redis
 
 class moto_call_manager():
         def __init__(self):
@@ -40,7 +40,7 @@ class moto_call_manager():
 
 	def notify_demod_new(self, demod_instance_uuid):
 		self.log.info('Notified of new demod %s' % (demod_instance_uuid))
-		self.amq_clients[demod_instance_uuid] = client_activemq(4)
+		self.amq_clients[demod_instance_uuid] = client_redis(4)
                 self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False)
                 self.instance_locks[demod_instance_uuid] = threading.RLock()
 
@@ -63,7 +63,7 @@ class moto_call_manager():
 	
 			sct = self.system_metadata[system_uuid]['call_table']
 			ict = self.instance_metadata[instance_uuid]['call_table']
-	
+	                call_uuid = None
 			for call in ict:
 				if ict[call]['system_channel_local'] == frequency and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
 					ict[call]['time_activity'] = time.time()
@@ -71,7 +71,6 @@ class moto_call_manager():
 						
 				
 			#Not a continuation, new call
-				call_uuid = None
 			for call in sct:
 				if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
 					call_uuid = sct[call]['call_uuid']

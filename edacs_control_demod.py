@@ -17,7 +17,7 @@ import logging
 
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
-from client_activemq import client_activemq
+from client_redis import client_redis
 
 class edacs_control_demod(gr.top_block):
 	def __init__(self, system, site_uuid, overseer_uuid):
@@ -57,7 +57,7 @@ class edacs_control_demod(gr.top_block):
 		self.freq_offset = 0
 
 		self.connector = frontend_connector()
-		self.client_activemq = client_activemq()
+		self.client_redis = client_redis()
 
 		################################################
 		# Blocks
@@ -318,7 +318,7 @@ class edacs_control_demod(gr.top_block):
                 #elif( m != ''):
                 #        print "(%s)[%s][%s] %s" %(time.time(),hex(int(m1, 2)), hex(int(m2,2)), m)
 		r['message'] = m
-		self.client_activemq.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, r)
+		self.client_redis.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, r)
 		self.protocol_log.info(r)
         def is_double_message(self, m1):
                 if(m1 == -1): return True

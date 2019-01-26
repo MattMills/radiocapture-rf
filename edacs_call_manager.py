@@ -15,7 +15,7 @@ import math
 import logging
 
 from redis_demod_manager import redis_demod_manager
-from client_activemq import client_activemq
+from client_redis import client_redis
 
 class edacs_call_manager():
         def __init__(self):
@@ -41,7 +41,7 @@ class edacs_call_manager():
 
 	def notify_demod_new(self, demod_instance_uuid):
 		self.log.info('Notified of new demod %s' % (demod_instance_uuid))
-		self.amq_clients[demod_instance_uuid] = client_activemq(4)
+		self.amq_clients[demod_instance_uuid] = client_redis(4)
 		self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False)
 		self.instance_locks[demod_instance_uuid] = threading.RLock()
 

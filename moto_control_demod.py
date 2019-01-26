@@ -16,7 +16,7 @@ import logging
 
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
-from client_activemq import client_activemq
+from client_redis import client_redis
  
 
 class moto_control_demod(gr.top_block):
@@ -88,7 +88,7 @@ class moto_control_demod(gr.top_block):
 
 		self.connector = frontend_connector()
 		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
-		self.client_activemq = client_activemq()
+		self.client_redis = client_redis()
 
 
 		##################################################
@@ -100,7 +100,7 @@ class moto_control_demod(gr.top_block):
 		control_sample_rate = 12500
 		channel_rate = control_sample_rate*2
 
-		self.control_quad_demod = analog.quadrature_demod_cf(0.1)
+		self.control_quad_demod = analog.quadrature_demod_cf(5)
 
 		if(self.option_dc_offset):
 			moving_sum = blocks.moving_average_ff(1000, 1, 4000)
@@ -136,8 +136,6 @@ class moto_control_demod(gr.top_block):
 			self.connect(self.control_prefilter, self.udp)
 		
 		self.tune_next_control()
-	def get_msgq(self):
-		return self.control_msg_sink_msgq.delete_head().to_string()
 	def tune_next_control(self):
                 self.control_channel_key += 1
                 if(self.control_channel_key >= len(self.channels)):
@@ -222,7 +220,8 @@ class moto_control_demod(gr.top_block):
 		last_cmd = 0x0
 		last_i = 0x0
 		last_data = 0x0
-
+                no_flow_loops = 0
+                time.sleep(0.5)
 		while self.keep_running:
 			if(sync_loops < -100):
 				self.log.warning('NO LOCK MAX SYNC LOOPS %s %s' % (self.channels_list[self.control_channel_key], self.channels[self.channels_list[self.control_channel_key]]))
@@ -230,13 +229,32 @@ class moto_control_demod(gr.top_block):
 				sync_loops = 0
 				self.tune_next_control()
 				locked = 0
-			data = self.get_msgq()
+                                no_flow_loops = 0
+                        if self.control_msg_sink_msgq.count() > 0:
+                                data = self.control_msg_sink_msgq.delete_head().to_string()
+                                no_flow_loops = 0
+                        else:
+                                data = ''
+                                no_flow_loops += 1
+                                if no_flow_loops % 10 == 0 and self.is_locked:
+                                        self.log.error('extended no flow event')
+                                if no_flow_loops > 100:
+                                        self.log.error('No flow retune')
+                                        self.tune_next_control()
+                                time.sleep(0.05)
+                        data_len = len(data)
 			for byte in data:
 				buf = buf + str("{0:08b}" . format(ord(byte)))
-			if len(buf) > frame_len*3:
-				
+			
+
+                        if len(buf) > frame_len*3:
 				fs_loc = buf.find(frame_sync)
+                                if fs_loc == -1:
+                                    self.log.warning('No decodable packets found in buffer')
+                                    buf = ''
+                                    sync_loops -= 2
 				fs_next_loc = buf[fs_loc+fs_len:].find(frame_sync)+fs_loc+fs_len
+                                self.log.debug('sync_loops (%s) locked: (%s) is_locked: (%s) buflen(%s) fs_loc(%s) fs_next_loc(%s)' % (sync_loops, locked, self.is_locked, len(buf), fs_loc, fs_next_loc))
 				if locked > 2 or (fs_loc > -1 and fs_next_loc > -1 and fs_next_loc-fs_loc == frame_len+fs_len):
 					if fs_loc != 0:
 						self.log.warning('Packet jump %s - %s' % (fs_loc, buf[:fs_loc]))
@@ -251,7 +269,7 @@ class moto_control_demod(gr.top_block):
 
 					self.packets += 1
 					if sync_loops < 1000:
-						sync_loops += 50
+						sync_loops += 10
 					if locked > 2:
 						pkt = buf[fs_len:fs_len+frame_len]
 						buf = buf[fs_len+frame_len:]
@@ -259,7 +277,6 @@ class moto_control_demod(gr.top_block):
 						self.log.warning('--- no lock ---')
 						pkt = buf[fs_loc+fs_len:fs_loc+fs_len+frame_len]
 						buf = buf[fs_loc+fs_len+frame_len:]
-
 					pkt = self.deinterleave(pkt)
 
 					data = []
@@ -495,12 +512,16 @@ class moto_control_demod(gr.top_block):
 						#if p['type'] != 'System status':
 						#	print '%s:	%s %s %s %s' % (time.time(), p['cmd'],p['ind'] , p['lid'], p['type'])
 
-						self.client_activemq.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, p)
+						self.client_redis.send_event_lazy('/topic/raw_control/%s' % self.instance_uuid, p)
 						last_cmd = cmd
 						last_i = individual
 						last_data = lid
 				else:
-					buf = buf[fs_loc+fs_len:]
+                                    if fs_loc == -1:
+                                        buf = buf[fs_next_loc+fs_len:]
+                                    else:
+    					buf = buf[fs_loc+fs_len:]
+
 			
 			else:
 				sync_loops -= 1

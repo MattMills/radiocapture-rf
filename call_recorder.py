@@ -17,7 +17,7 @@ import logging
 import logging.config
 
 from logging_receiver import logging_receiver
-from client_activemq import client_activemq
+from client_redis import client_redis
 
 class call_recorder():
         def __init__(self, instance_uuid):
@@ -33,12 +33,12 @@ class call_recorder():
 	
 		self.call_table = {}
 		self.call_table_lock = threading.RLock()
-		self.outbound_client = client_activemq(1)
-		self.client_activemq = client_activemq(4)
+		self.outbound_client = client_redis(4)
+		self.client_redis = client_redis(4)
 		time.sleep(0.25)
 
-		self.client_activemq.subscribe('/topic/call_management/new_call/%s' % instance_uuid, self, self.process_new_call.im_func)
-		self.client_activemq.subscribe('/topic/call_management/timeout/%s' % instance_uuid, self, self.process_call_timeout.im_func)
+		self.client_redis.subscribe('/topic/call_management/new_call/%s' % instance_uuid, self, self.process_new_call.im_func)
+		self.client_redis.subscribe('/topic/call_management/timeout/%s' % instance_uuid, self, self.process_call_timeout.im_func)
 	def process_new_call(self, cdr, headers):
 		if time.time()-cdr['time_open'] > 5:
 			self.log.info('ignored stale call %s %s'  % (cdr['instance_uuid'], cdr['call_uuid']))

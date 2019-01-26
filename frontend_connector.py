@@ -13,6 +13,7 @@ class frontend_connector():
                 self.log = logging.getLogger('overseer.frontend_connector')
 	
                 self.thread_lock = threading.Lock()
+                self.send_lock = threading.Lock()
 		self.dest = dest
 
 		#self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -22,6 +23,7 @@ class frontend_connector():
 		self.continue_running = True
 		self.host = host
 		self.port = port
+                self.channel_port = 0
 		
 		self.connection_init()
 		self.connect()
@@ -32,26 +34,55 @@ class frontend_connector():
 	def connection_init(self):
 		self.context = zmq.Context()
                 self.socket = self.context.socket(zmq.REQ)
-                self.log.debug('Attempting ZMQ socket connection to tcp://%s:%s' % (self.host, self.port))
+                self.socket.setsockopt(zmq.RCVTIMEO, 1000) 
+                self.socket.setsockopt(zmq.LINGER, 0)
+                self.log.info('Attempting ZMQ socket connection to tcp://%s:%s' % (self.host, self.port))
+                
                 self.socket.connect("tcp://%s:%s" % (self.host, self.port))
-                self.log.debug('Successful ZMQ socket connection to tcp://%s:%s' % (self.host, self.port))
+                self.log.info('Successful ZMQ socket connection to tcp://%s:%s' % (self.host, self.port))
                 self.my_client_id = None
                 self.channel_id = None
-                self.port = 0
+                self.channel_port = 0
 	def connection_teardown(self):
+            try:
 		self.socket.close()
+            except: 
+                pass
+            try:
+                self.context.term()
+            except:
+                pass
+            try:
 		self.context.destroy()
+            except: 
+                pass
+
+        def send(self, data):
+            tries = 0
+            while tries < 5:
+                try:
+                    with self.send_lock:
+                        self.socket.send(data)
+                        response = self.socket.recv()
+                        response = response.split(',')
+                        return response
+                except Exception as e:
+                    self.log.error('Exception in frontend_connector.send(): %s %s' % (type(e), e))
+                    tries += 1
+
+            return None
+
 	def connect(self):
 		self.log.debug('Sending connect command')
-                self.socket.send('connect')
-                data = self.socket.recv()
+                data = self.send('connect')
 
-                data = data.split(',')
+                if data == None:
+                        return None
                 self.my_client_id = int(data[1])
                 self.log.debug('Received client ID %s' % self.my_client_id)
 	def __exit__(self):
 		try:
-			self.socket.send('quit,%s' % self.my_client_id)
+			aself.send('quit,%s' % self.my_client_id)
 		except:
 			pass
 
@@ -60,12 +91,9 @@ class frontend_connector():
 		self.current_port = port
         def scan_mode_set_freq(self, freq):
                 self.log.debug('scan_mode_set_freq(freq = %s)' % freq)
-                self.thread_lock.acquire()
+                with self.thread_lock:
+                    data = self.send('scan_mode_set_freq,%s' % (freq))
 
-                self.socket.send('scan_mode_set_freq,%s' % (freq))
-                data = self.socket.recv()
-
-                self.thread_lock.release()
                 
                 if data == 'success':
                     return True
@@ -76,18 +104,16 @@ class frontend_connector():
                 self.thread_lock.acquire()
                 
                 self.log.debug('create_channel(channel_rate = %s, freq = %s)' % (channel_rate, freq))
-		self.socket.send('create,%s,%s,%s' % (self.my_client_id, channel_rate, freq))
-		data = self.socket.recv()
-		data = data.strip().split(',')
+		data = self.send('create,%s,%s,%s' % (self.my_client_id, channel_rate, freq))
 
-		if data[0] == 'na': #failed
+		if data == None or data[0] == 'na': #failed
                         self.thread_lock.release()
 			self.log.error('Failed to create channel')
 			return False, False
 		elif data[0] == 'create': #succeeded
 			channel_id = data[1]
 			port = data[2]
-			self.port = port
+			self.channel_port = port
 			self.channel_id = channel_id
 
                         self.thread_lock.release()
@@ -104,12 +130,10 @@ class frontend_connector():
 		#if we dont have a port set, we can't have a channel.
 
                 self.log.debug('release_channel()')
-		self.socket.send('release,%s,%s' % (self.my_client_id, self.channel_id))
-                data = self.socket.recv(1024)
-                data = data.strip().split(',')
+		data = self.send('release,%s,%s' % (self.my_client_id, self.channel_id))
 		
 		
-                if data[0] == 'na': #failed
+                if data == None or  data[0] == 'na': #failed
 			self.log.error('Failed to release channel, probably leaking channels')
                         self.thread_lock.release()
                         return False
@@ -128,11 +152,9 @@ class frontend_connector():
 			self.thread_lock.release()
 			return False #We're not running, cant change offset
 		self.log.debug('report_offset(%s)' % offset)
-		self.socket.send('offset,%s,%s,%s' % (self.my_client_id, self.channel_id, offset))
-		data = self.socket.recv(1024)
-                data = data.strip().split(',')
+		data = self.send('offset,%s,%s,%s' % (self.my_client_id, self.channel_id, offset))
 
-		if data[0] == 'na': #failed
+		if data == None or data[0] == 'na': #failed
                         self.log.error('Failed to set offset')
                         self.thread_lock.release()
                         return False
@@ -150,10 +172,10 @@ class frontend_connector():
 			self.thread_lock.acquire()
                         self.log.debug('Sending heartbeat')
 			try:
-				self.socket.send('hb,%s' % self.my_client_id)
-				data = self.socket.recv(1024)
-				data = data.strip().split(',')
-				if data[0] == 'fail':
+				data = self.send('hb,%s' % self.my_client_id)
+
+				if data == None or data[0] == 'fail':
+                                        self.log.error('Failed to heartbeat')
 					self.connection_teardown()
 					self.connection_init()
 					self.connect()
@@ -167,7 +189,7 @@ class frontend_connector():
 		
 		self.thread_lock.acquire()
                 self.log.debug('Sending quit command to ZMQ socket')
-		self.socket.send('quit,%s' % self.my_client_id)
+		self.send('quit,%s' % self.my_client_id)
 		self.socket.close()
 		self.context.destroy()
 		

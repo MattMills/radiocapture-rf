@@ -22,7 +22,8 @@ from p25_moto import p25_moto
 
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
-from client_activemq import client_activemq
+from client_redis import client_redis
+
 
 import logging
 import logging.config
@@ -161,7 +162,7 @@ class p25_control_demod (gr.top_block):
                 # Threads
                 ##################################################
 		self.connector = frontend_connector()
-		self.client_activemq = client_activemq()
+		self.client_redis = client_redis()
 		self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
                 quality_check_0 = threading.Thread(target=self.quality_check)
@@ -816,7 +817,7 @@ class p25_control_demod (gr.top_block):
 					except:
 						packet_type = 'invalid'
 
-					self.client_activemq.send_event_lazy('/topic/raw_control/%s' % (self.instance_uuid), t,{'packet_type': packet_type}, False)
+					self.client_redis.send_event_lazy('/topic/raw_control/%s' % (self.instance_uuid), t,{'packet_type': packet_type})
 					self.protocol_log.info(t)
 			else:
 				loops_locked = loops_locked - 1
