@@ -18,6 +18,7 @@ import logging.config
 
 from logging_receiver import logging_receiver
 from client_redis import client_redis
+from client_activemq import client_activemq
 
 class call_recorder():
         def __init__(self, instance_uuid):
@@ -34,6 +35,7 @@ class call_recorder():
 		self.call_table = {}
 		self.call_table_lock = threading.RLock()
 		self.outbound_client = client_redis(4)
+                self.outbound_activemq = client_activemq()
 		self.client_redis = client_redis(4)
 		time.sleep(0.25)
 
@@ -48,7 +50,7 @@ class call_recorder():
 				if cdr['instance_uuid'] not in self.call_table:
 					self.call_table[cdr['instance_uuid']] = {}
 				if cdr['call_uuid'] not in self.call_table[cdr['instance_uuid']]:
-					lr = logging_receiver(cdr, self.outbound_client)
+					lr = logging_receiver(cdr, self.outbound_activemq)
 					if lr == False:
 						self.log.error('Unable to open logging receiver for cdr: %s' %cdr)
 						return False
