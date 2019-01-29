@@ -34,7 +34,7 @@ import util
 
 
 class logging_receiver(gr.top_block):
-	def __init__(self, cdr, client_activemq):
+	def __init__(self, cdr, client_activemq, client_redis):
 		self.thread_lock = threading.Lock()
 		self.thread_lock.acquire()
 		self.audio_capture = True
@@ -44,6 +44,7 @@ class logging_receiver(gr.top_block):
 		self.cdr = cdr
 		self.in_use = False
 		self.client_activemq = client_activemq
+                self.client_redis = client_redis
 		self.thread_id = 'logr-' + str(uuid.uuid4())
 
 		self.filename = "/dev/null"
@@ -428,7 +429,7 @@ class logging_receiver(gr.top_block):
 					packet_type = 'invalid'
 				try:
 					if last_lc != r['lc'] and r['lc']['lcf_long'] == 'Call Termination / Cancellation':
-						self.client_activemq.send_event_lazy('/topic/raw_voice/%s' %self.cdr['instance_uuid'] , body, {'packet_type': packet_type }, False)
+						self.client_redis.send_event_lazy('/topic/raw_voice/%s' %self.cdr['instance_uuid'] , body, {'packet_type': packet_type }, False)
 					last_lc = r['lc']
 				except:
 					pass

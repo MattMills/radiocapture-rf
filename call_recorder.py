@@ -50,7 +50,7 @@ class call_recorder():
 				if cdr['instance_uuid'] not in self.call_table:
 					self.call_table[cdr['instance_uuid']] = {}
 				if cdr['call_uuid'] not in self.call_table[cdr['instance_uuid']]:
-					lr = logging_receiver(cdr, self.outbound_activemq)
+					lr = logging_receiver(cdr, self.outbound_activemq, self.outbound_client)
 					if lr == False:
 						self.log.error('Unable to open logging receiver for cdr: %s' %cdr)
 						return False
