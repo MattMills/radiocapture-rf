@@ -34,7 +34,7 @@ class call_recorder():
 	
 		self.call_table = {}
 		self.call_table_lock = threading.RLock()
-		self.outbound_client = client_redis(4)
+		self.outbound_client = client_redis(1)
                 self.outbound_activemq = client_activemq()
 		self.client_redis = client_redis(4)
 		time.sleep(0.25)

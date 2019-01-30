@@ -128,7 +128,7 @@ class client_redis():
 
 	def send_event_lazy_thread(self):
 		while self.continue_running:
-			time.sleep(0.001)
+			time.sleep(0.010)
 	                #If it gets there, then great, if not, well we tried!
         	        if(self.connection_issue == True):
                 	        continue
@@ -152,7 +152,7 @@ class client_redis():
 	def send_event_hopeful_thread(self):
 
 		while self.continue_running:
-			time.sleep(0.001)
+			time.sleep(0.010)
 			if(self.connection_issue == True):
 				continue
 			while len(self.outbound_msg_queue) > 0 and self.connection_issue == False:
@@ -181,6 +181,7 @@ class client_redis():
 				
 				queue.task_done()	
 			except:
+				time.sleep(0.01)
 				pass
 
 	def publish_loop(self):
@@ -192,7 +193,7 @@ class client_redis():
 					try:
 			        		message = self.pubsub.get_message()
                                                 if not message:
-                                                    time.sleep(0.001)
+                                                    time.sleep(0.010)
                                                     continue
 					        data = json.loads(message['data'])
 						queue = message['channel']
