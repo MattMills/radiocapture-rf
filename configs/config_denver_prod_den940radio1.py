@@ -666,13 +666,13 @@ class rc_config:
 	
 		del self.systems[32]
 		del self.systems[31]
-		#del self.systems[30]#
+		del self.systems[30]#
 		del self.systems[29]
-		#del self.systems[28]
-		#del self.systems[27]
+		del self.systems[28]
+		del self.systems[27]
 		#del self.systems[26]#
 		#del self.systems[25]
-		#del self.systems[24]#
+		del self.systems[24]#
 
 		#del self.systems[22]#
 
