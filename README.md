@@ -2,7 +2,7 @@
 ## What is this?
 This repo hosts the RF side of radiocapture.com's trunked radio system bulk collection platform. It is capable of using multiple networked computers and multiple SDR radios to demodulate the control channel of P25, EDACS, and Motorola trunking systems, as well as some limited support (alpha quality) for scanning for systems, LTR trunking, and "police scanner" style audio capture.
 
-This piece of software is not currently, as of the date of this writing (12/11/2019) not what I'd consider a "ready to distribute" application. If you are well versed in Linux and python, you can likely get it running with some effort. The repo in it's current state is the radio platform that is currently running in production. I have left all my existing configurations to provide "example" configurations for people to copy.
+This piece of software is not currently, as of the date of this writing (12/11/2019) not what I'd consider a "ready to distribute" application. If you are well versed in Linux and python, you can likely get it running with some effort. The repo in it's current state is the radio platform that is currently running in production. I have left all my existing configurations to provide "example" configurations for people to copy. You will see some identifiers and UUIDs within these configs, these identifiers integrate into the web infrastructure of Radiocapture.com, and can be ignored.
 
 If you'd like to get this running, you should look at the systemd scripts, you need the frontend (side connected to radio via USB, handles channelization), and backend (handles demodulation, metadata coordination and recording). You will also need to create a config.py (or symlink to one).
 
