@@ -1,9 +1,6 @@
 #!/usr/bin/env python
-##################################################
-# Gnuradio Python Flow Graph
-# Title: Moto Smartzone Test1
-# Generated: Thu Oct  4 23:49:39 2012
-##################################################
+
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
 
 from gnuradio import filter, analog
 from gnuradio import gr

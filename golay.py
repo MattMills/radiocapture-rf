@@ -1,3 +1,6 @@
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
+
+
 """ 
     This function exports only two functions.
     

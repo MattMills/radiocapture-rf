@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
+
 from gnuradio import gr, filter
 from gnuradio import blocks
 from gnuradio.filter import pfb, firdes

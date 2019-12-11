@@ -1,3 +1,6 @@
+
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
+
 def bytes_to_binary_str(ar, sep=""):
     """
         Converts a bytearray into a string of binary numbers.

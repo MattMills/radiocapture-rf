@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
 #(C) 2012 - Matt Mills
 #P25 Protocol Definitions
 #Changes:

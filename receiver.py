@@ -1,17 +1,7 @@
 #!/usr/bin/env python
-###################################################
-#                                                 #
-# Radoicapture.com Trunked radio receiver         #
-# Developer: Matt Mills (mmills@2bn.net)          #
-# Date: 2/21/2013                                 #
-#                                                 #
-# Copyright 2013 Matt Mills                       #
-# All rights reserved                             #
-#                                                 #
-# Unauthorized use or distribution of this code   #
-# is prohibited.                                  #
-#                                                 #
-###################################################
+
+
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
 
 from gnuradio import gr
 from gnuradio import uhd

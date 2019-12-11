@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
+
 from gnuradio import gr, analog, filter, blocks
 try:
         from gnuradio.gr import firdes

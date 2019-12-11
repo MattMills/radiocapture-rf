@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
 
 from stompest.config import StompConfig
 from stompest.sync import Stomp

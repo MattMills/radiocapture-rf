@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#(C) 2012 - Matt Mills
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
 #P25 Protocol Definitions - MOTOROLA MFID
 #Changes:
 #4/23/2016 - Added tsbk_osp packet definitions (Single Message only)

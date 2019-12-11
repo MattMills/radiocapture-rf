@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
+
 from edacs_control_demod import edacs_control_demod
 from p25_control_demod import p25_control_demod
 from moto_control_demod import moto_control_demod

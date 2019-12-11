@@ -1,5 +1,7 @@
 #!/usr/env/python
 
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
+
 from gnuradio import gr, blocks, analog, filter, fft, digital, zeromq
 try:
 	from gnuradio.gr import firdes

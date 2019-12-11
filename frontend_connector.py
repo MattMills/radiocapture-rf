@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
+
+
 import zmq
 import random
 import threading
