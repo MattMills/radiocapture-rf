@@ -26,6 +26,8 @@ At this point, pull requests are welcome (small PRs preferred). I've linked the 
 
 Contibutors will need to sign a contributor license agreement with Radiocapture LLC which I don't have yet, so PRs will not be accepted until that is in place (but feel free to submit them pending). 
 
+Also, specifically I don't know what I was thinking when I used the terms frontend and backend, then subsequently flipped the meaning within the systemd scripts... so someone could probably fix that by removing all frontends and backends and replacing them with names that make sense.
+
 ## Where can I find help?
 
 Well... you can't. 
