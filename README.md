@@ -24,7 +24,7 @@ This was an interesting project to me when I first moved to Denver, to reverse e
 
 At this point, pull requests are welcome (small PRs preferred). I've linked the Radiocapture LLC Patreon to this repo, those resources are currently used to support and grow the capacity of the website.
 
-Contibutors will need to sign a contributor license agreement with Radiocapture LLC which I don't have yet, so PRs will not be accepted until that is in place.
+Contibutors will need to sign a contributor license agreement with Radiocapture LLC which I don't have yet, so PRs will not be accepted until that is in place (but feel free to submit them pending). 
 
 ## Where can I find help?
 
