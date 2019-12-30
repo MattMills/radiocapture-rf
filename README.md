@@ -14,6 +14,14 @@ The frontend initializes the SDRs in whatever configured frequency range, and pr
 
 Note: The audio this software captures is intended to be handled and managed programatically. While you can view it in a directory and listen to mp3s one after another, it's very tedious. Ideally I'd like to build the functionality into Radiocapture.com to allow anyone to upload their own data... and I think we're going in that direction slowly.
 
+
+## Do you have any large architecture diagrams?
+
+(Note: software in this repo is to the right of "upload process")
+
+![](https://github.com/MattMills/radiocapture-rf/blob/master/doc/Radiocapture%201.0%20Architecture.png)
+
+
 ## Why is it being released?
 
 Well, I can't really work on it anymore. I mean I can, but I haven't been able to get interested in it, and I need to find a way to make money (a day job).
