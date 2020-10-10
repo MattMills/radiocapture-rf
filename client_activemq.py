@@ -14,7 +14,7 @@ import sys
 import signal
 import math
 import logging
-import queue
+import queue as Queue
 import traceback
 
 class client_activemq():
@@ -35,7 +35,7 @@ class client_activemq():
 
 
                 self.threads = []
-                self.work_queue = queue.queue()
+                self.work_queue = Queue.Queue()
 
                 connection_handler = threading.Thread(target=self.connection_handler)
                 connection_handler.daemon = True
