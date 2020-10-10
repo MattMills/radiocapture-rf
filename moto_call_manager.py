@@ -43,7 +43,7 @@ class moto_call_manager():
         def notify_demod_new(self, demod_instance_uuid):
                 self.log.info('Notified of new demod %s' % (demod_instance_uuid))
                 self.amq_clients[demod_instance_uuid] = client_redis(4)
-                self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func, False)
+                self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.__func__, False)
                 self.instance_locks[demod_instance_uuid] = threading.RLock()
 
         def notify_demod_expire(self, demod_instance_uuid):

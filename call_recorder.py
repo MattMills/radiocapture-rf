@@ -41,8 +41,8 @@ class call_recorder():
                 self.client_redis = client_redis(4)
                 time.sleep(0.25)
 
-                self.client_redis.subscribe('/topic/call_management/new_call/%s' % instance_uuid, self, self.process_new_call.im_func)
-                self.client_redis.subscribe('/topic/call_management/timeout/%s' % instance_uuid, self, self.process_call_timeout.im_func)
+                self.client_redis.subscribe('/topic/call_management/new_call/%s' % instance_uuid, self, self.process_new_call.__func__)
+                self.client_redis.subscribe('/topic/call_management/timeout/%s' % instance_uuid, self, self.process_call_timeout.__func__)
         def process_new_call(self, cdr, headers):
                 if time.time()-cdr['time_open'] > 5:
                         self.log.info('ignored stale call %s %s'  % (cdr['instance_uuid'], cdr['call_uuid']))

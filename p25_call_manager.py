@@ -48,10 +48,10 @@ class p25_call_manager():
         def notify_demod_new(self, demod_instance_uuid):
                 self.log.debug('Notified of new demod %s' % (demod_instance_uuid))
                 self.amq_clients[demod_instance_uuid] = client_redis(4)
-                self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func)
+                self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_control/%s' % (demod_instance_uuid), self, self.process_raw_control.__func__)
                         
                         #'packet_type = \'GRP_V_CH_GRANT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT\' or packet_type = \'GRP_V_CH_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_VOICE_CHAN_GRANT_UPDT\' or packet_type = \'MOT_PAT_GRP_ADD_CMD\' or packet_type = \'MOT_PAT_GRP_DEL_CMD\' or packet_type = \'IDEN_UP\' or packet_type = \'IDEN_UP_VU\' or packet_type = \'IDEN_UP_TDMA\'')
-                self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_voice/%s' % (demod_instance_uuid), self, self.process_raw_control.im_func)
+                self.amq_clients[demod_instance_uuid].subscribe('/topic/raw_voice/%s' % (demod_instance_uuid), self, self.process_raw_control.__func__)
                 #'packet_type = \'Group Voice Channel User\' or packet_type = \'Call Termination / Cancellation\' or packet_type = \'Group Voice Channel Update\'')
                 self.instance_locks[demod_instance_uuid] = threading.RLock()
 
