@@ -135,11 +135,11 @@ if '__main__' == __name__:
 
  p = p25_moto()
  for i in p.tsbk_osp_single.keys():
-	suma = 0
-	for x in range(0, len(p.tsbk_osp_single[i]['fields'])):
-		suma += p.tsbk_osp_single[i]['fields'][x]['length']
-	if suma > 64:
-		print 'Packet length overflow: %s ' % (i)
+        suma = 0
+        for x in range(0, len(p.tsbk_osp_single[i]['fields'])):
+                suma += p.tsbk_osp_single[i]['fields'][x]['length']
+        if suma > 64:
+                print('Packet length overflow: %s ' % (i))
 
- print 'complete'
+ print('complete')
 

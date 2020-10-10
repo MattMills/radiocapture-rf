@@ -49,7 +49,7 @@ def mk_array(n, l):
 	return np.array(a)
 
 def mk_int(a):
-	res= 0L
+	res= 0
 	for i in xrange(0, len(a)):
 		res = res * 2
 		res = res + (a[i] & 1)

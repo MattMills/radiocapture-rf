@@ -26,22 +26,22 @@ import time
 import manhole
 
 def tb_worker(func, *args, **kwargs):
-	#multiprocessing.Process(target=tb_worker, args=())
-	new_process = func(*args, **kwargs)
-	new_process.start()
-	manhole.install(locals=locals())
-	while(new_process.keep_running):
-		time.sleep(1)
+        #multiprocessing.Process(target=tb_worker, args=())
+        new_process = func(*args, **kwargs)
+        new_process.start()
+        manhole.install(locals=locals())
+        while(new_process.keep_running):
+                time.sleep(1)
 
 def worker(func, *args, **kwargs):
-	#multiprocessing.Process(target=worker, args=())
-	new_process = func(*args, **kwargs)
-	manhole.install(locals=locals())
-	while(True):
-		time.sleep(1)
+        #multiprocessing.Process(target=worker, args=())
+        new_process = func(*args, **kwargs)
+        manhole.install(locals=locals())
+        while(True):
+                time.sleep(1)
 def excepthook(exctype, value, traceback):
     for p in multiprocessing.active_children():
-    	p.terminate()
+            p.terminate()
     raise
 
 sys.excepthook = excepthook
@@ -71,15 +71,15 @@ logger.info('Site UUID: %s' % site_uuid)
 demods = {}
 for x in config.systems:
         logger.info('Initializing %s demodulator. System configuration: %s' % (config.systems[x]['type'], config.systems[x]))
-	if config.systems[x]['type'] == 'edacs':
-		demods[x] = multiprocessing.Process(target=tb_worker, args=(edacs_control_demod, config.systems[x], site_uuid, overseer_uuid))
-	elif config.systems[x]['type'] == 'moto':
-		demods[x] = multiprocessing.Process(target=tb_worker, args=(moto_control_demod, config.systems[x], site_uuid, overseer_uuid))
-	elif config.systems[x]['type'] == 'p25':
-		demods[x] = multiprocessing.Process(target=tb_worker, args=(p25_control_demod, config.systems[x], site_uuid, overseer_uuid))
-		
-	demods[x].start()
-	logger.info('demodulator %s pid: %s' % (x, demods[x].pid))
+        if config.systems[x]['type'] == 'edacs':
+                demods[x] = multiprocessing.Process(target=tb_worker, args=(edacs_control_demod, config.systems[x], site_uuid, overseer_uuid))
+        elif config.systems[x]['type'] == 'moto':
+                demods[x] = multiprocessing.Process(target=tb_worker, args=(moto_control_demod, config.systems[x], site_uuid, overseer_uuid))
+        elif config.systems[x]['type'] == 'p25':
+                demods[x] = multiprocessing.Process(target=tb_worker, args=(p25_control_demod, config.systems[x], site_uuid, overseer_uuid))
+                
+        demods[x].start()
+        logger.info('demodulator %s pid: %s' % (x, demods[x].pid))
 
 import time
 
@@ -106,4 +106,4 @@ logger.info('call_recorder pid  %s' % call_recorder.pid)
 
 logger.info('Overseer %s initialization complete' % overseer_uuid)
 while 1:
-	time.sleep(1)
+        time.sleep(1)
