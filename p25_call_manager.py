@@ -224,10 +224,13 @@ class p25_call_manager():
                                         sct = self.system_metadata[system_uuid]['call_table']
         
                                         closed_calls = 0
-                                        for call_uuid in ict.keys():
-                                                if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
-                                                        self.close_call(instance, call_uuid)
-                                                        closed_calls = closed_calls + 1
+                                        try:
+                                            for call_uuid in ict.keys():
+                                                    if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
+                                                            self.close_call(instance, call_uuid)
+                                                            closed_calls = closed_calls + 1
+                                        except Exception as e:
+                                            self.log.error('Exception in periodic timeout thread: %s %s' %(type(e), e))
                                                         
                 
                                         if closed_calls > 0:
@@ -243,9 +246,9 @@ class p25_call_manager():
                                                 packet_type = 'control'
                                         instance = self.redis_demod_manager.get_instance(instance_uuid)
                                         system_uuid = self.get_system_from_instance(instance_uuid)
-
-                                        if instance_uuid not in self.instance_metadata:
-                                                self.instance_metadata[instance_uuid] = {'channel_identifier_table': {}, 'patches': {}, 'call_table': {}}
+                                        with self.instance_locks[instance_uuid]:
+                                            if instance_uuid not in self.instance_metadata:
+                                                    self.instance_metadata[instance_uuid] = {'channel_identifier_table': {}, 'patches': {}, 'call_table': {}}
 
                                         if system_uuid not in self.system_metadata:
                                                 self.system_metadata[system_uuid] = {'call_table': {}}
