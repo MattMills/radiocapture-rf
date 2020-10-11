@@ -30,6 +30,8 @@ from client_redis import client_redis
 import logging
 import logging.config
 
+import zmq
+
 # The P25 receiver
 #
 class p25_control_demod (gr.top_block):
@@ -37,10 +39,14 @@ class p25_control_demod (gr.top_block):
         
                 gr.top_block.__init__(self, "p25 receiver")
 
+                self.zmq_context = zmq.Context()
+                self.zmq_socket = self.zmq_context.socket(zmq.SUB)
+                self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b"")
+
                 #set globals
                 self.is_locked = False
                 self.system = system
-                self.instance_uuid = '%s' % uuid.uuid4()
+                self.instance_uuid = '%s' % str(uuid.uuid4())
 
                 self.log = logging.getLogger('overseer.p25_control_demod.%s' % self.instance_uuid)
                 self.protocol_log = logging.getLogger('protocol.%s' % self.instance_uuid)
@@ -151,14 +157,24 @@ class p25_control_demod (gr.top_block):
                 slicer = op25.fsk4_slicer_fb(levels)
         
                 # frame decoder
-                self.decodequeue = decodequeue = gr.msg_queue(1000)
-                qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
+                self.qsink = qsink = zeromq.pub_sink(gr.sizeof_char, 1, 'tcp://127.0.0.1:*')
+                print('%s' % qsink.last_endpoint())
+                self.zmq_socket.connect(qsink.last_endpoint())
+                #blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
                 self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False, False)
         
                 if self.modulation == 'C4FM':
                         self.connect(self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
                 elif self.modulation == 'CQPSK':
-                        self.connect(self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
+                        self.connect(self.resampler, self.agc)
+                        self.connect(self.agc, self.symbol_filter_c)
+                        self.connect(self.symbol_filter_c, self.clock)
+                        self.connect(self.clock, self.diffdec)
+                        self.connect(self.diffdec, self.to_float)
+                        self.connect(self.to_float, self.rescale)
+                        self.connect(self.rescale, slicer)
+                        self.connect(slicer, decoder)
+                        self.connect(decoder, qsink)
         
                 ##################################################
                 # Threads
@@ -202,15 +218,21 @@ class p25_control_demod (gr.top_block):
                                 self.disconnect(self.source, self.fm_demod)
                                 self.disconnect(self.source, self.resampler)
                 self.connector.release_channel()
-                channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+                port = False
+                while port == False:
+                    channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+                    self.log.info('Frontend connector.create_channel(%s, %s) = (%s, %s)' % (self.channel_rate, self.control_channel, channel_id, port))
+                    if port == False:
+                        sleep(0.05)
                 for x in range(0, 3):
                         try:
-                                self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))                
+                                self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
                                 break
                         except Exception as e:
-                                self.log.error('Exception in zeromq source creation %s' % e)
+                                self.log.error('Exception in zeromq source creation (%s), try: %s' % (e, x))
+                                sleep(0.1)
                 
-
+                
                 if self.modulation == 'C4FM':
                         self.connect(self.source, self.control_prefilter)
                 elif self.modulation == 'CQPSK':
@@ -219,7 +241,8 @@ class p25_control_demod (gr.top_block):
 
                 self.unlock()
                 self.log.info('CC Change %s' % self.control_channel)
-                self.decodequeue.flush()
+                #self.decodequeue.flush()
+                #cant figure out how to do this in zmq in the 30 seconds I looked, fixme
         def procHDU(self, frame):
                 r = {'short':'HDU', 'long':'Header Data Unit'}
                 bitframe = self.bin_to_bit(frame)
@@ -538,7 +561,7 @@ class p25_control_demod (gr.top_block):
         def bin_to_bit(self, input):
                 output = ''
                 for i in range(0, len(input)):
-                        output += bin(ord(input[i]))[2:].zfill(8)
+                        output += bin(input[i])[2:].zfill(8)
                 return output
         def int_to_bit(self, input):
                 output = ''
@@ -575,7 +598,7 @@ class p25_control_demod (gr.top_block):
 
         def receive_engine(self):
                 self.log.info('receive_engine() initializing')
-                buf = ''
+                buf = b''
                 data_unit_ids = {
                                 0x0: 'Header Data Unit',
                                 0x3: 'Terminator without Link Control',
@@ -593,7 +616,7 @@ class p25_control_demod (gr.top_block):
                 no_flow = 0
 
                 while self.keep_running:
-                        if loops_locked < -50 and time()-loop_start > 0.5:
+                        if loops_locked < -50 and time()-loop_start > 10:
                                 if len(self.system['channels']) > 1:
                                         self.log.warning('Unable to lock control channel on %s' % self.control_channel)
                                         self.tune_next_control_channel()
@@ -614,8 +637,12 @@ class p25_control_demod (gr.top_block):
                                         self.site_detail['RFSS Network Connection'] = None
                                         self.site_detail['NAC'] = None
                                         self.is_locked = False
-                        if self.decodequeue.count():
-                                pkt = self.decodequeue.delete_head().to_string()
+                        pkt = b''
+                        try:
+                            pkt = self.zmq_socket.recv(flags=zmq.NOBLOCK)
+                        except Exception as e:
+                            pass
+                        if len(pkt) > 0: #self.decodequeue.count(): #fixme
                                 buf += pkt
                                 no_flow = 0
                         else:
@@ -625,6 +652,7 @@ class p25_control_demod (gr.top_block):
                                 if no_flow > 1000:
                                         self.log.error('No flow retune')
                                         self.tune_next_control_channel()
+                                        no_flow = 0
                                 sleep(0.007) #avg time between packets is 0.007s
 
                         fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
@@ -637,10 +665,10 @@ class p25_control_demod (gr.top_block):
                                 buf = buf[fsnext:]
                                 if len(frame) < 10: continue
                                 frame_sync = binascii.hexlify(frame[0:6])
-                                duid = int(ord(frame[7:8])&0xf)
-                                nac = int((ord(frame[6:7])<<4) +((ord(frame[7:8])&0xf0)>>4))
+                                duid = int.from_bytes(frame[7:8], "big") & 0xf
+                                nac = (int.from_bytes(frame[6:7], "big")<<4) +((int.from_bytes(frame[7:8],"big")&0xf0)>>4)
                                 
-                                #print 'NAC: %s' % nac
+                                #print('DUID: %s NAC: %s' % (duid, nac))
                                 self.total_messages = self.total_messages + 3
                                 #print 'FSO:%s FSN:%s BS:%s FL:%s - %s - %s' % (fsoffset, fsnext, len(buf), (fsnext-fsoffset), frame_sync, data_unit_ids[duid])
                                 if duid != 0x7:

@@ -65,8 +65,8 @@ class frontend_connector():
             while tries < 5:
                 try:
                     with self.send_lock:
-                        self.socket.send(data)
-                        response = self.socket.recv()
+                        self.socket.send_string(data)
+                        response = self.socket.recv_string()
                         response = response.split(',')
                         return response
                 except Exception as e:

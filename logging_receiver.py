@@ -34,6 +34,7 @@ import golay
 import hamming
 import util
 
+import zmq
 
 class logging_receiver(gr.top_block):
         def __init__(self, cdr, client_activemq, client_redis):
@@ -42,6 +43,12 @@ class logging_receiver(gr.top_block):
                 self.audio_capture = True
 
                 gr.top_block.__init__(self, "logging_receiver")
+
+
+
+                self.zmq_context = zmq.Context()
+                self.zmq_socket = self.zmq_context.socket(zmq.SUB)
+                self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b"")
 
                 self.cdr = cdr
                 self.in_use = False
@@ -245,7 +252,8 @@ class logging_receiver(gr.top_block):
                         self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, True, (True if protocol == 'p25_tdma' else False))
                         self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, False, decodequeue3, False, False)
 
-                        self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
+                        self.qsink = qsink = zeromq.pub_sink(gr.sizeof_char, 1, 'tcp://127.0.0.1:*')
+                        self.zmq_socket.connect(qsink.last_endpoint())
                         
                         self.float_conversion = blocks.short_to_float(1, 8192)
         
@@ -351,7 +359,7 @@ class logging_receiver(gr.top_block):
         def p25_sensor(self, tb):
 
                 import binascii
-                buf = ''
+                buf = b''
                 data_unit_ids = {
                                 0x0: 'Header Data Unit',
                                 0x3: 'Terminator without Link Control',
@@ -377,9 +385,13 @@ class logging_receiver(gr.top_block):
                         except:
                                 self.log.critical('NO DECODEQUEUE')
                                 continue
-                        if tb.decodequeue.count():
-                                pkt = tb.decodequeue.delete_head().to_string()
-                                buf += pkt
+                        pkt = b''
+                        try:
+                            pkt = self.zmq_socket.recv(flags=zmq.NOBLOCK)
+                        except Exception as e:
+                            pass
+
+                        buf += pkt
 
                         fsoffset = buf.find(binascii.unhexlify('5575f5ff77ff'))
                         fsnext   = buf.find(binascii.unhexlify('5575f5ff77ff'), fsoffset+6)
@@ -518,7 +530,6 @@ class logging_receiver(gr.top_block):
                 if self.protocol == 'p25' or self.protocol=='p25_cqpsk' or self.protocol == 'p25_tdma' or self.protocol == 'p25_cqpsk_tdma':
                         try:
                                 self.demod_watcher.keep_running = False
-                                self.decodequeue2.insert_tail(gr.message(0, 0, 0, 0))
                         except:
                                 pass
 
@@ -546,10 +557,6 @@ class logging_receiver(gr.top_block):
                 if self.destroyed == True:
                         return False
                 if(self.in_use != False): raise RuntimeError("open() without close() of logging receiver")
-                try:
-                        self.decodequeue.flush()
-                except:
-                        pass
                 self.in_use = True
                 self.uuid = self.cdr['uuid'] = str(uuid.uuid4())
 

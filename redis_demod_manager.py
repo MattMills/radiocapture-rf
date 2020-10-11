@@ -71,7 +71,7 @@ class redis_demod_manager():
                                 for instance_uuid in instances:
                                         try:
                                                 data = self.client.get(instance_uuid)
-                                                demods[instance_uuid] = json.loads(data)
+                                                demods[instance_uuid.decode('utf-8')] = json.loads(data)
                                         except Exception as e:
                                                 self.log.error('Error %s while processing instance %s %s' % (e, instance_uuid, demod_type))
                         

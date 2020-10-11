@@ -123,7 +123,6 @@ class client_redis():
                         sys.exc_clear()
                         self.connection_issue = True
         def send_event_lazy(self, destination, body, headers = {}, persistent = False):
-
                 headers['time_queued'] = time.time()
                 self.outbound_msg_queue_lazy.append({'destination': destination, 'body': body, 'headers': headers, 'persistent': persistent})
 
@@ -197,7 +196,7 @@ class client_redis():
                                                     time.sleep(0.010)
                                                     continue
                                                 data = json.loads(message['data'])
-                                                queue = message['channel']
+                                                queue = message['channel'].decode('utf-8')
                                                 #try:
                                                 #        time_sent = float(frame.headers['time_sent'])
                                                 #        time_queued = float(frame.headers['time_queued'])
@@ -209,7 +208,6 @@ class client_redis():
                                                 #                print 'Send Latency: %s' % (send_latency)
                                                 #except:
                                                 #        pass
-
                                                 self.work_queue.put({
                                                                 'callback': self.subscriptions[queue]['callback'],
                                                                 'callback_class':self.subscriptions[queue]['callback_class'],
@@ -222,7 +220,7 @@ class client_redis():
                                                 self.log.critical('Except: %s' % e)
                                                 #self.client.nack(frame)
                                 except Exception as e:
-                                        self.log.fatal('except: %s' % e)
+                                        self.log.fatal('except: %s %s' % (type(e), e))
                                         self.connection_issue = True
 
                 
