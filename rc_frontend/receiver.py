@@ -35,7 +35,7 @@ class receiver(gr.top_block):
                 self.access_lock = threading.RLock()
                 self.access_lock.acquire()
                 self.last_channel_cleanup = time.time()
-                self.channel_idle_timeout = 300
+                self.channel_idle_timeout = 10 #TEMPORARY CHANGE, fixme
 
         
                 self.config = config = rc_config()
