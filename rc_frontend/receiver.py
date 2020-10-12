@@ -160,7 +160,7 @@ class receiver(gr.top_block):
                                 this_dev.set_sample_rate(self.realsources[source]['samp_rate'])
                                 this_dev.set_center_freq(self.realsources[source]['center_freq']+self.realsources[source]['offset'], 0)
                                 #this_dev.set_freq_corr(self.realsources[source]['offset'], 0)
-                                this_dev.set_max_output_buffer(65535*64)
+                                #this_dev.set_max_output_buffer(65535*64)
 
                                 this_dev.set_dc_offset_mode(1, 0)
                                 this_dev.set_iq_balance_mode(1, 0)
@@ -254,7 +254,7 @@ class receiver(gr.top_block):
                 source_distance = None
 
                 if self.scan_mode == False:
-                    for i in self.sources.keys():
+                    for i in list(self.sources):
                         if abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2:
                                 if source_distance == None or abs(freq-self.sources[i]['center_freq']) < source_distance:
                                         source_id = i
@@ -277,7 +277,7 @@ class receiver(gr.top_block):
                 self.access_lock.acquire()
                 block = None
 
-                for c in self.channels.keys():
+                for c in list(self.channels):
                         if self.channels[c].source_id == source_id and self.channels[c].channel_rate == channel_rate and self.channels[c].in_use == False:
                                 block = self.channels[c]
                                 block_id = block.block_id
@@ -306,7 +306,7 @@ class receiver(gr.top_block):
 
                         #While we're locked to connect this block, look for any idle channels and disco/destroy.
                         self.last_channel_cleanup = time.time()
-                        for c in self.channels.keys():
+                        for c in list(self.channels):
                             if self.channels[c].channel_close_time != 0 and time.time()-self.channels[c].channel_close_time > self.channel_idle_timeout and block != self.channels[c]:
                                 self.log.info('disconnecting channel %s' % self.channels[c].block_id)
                                 self.disconnect(self.sources[self.channels[c].source_id]['block'], self.channels[c])
@@ -324,7 +324,7 @@ class receiver(gr.top_block):
                 source_id = None
 
                 if self.scan_mode == False:
-                    for i in self.sources.keys():
+                    for i in list(self.sources):
                         if abs(freq-self.sources[i]['center_freq']) < self.sources[i]['samp_rate']/2:
                                 source_id = i
                                 break
@@ -366,7 +366,7 @@ class receiver(gr.top_block):
 
                 block = None        
 
-                for c in self.channels.keys():
+                for c in list(self.channels):
                         if self.channels[c].source_id == source_id and self.channels[c].pfb_id == pfb_id and self.channels[c].in_use == False:
                                 block = self.channels[c]
                                 block_id = self.channels[c].block_id
@@ -605,7 +605,7 @@ if __name__ == '__main__':
                         if time.time()-tb.last_channel_cleanup > tb.channel_idle_timeout*2:
                                 tb.last_channel_cleanup = time.time()
                                 deletables = []
-                                for c in tb.channels.keys():
+                                for c in list(tb.channels):
                                     if tb.channels[c].channel_close_time != 0 and time.time()-tb.channels[c].channel_close_time > tb.channel_idle_timeout:
                                         deletables.append(c)
                                 if len(deletables) > 0:
@@ -619,7 +619,7 @@ if __name__ == '__main__':
                                         tb.unlock()
 
                 deletions = []
-                for client in client_hb.keys():
+                for client in list(client_hb):
                         try:
                             if time.time()-client_hb[client] > 5:
                                 log.warning('Client heartbeat timeout %s' % client)
