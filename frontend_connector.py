@@ -62,15 +62,23 @@ class frontend_connector():
 
         def send(self, data):
             tries = 0
-            while tries < 5:
+            sent = False
+            while tries < 5 and not sent:
                 try:
                     with self.send_lock:
                         self.socket.send_string(data)
+                        sent = True
+                except Exception as e:
+                    self.log.error('Exception in frontend_connector.send(): %s %s' % (type(e), e))
+                    tries += 1
+            while tries < 5:
+                try:
+                    with self.send_lock:
                         response = self.socket.recv_string()
                         response = response.split(',')
                         return response
                 except Exception as e:
-                    self.log.error('Exception in frontend_connector.send(): %s %s' % (type(e), e))
+                    self.log.error('Exception in frontend_connector.recv(): %s %s' % (type(e), e))
                     tries += 1
 
             return None
