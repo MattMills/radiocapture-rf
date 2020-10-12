@@ -117,7 +117,7 @@ class moto_call_manager():
                 self.log.info('periodic_timeout_thread()')
                 while self.continue_running:
                         time.sleep(0.1)
-                        for instance in self.instance_metadata.keys():
+                        for instance in list(self.instance_metadata):
                                 with self.instance_locks[instance]:
                                         ict = self.instance_metadata[instance]['call_table']
                                         system_uuid = self.get_system_from_instance(instance)

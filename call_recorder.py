@@ -77,8 +77,8 @@ if __name__ == '__main__':
         while True:
                 time.sleep(5)
                 #print '%s' % main.call_table
-                for system in main.call_table.keys():
-                        for call in main.call_table[system].keys():
+                for system in list(main.call_table):
+                        for call in list(main.call_table[system]):
                                 try:
                                         print('%s %s %s' % (main.call_table[system][call].destroyed, main.call_table[system][call].protocol,main.call_table[system][call].cdr))
                                         if time.time()-main.call_table[system][call].cdr['time_open'] > 120:

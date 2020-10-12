@@ -119,7 +119,7 @@ class edacs_call_manager():
                 self.log.info('publish_loop() start')
                 while self.continue_running:
                         time.sleep(0.1)
-                        for instance in self.instance_metadata.keys():
+                        for instance in list(self.instance_metadata):
                                 with self.instance_locks[instance]:
                                         ict = self.instance_metadata[instance]['call_table']
                                         system_uuid = self.get_system_from_instance(instance)
@@ -155,7 +155,7 @@ class edacs_call_manager():
                 if system_uuid not in self.system_metadata:
                         self.system_metadata[system_uuid] = {'call_table': {}}
 
-                if 'type' not in t.keys():
+                if 'type' not in list(t):
                         return
 
                 with self.instance_locks[instance_uuid]:

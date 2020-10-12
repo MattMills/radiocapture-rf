@@ -38,7 +38,7 @@ class edacs_control_demod(gr.top_block):
                 self.audio_rate = audio_rate = 12500
                 self.symbol_rate = symbol_rate = system['symbol_rate']
                 self.channels = channels = system['channels']
-                self.channels_list = self.channels.keys()
+                self.channels_list = list(self.channels)
                 self.control_channel_key = 8
                 self.control_channel = control_channel = self.channels[self.channels_list[0]]
                 self.control_source = 0

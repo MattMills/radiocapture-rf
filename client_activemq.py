@@ -177,7 +177,7 @@ class client_activemq():
                         while len(self.outbound_msg_queue) > 0 and self.connection_issue == False:
                                 try:
                                         item = self.outbound_msg_queue.pop(0)
-                                        self.client.send(item['destination'], json.dumps(item['body']), {'persistent': 'false'})
+                                        self.client.send(item['destination'].encode('utf-8'), json.dumps(item['body']).encode('utf-8'), {'persistent': 'false'})
                                         
                                 except Exception as e:
                                         self.log.critical('Except: %s' % e)

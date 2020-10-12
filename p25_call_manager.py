@@ -122,7 +122,7 @@ class p25_call_manager():
                         ict = self.instance_metadata[instance_uuid]['call_table']
         
                         closed_calls = []
-                        for call in ict.keys():
+                        for call in list(ict):
                                 try:
                                         if ict[call]['system_channel_local'] == channel and ict[call]['system_group_local'] == group_address and (user_address == 0 or ict[call]['system_user_local'] == user_address):
                                                 ict[call]['time_activity'] = time.time()
@@ -144,7 +144,7 @@ class p25_call_manager():
                         #Not a continuation, new call
                         call_uuid = None
                         call_count = 0
-                        for call in sct.keys():
+                        for call in list(sct):
                                 try:
                                         if sct[call]['system_group_local'] == group_address and (user_address == 0 or sct[call]['system_user_local'] == user_address) and time.time() - sct[call]['time_open'] < 1:
                                                 call_uuid = sct[call]['call_uuid']
@@ -215,7 +215,7 @@ class p25_call_manager():
         def periodic_timeout_thread(self):
                 while self.continue_running:
                         time.sleep(0.1)
-                        for instance in self.instance_metadata.keys():
+                        for instance in list(self.instance_metadata):
                                 with self.instance_locks[instance]:
                                         ict = self.instance_metadata[instance]['call_table']
                                         system_uuid = self.get_system_from_instance(instance)
@@ -225,7 +225,7 @@ class p25_call_manager():
         
                                         closed_calls = 0
                                         try:
-                                            for call_uuid in ict.keys():
+                                            for call_uuid in list(ict):
                                                     if time.time()-ict[call_uuid]['time_activity'] > ict[call_uuid]['hang_time']:
                                                             self.close_call(instance, call_uuid)
                                                             closed_calls = closed_calls + 1
@@ -238,7 +238,7 @@ class p25_call_manager():
                                         
         def process_raw_control(self, t, headers):
                                 try:
-                                        if 'instance_uuid' in t.keys():
+                                        if 'instance_uuid' in list(t):
                                                 instance_uuid = t['instance_uuid']
                                                 packet_type = 'voice'
                                         else:

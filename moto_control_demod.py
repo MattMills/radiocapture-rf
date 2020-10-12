@@ -53,7 +53,7 @@ class moto_control_demod(gr.top_block):
 
                 self.system_id = system['id']
                 self.channels = system['channels']
-                self.channels_list = self.channels.keys()
+                self.channels_list = list(self.channels)
 
                 self.thread_id = '%s-%s' % (self.system['type'], self.system_id)
 
@@ -481,7 +481,7 @@ class moto_control_demod(gr.top_block):
                                                                 p['k'] = (lid & 0x8) >> 3
                                                         p['type'] = 'System status'
                                                 elif self.channels.has_key(cmd) and lid != self.system_id and tg != 0x1ff0:
-                                                        if 'offset' in self.system.keys() and last_cmd == cmd-self.system['offset']:
+                                                        if 'offset' in list(self.system) and last_cmd == cmd-self.system['offset']:
                                                                 dual = True
                                                         if dual and last_cmd == 0x308:
                                                                 p['type'] = 'Analog Call'
@@ -493,7 +493,7 @@ class moto_control_demod(gr.top_block):
                                                                 p['type'] = 'Call Continuation'
                                                                 call_type = 'u'
 
-                                                        if 'force_p25' in self.system.keys() and self.system['force_p25']:
+                                                        if 'force_p25' in list(self.system) and self.system['force_p25']:
                                                                 call_type = 'd'
                                                                 p['type'] = 'Digital Call'
 
