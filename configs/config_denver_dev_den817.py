@@ -21,7 +21,7 @@ class rc_config:
                 self.sources = {
                         0:{
                                 'type': 'rtlsdr', 
-                                'args': 'rtl=10,buffers=4',
+                                'args': 'rtl=1-0,buffers=4',
                                 'offset': 1710,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
@@ -30,7 +30,7 @@ class rc_config:
                         },
                         1:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=11,buffers=4',
+                                'args': 'rtl=1-1,buffers=4',
                                 'offset': 1350,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
@@ -39,7 +39,7 @@ class rc_config:
                         },
                         2:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=12,buffers=4',
+                                'args': 'rtl=1-2,buffers=4',
                                 'offset': 1320,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
@@ -48,7 +48,7 @@ class rc_config:
                         },
                         3:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=13,buffers=4',
+                                'args': 'rtl=1-3,buffers=4',
                                 'offset': 1780,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
@@ -57,7 +57,7 @@ class rc_config:
                         },
                         4:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=14,buffers=4',
+                                'args': 'rtl=1-4,buffers=4',
                                 'offset': 1100,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
@@ -66,7 +66,7 @@ class rc_config:
                         },
                         5:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=15,buffers=4',
+                                'args': 'rtl=1-5,buffers=4',
                                 'offset': 1840,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
@@ -75,7 +75,7 @@ class rc_config:
                         },
                         6:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=19,buffers=4',
+                                'args': 'rtl=1-6,buffers=4',
                                 'offset': 1320,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': self.gain,
@@ -84,7 +84,7 @@ class rc_config:
                         },
                         7:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=16,buffers=4',
+                                'args': 'rtl=1-7,buffers=4',
                                 'offset': 1150,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': 36,
@@ -93,7 +93,7 @@ class rc_config:
                         },
                         8:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=17,buffers=4',
+                                'args': 'rtl=1-8,buffers=4',
                                 'offset': 1950,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': 38,
@@ -102,7 +102,7 @@ class rc_config:
                         },
                         9:{
                                 'type': 'rtlsdr',
-                                'args': 'rtl=18,buffers=4',
+                                'args': 'rtl=1-9,buffers=4',
                                 'offset': 1500,
                                 'bb_gain': self.if_gain,
                                 'rf_gain': 40,
@@ -695,17 +695,19 @@ class rc_config:
                                 
                 }
         
+                del self.systems[34]
+                del self.systems[33]
                 del self.systems[32]
                 del self.systems[31]
-                #del self.systems[30]
+                del self.systems[30]
                 del self.systems[29]
-                #del self.systems[28]
-                #del self.systems[27]
-                #del self.systems[26]
-                #del self.systems[25]
-                #del self.systems[24]
+                del self.systems[28]
+                del self.systems[27]
+                del self.systems[26]
+                del self.systems[25]
+                del self.systems[24]
 
-                #del self.systems[22]
+                del self.systems[22]
 
 
 
@@ -713,14 +715,14 @@ class rc_config:
                 del self.systems[17]
                 del self.systems[16]
                 #del self.systems[15]
-                #del self.systems[14]
+                del self.systems[14]
 
 
-                #del self.systems[11]#
-                #del self.systems[10]#
+                del self.systems[11]#
+                del self.systems[10]#
 
-                #del self.systems[8]#
-                #del self.systems[7]#
+                del self.systems[8]#
+                del self.systems[7]#
                 del self.systems[6]
 
                 del self.systems[5]
