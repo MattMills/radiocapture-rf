@@ -594,8 +594,8 @@ if __name__ == '__main__':
                         log.info('%s %s %s' % (clients, client_hb, tb.channels))
                         last_status = time.time()
 
-                        if int(time.time()-start_time) > 300 and len(tb.channels) < 5:
-                                sys.exit(os.EX_SOFTWARE)
+                        #if int(time.time()-start_time) > 300 and len(tb.channels) < 5:
+                        #        sys.exit(os.EX_SOFTWARE)
         
                         owned_channels = []
                         orphans = []
