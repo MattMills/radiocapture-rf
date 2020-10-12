@@ -47,3 +47,7 @@ You can find me in [https://radiocapture.chat](https://radiocapture.chat) and as
 Let me put it this way: I am happy to provide direction, guidance, and help to anyone that wants to contribute to the project, via Patreon or with your own efforts to improve the project. Unfortunately my time is limited (and I need to spend it strategically to remain housed/fed).
 
 But don't let that discourage you; I didn't know anything about radio before I started working on this app.
+
+## How to install:
+
+Coming soon, code is now compatible with python3 and standard ubuntu packages, only required manual compile is op25.
