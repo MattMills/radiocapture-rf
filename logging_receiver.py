@@ -37,14 +37,14 @@ import util
 import zmq
 
 class logging_receiver(gr.top_block):
-        def __init__(self, cdr, client_activemq, client_redis):
+        def __init__(self, cdr, client_activemq, client_redis, rcm):
                 self.thread_lock = threading.Lock()
                 self.thread_lock.acquire()
                 self.audio_capture = True
 
                 gr.top_block.__init__(self, "logging_receiver")
 
-
+                self.rcm = rcm
 
                 self.zmq_context = zmq.Context()
                 self.zmq_socket = self.zmq_context.socket(zmq.SUB)
@@ -85,7 +85,7 @@ class logging_receiver(gr.top_block):
                 #debug.[tart()
 
                 #Setup connector
-                self.connector = frontend_connector()
+                self.connector = frontend_connector(cdr['instance_uuid'], self.rcm)
                 for retry in 1,2,3,4,5:
                         try:
                                 channel_id, port = self.connector.create_channel(int(self.cdr['channel_bandwidth']), int(self.cdr['frequency']))

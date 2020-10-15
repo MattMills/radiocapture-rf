@@ -21,6 +21,7 @@ import logging.config
 from logging_receiver import logging_receiver
 from client_redis import client_redis
 from client_activemq import client_activemq
+from redis_channelizer_manager import redis_channelizer_manager
 
 class call_recorder():
         def __init__(self, instance_uuid):
@@ -33,6 +34,7 @@ class call_recorder():
                 self.keep_running = True
                 self.subscriptions = {}
                 self.outbound_msg_queue = []
+                self.rcm = redis_channelizer_manager()
         
                 self.call_table = {}
                 self.call_table_lock = threading.RLock()
@@ -52,7 +54,7 @@ class call_recorder():
                                 if cdr['instance_uuid'] not in self.call_table:
                                         self.call_table[cdr['instance_uuid']] = {}
                                 if cdr['call_uuid'] not in self.call_table[cdr['instance_uuid']]:
-                                        lr = logging_receiver(cdr, self.outbound_activemq, self.outbound_client)
+                                        lr = logging_receiver(cdr, self.outbound_activemq, self.outbound_client, self.rcm)
                                         if lr == False:
                                                 self.log.error('Unable to open logging receiver for cdr: %s' %cdr)
                                                 return False

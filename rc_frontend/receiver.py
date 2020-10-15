@@ -3,7 +3,7 @@
 # Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
 
 from gnuradio import gr, filter
-from gnuradio import blocks
+from gnuradio import blocks, zeromq
 from gnuradio.filter import pfb, firdes
 import gnuradio.filter.optfir as optfir
 
@@ -21,6 +21,9 @@ import channel
 import copy
 from config import rc_config
 
+import zmq
+from redis_channel_publisher import redis_channel_publisher
+
 class receiver(gr.top_block):
         def __init__(self):
                 gr.top_block.__init__(self, 'receiver')
@@ -31,6 +34,11 @@ class receiver(gr.top_block):
                         gr.enable_realtime_scheduling()
                 except:
                         pass
+
+
+                self.zmq_context = zmq.Context()
+                self.zmq_socket = self.zmq_context.socket(zmq.REP)
+                self.zmq_socket.bind("tcp://0.0.0.0:0")
 
                 self.access_lock = threading.RLock()
                 self.access_lock.acquire()
@@ -174,7 +182,11 @@ class receiver(gr.top_block):
                                         null_sink = gr.null_sink(gr.sizeof_gr_complex*1)
                                 except:
                                         null_sink = blocks.null_sink(gr.sizeof_gr_complex*1)
+
                                 self.connect(this_dev, null_sink)
+
+                                zmq_sink = self.realsources[source]['zmq_sink'] = zeromq.pub_sink(gr.sizeof_gr_complex, 1, 'ipc:///tmp/rx_source_%s' % (source), 100, False, -1)
+                                self.connect(this_dev, zmq_sink)
 
                                 self.realsources[source]['block'] = this_dev
                         if config.receiver_split2:
@@ -238,6 +250,9 @@ class receiver(gr.top_block):
                 #for i in self.sources.keys():
                 #        self.channels[i] = []
 
+                self.redis_channel_publisher = redis_channel_publisher(sources=self.sources, channels=self.channels, zmq_socket=self.zmq_socket)
+
+
                 self.start()
                 self.access_lock.release()
         def connect_channel(self, channel_rate, freq):
@@ -291,7 +306,7 @@ class receiver(gr.top_block):
                         for x in range(0, 3):
                                 port = random.randint(10000,60000)
                                 try:
-                                        block = channel.channel(port, channel_rate,(source_samp_rate), offset)
+                                    block = channel.channel('ipc:///tmp/rx_source_%s' % (source_id), port, channel_rate,(source_samp_rate), offset)
                                 except RuntimeError as err:
                                         self.log.error('Failed to build channel on port: %s attempt: %s' % (port, x))
                                         return False, False
@@ -301,18 +316,7 @@ class receiver(gr.top_block):
                         self.channels[block_id] = block
                         block.block_id = block_id
 
-                        self.lock()
-                        self.connect(source, block)
-
-                        #While we're locked to connect this block, look for any idle channels and disco/destroy.
-                        self.last_channel_cleanup = time.time()
-                        for c in list(self.channels):
-                            if self.channels[c].channel_close_time != 0 and time.time()-self.channels[c].channel_close_time > self.channel_idle_timeout and block != self.channels[c]:
-                                self.log.info('disconnecting channel %s' % self.channels[c].block_id)
-                                self.disconnect(self.sources[self.channels[c].source_id]['block'], self.channels[c])
-                                self.channels[c].destroy()
-                                del self.channels[c]
-                        self.unlock()
+                        block.start()
 
                 block.in_use = True
 
@@ -435,6 +439,7 @@ class receiver(gr.top_block):
                         hz_offset = offset*10
                 else:
                         hz_offset = offset*4
+                self.log.debug('hz_offset: %s' % hz_offset)
                 if hz_offset < 5 and hz_offset > -5:
                         return True
 
@@ -463,8 +468,6 @@ if __name__ == '__main__':
         tb = receiver()
         #print len(tb.channels)
         #tb.wait()
-        import zmq
-        import _thread as thread
         import time
         import sys
         import os 
@@ -568,7 +571,10 @@ if __name__ == '__main__':
                         log.info('connect received from %s' % c)
                         return 'connect,%s' % c
                 elif data[0] == 'hb':
-                        c = int(data[1])
+                        try:
+                            c = int(data[1])
+                        except:
+                            return 'fail,0'
                         if c not in client_hb:
                                 return 'fail,%s' % c
                         client_hb[c] = time.time()
@@ -582,9 +588,8 @@ if __name__ == '__main__':
                         
                         return 'offset,%s' % client_id
 
-        context = zmq.Context()
-        socket = context.socket(zmq.REP)
-        socket.bind("tcp://0.0.0.0:50000")
+        context = tb.zmq_context
+        socket = tb.zmq_socket
         start_time = time.time()
         last_status = time.time()
 
@@ -610,13 +615,13 @@ if __name__ == '__main__':
                                         deletables.append(c)
                                 if len(deletables) > 0:
                                         log.info('Channel cleanup initiated due to rf idle timeout')
-                                        tb.lock()
+                                        #tb.lock()
                                         for c in deletables:
                                                 log.info('disconnecting channel %s' % tb.channels[c].block_id)
-                                                tb.disconnect(tb.sources[tb.channels[c].source_id]['block'], tb.channels[c])
+                                                #tb.disconnect(tb.sources[tb.channels[c].source_id]['block'], tb.channels[c])
                                                 tb.channels[c].destroy()
                                                 del tb.channels[c]
-                                        tb.unlock()
+                                        #tb.unlock()
 
                 deletions = []
                 for client in list(client_hb):

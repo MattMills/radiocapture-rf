@@ -13,6 +13,7 @@ import logging
 
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
+from redis_channelizer_manager import redis_channelizer_manager
 from client_redis import client_redis
  
 
@@ -27,6 +28,7 @@ class moto_control_demod(gr.top_block):
                 # Variables
                 ##################################################
 
+                self.rcm = redis_channelizer_manager()
                 self.instance_uuid = '%s' % uuid.uuid4()
                 self.log = logging.getLogger('overseer.moto_control_demod.%s' % self.instance_uuid)
                 self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))
@@ -83,7 +85,7 @@ class moto_control_demod(gr.top_block):
                 quality_check.daemon = True
                 quality_check.start()
 
-                self.connector = frontend_connector()
+                self.connector = frontend_connector(self.instance_uuid, self.rcm)
                 self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
                 self.client_redis = client_redis()
 

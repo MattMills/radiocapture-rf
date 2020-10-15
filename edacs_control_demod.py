@@ -19,6 +19,7 @@ import logging
 
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
+from redis_channelizer_manager import redis_channelizer_manager
 from client_redis import client_redis
 
 class edacs_control_demod(gr.top_block):
@@ -26,6 +27,8 @@ class edacs_control_demod(gr.top_block):
                 gr.top_block.__init__(self, "edacs receiver")
                 self.log = logging.getLogger('overseer.edacs_control_demod')
 
+
+                self.rcm = redis_channelizer_manager()
                 self.system = system
                 self.instance_uuid = '%s' % uuid.uuid4()
                 self.log = logging.getLogger('overseer.edacs_control_demod.%s' % self.instance_uuid)
@@ -58,7 +61,7 @@ class edacs_control_demod(gr.top_block):
 
                 self.freq_offset = 0
 
-                self.connector = frontend_connector()
+                self.connector = frontend_connector(self.instance_uuid, self.rcm)
                 self.client_redis = client_redis()
 
                 ################################################

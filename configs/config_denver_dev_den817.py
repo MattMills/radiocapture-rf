@@ -18,6 +18,10 @@ class rc_config:
                 self.gain = 25
                 self.if_gain = 40
 
+                self.redis_servers = [
+                        ('127.0.0.1', '6379'),
+                        ]
+
                 self.sources = {
                         0:{
                                 'type': 'rtlsdr', 

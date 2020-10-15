@@ -10,39 +10,49 @@ import time
 import logging
 
 class frontend_connector():
-        def __init__(self, dest='127.0.0.1', host='127.0.0.1', port=50000):
+        def __init__(self, parent_instance_uuid, redis_channelizer_manager):
                 #temp hack until I have auto-frontend figured out
 
-                self.log = logging.getLogger('overseer.frontend_connector')
+                self.log = logging.getLogger('%s.frontend_connector' % parent_instance_uuid)
         
                 self.thread_lock = threading.Lock()
                 self.send_lock = threading.Lock()
-                self.dest = dest
 
                 #self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 #self.s.connect((host,port))
                 self.log.debug('Initializing Frontend Connector')
 
                 self.continue_running = True
-                self.host = host
-                self.port = port
+                self.redis_channelizer_manager = redis_channelizer_manager
                 self.channel_port = 0
+                self.host = None
                 
-                self.connection_init()
-                self.connect()
+                self.context = None
+                self.socket = None
+                self.my_client_id = None
+                self.channel_id = None
+                self.frequency = None
 
                 connection_handler = threading.Thread(target=self.connection_handler, name='connection_handler')
                 connection_handler.daemon = True
                 connection_handler.start()
-        def connection_init(self):
+        def connection_init(self, frequency):
                 self.context = zmq.Context()
                 self.socket = self.context.socket(zmq.REQ)
                 self.socket.setsockopt(zmq.RCVTIMEO, 1000) 
+                self.socket.setsockopt(zmq.SNDTIMEO, 1000)
                 self.socket.setsockopt(zmq.LINGER, 0)
-                self.log.info('Attempting ZMQ socket connection to tcp://%s:%s' % (self.host, self.port))
-                
-                self.socket.connect("tcp://%s:%s" % (self.host, self.port))
-                self.log.info('Successful ZMQ socket connection to tcp://%s:%s' % (self.host, self.port))
+
+                host, port = self.redis_channelizer_manager.get_channelizer_for_frequency(frequency)
+                self.host = host
+                self.log.info('Attempting ZMQ socket connection to tcp://%s:%s' % (host, port))
+                try:
+                    self.socket.connect("tcp://%s:%s" % (host, port))
+                except Exception as e:
+                    self.log.error('ZMQ connection failed to tcp://%s:%s Exception: (%s) %s' % (host, port, type(e), e))
+                    raise e
+
+                self.log.info('Successful ZMQ socket connection to tcp://%s:%s' % (host, port))
                 self.my_client_id = None
                 self.channel_id = None
                 self.channel_port = 0
@@ -85,6 +95,7 @@ class frontend_connector():
 
         def connect(self):
                 self.log.debug('Sending connect command')
+                self.log.debug('RECVTIMEO: %s SENDTIMEO: %s' % (self.socket.getsockopt(zmq.RCVTIMEO), self.socket.getsockopt(zmq.SNDTIMEO)))
                 data = self.send('connect')
 
                 if data == None:
@@ -112,6 +123,9 @@ class frontend_connector():
                     return False
 
         def create_channel(self, channel_rate, freq):
+                self.frequency = freq
+                self.connection_init(freq)
+                self.connect()
                 self.thread_lock.acquire()
                 
                 self.log.debug('create_channel(channel_rate = %s, freq = %s)' % (channel_rate, freq))
@@ -143,7 +157,8 @@ class frontend_connector():
                 self.log.debug('release_channel()')
                 data = self.send('release,%s,%s' % (self.my_client_id, self.channel_id))
                 
-                
+                self.frequency = None
+
                 if data == None or  data[0] == 'na': #failed
                         self.log.error('Failed to release channel, probably leaking channels')
                         self.thread_lock.release()
@@ -180,6 +195,11 @@ class frontend_connector():
                 self.log.debug('connection_handler() init')
                 time.sleep(0.1)
                 while self.continue_running == True:
+                        if self.context == None or self.host == None:
+                            #we haven't initialized yet
+                            time.sleep(0.01)
+                            continue
+
                         self.thread_lock.acquire()
                         self.log.debug('Sending heartbeat')
                         try:
@@ -188,13 +208,10 @@ class frontend_connector():
                                 if data == None or data[0] == 'fail':
                                         self.log.error('Failed to heartbeat')
                                         self.connection_teardown()
-                                        self.connection_init()
+                                        self.connection_init(self.frequency)
                                         self.connect()
                         except Exception as e:
                                 self.log.error('Failed to heartbeat: %s' % e)
-                                self.connection_teardown()
-                                self.connection_init()
-                                self.connect()
                         self.thread_lock.release()
                         time.sleep(0.25)
                 

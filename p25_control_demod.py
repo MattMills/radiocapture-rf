@@ -24,6 +24,7 @@ from p25_moto import p25_moto
 
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
+from redis_channelizer_manager import redis_channelizer_manager
 from client_redis import client_redis
 
 
@@ -39,6 +40,7 @@ class p25_control_demod (gr.top_block):
         
                 gr.top_block.__init__(self, "p25 receiver")
 
+                self.rcm = redis_channelizer_manager()
                 self.zmq_context = zmq.Context()
                 self.zmq_socket = self.zmq_context.socket(zmq.SUB)
                 self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b"")
@@ -179,7 +181,7 @@ class p25_control_demod (gr.top_block):
                 ##################################################
                 # Threads
                 ##################################################
-                self.connector = frontend_connector()
+                self.connector = frontend_connector(self.instance_uuid, self.rcm)
                 self.client_redis = client_redis()
                 self.redis_demod_publisher = redis_demod_publisher(parent_demod=self)
 
@@ -219,11 +221,17 @@ class p25_control_demod (gr.top_block):
                                 self.disconnect(self.source, self.resampler)
                 self.connector.release_channel()
                 port = False
+                channel_id = False
                 while port == False:
-                    channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+                    try:
+                        channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
+                    except Exception as e:
+                        self.log.error('Exception in frontend_connector.create_channel() (%s) %s' % (type(e), e))
+
                     self.log.info('Frontend connector.create_channel(%s, %s) = (%s, %s)' % (self.channel_rate, self.control_channel, channel_id, port))
-                    if port == False:
-                        sleep(0.05)
+                    if port == False or port == None:
+                        self.log.error('Something is seriously wrong, unable to create channel for control channel')
+                        sleep(1)
                 for x in range(0, 3):
                         try:
                                 self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))

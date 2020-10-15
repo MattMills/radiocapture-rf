@@ -14,12 +14,11 @@ from gnuradio import gr, uhd, filter, analog, blocks, zeromq
 from gnuradio.filter import firdes
 
 
-class channel ( gr.hier_block2):
-        def __init__(self, port, channel_rate, samp_rate, offset):
-                gr.hier_block2.__init__(self, "channel",
-                        gr.io_signature(1, 1, gr.sizeof_gr_complex), # Input signature
-                        gr.io_signature(0, 0, 0)) # Output signature
+class channel ( gr.top_block):
+        def __init__(self, parent_zmq_address, port, channel_rate, samp_rate, offset):
+                gr.top_block.__init__(self, "channel")
 
+                self.parent_zmq_address = parent_zmq_address
                 self.samp_rate = samp_rate
                 self.channel_rate = channel_rate
                 self.port = port
@@ -27,13 +26,15 @@ class channel ( gr.hier_block2):
                 self.in_use = False
                 self.source_id = None
 
+                self.zmq_sub_source = zeromq.sub_source(gr.sizeof_gr_complex, 1, parent_zmq_address, 100, False, -1)
+
                 decim = int(samp_rate/(channel_rate))/2
                 taps = firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2,4000)
                 #print 'taps: %s' % len(taps)
                 self.prefilter = filter.freq_xlating_fir_filter_ccc(decim, (taps), offset, samp_rate)
                 self.sink = zeromq.pub_sink(gr.sizeof_gr_complex*1, 1, 'tcp://0.0.0.0:%s' % port)
                 
-                self.connect(self, self.prefilter, self.sink)
+                self.connect(self.zmq_sub_source, self.prefilter, self.sink)
                 self.init_time = time.time()
                 self.channel_close_time = 0
         def __str__(self):
@@ -60,8 +61,7 @@ class channel ( gr.hier_block2):
                 self.offset = offset
                 self.prefilter.set_center_freq(self.offset)
         def destroy(self):
-            self.disconnect(self, self.prefilter, self.sink)
             self.prefilter = None
             self.sink = None
-
+            self.stop()
 
