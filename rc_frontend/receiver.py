@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 # Copyright 2019,2020 Radiocapture LLC - Radiocapture.com
 
@@ -8,6 +8,7 @@ from gnuradio.filter import pfb, firdes
 import gnuradio.filter.optfir as optfir
 
 import time
+import sys
 import threading
 import math
 import os
@@ -16,6 +17,7 @@ import json
 import uuid
 import logging
 import logging.config
+import argparse
 
 import channel
 import copy
@@ -25,7 +27,7 @@ import zmq
 from redis_channel_publisher import redis_channel_publisher
 
 class receiver(gr.top_block):
-        def __init__(self):
+        def __init__(self, index):
                 gr.top_block.__init__(self, 'receiver')
 
                 self.log = logging.getLogger('frontend')
@@ -57,6 +59,14 @@ class receiver(gr.top_block):
 
                 self.sources = {}
                 numsources = 0
+
+
+                if index != None:
+                    for i in list(self.realsources):
+                        if i != int(index):
+                            del self.realsources[i]
+
+
                 for source in self.realsources:
                         if config.receiver_split2:
                                 newsource1 = copy.copy(self.realsources[source])
@@ -461,11 +471,16 @@ if __name__ == '__main__':
         with open('config.logging.json', 'rt') as f:
             config = json.load(f)
 
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-i', '--index', help="Device config index, if specified, all other configured sources will be deleted")
+        args = parser.parse_args()
+
         logging.config.dictConfig(config)
         log = logging.getLogger('frontend')
 
 
-        tb = receiver()
+        tb = receiver(args.index)
         #print len(tb.channels)
         #tb.wait()
         import time
