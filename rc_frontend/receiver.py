@@ -234,6 +234,7 @@ class receiver(gr.top_block):
                                 numsources = numsources+1
                         else:
                                 self.sources[numsources] = self.realsources[source]
+                                self.sources[numsources]['source_id'] = source
                                 numsources = numsources+1
                 if self.config.frontend_mode == 'pfb':
                         for source in self.sources:
@@ -294,6 +295,7 @@ class receiver(gr.top_block):
                 source_center_freq = self.sources[source_id]['center_freq']
                 source_samp_rate = self.sources[source_id]['samp_rate']
                 source = self.sources[source_id]['block']
+                real_source_id = self.sources[source_id]['source_id']
 
                 offset = freq-source_center_freq
                 if freq < 10000000:
@@ -317,7 +319,7 @@ class receiver(gr.top_block):
                         for x in range(0, 3):
                                 port = random.randint(10000,60000)
                                 try:
-                                    block = channel.channel('ipc:///tmp/rx_source_%s' % (source_id), port, channel_rate,(source_samp_rate), offset)
+                                    block = channel.channel('ipc:///tmp/rx_source_%s' % (real_source_id), port, channel_rate,(source_samp_rate), offset)
                                 except RuntimeError as err:
                                         self.log.error('Failed to build channel on port: %s attempt: %s' % (port, x))
                                         return False, False
