@@ -27,12 +27,14 @@ from p25p2_lfsr import p25p2_lfsr
 
 from p25_cai import p25_cai
 from frontend_connector import frontend_connector
+from p25_general import p25_general
 
 from client_activemq import client_activemq
 import rs64
 import golay
 import hamming
 import util
+import sys
 
 import zmq
 
@@ -45,6 +47,7 @@ class logging_receiver(gr.top_block):
                 gr.top_block.__init__(self, "logging_receiver")
 
                 self.rcm = rcm
+                self.p25_general = p25_general()
 
                 self.zmq_context = zmq.Context()
                 self.zmq_socket = self.zmq_context.socket(zmq.SUB)
@@ -401,8 +404,10 @@ class logging_receiver(gr.top_block):
 
                                 if len(frame) < 10: continue
                                 frame_sync = binascii.hexlify(frame[0:6])
-                                duid = int(ord(frame[7:8])&0xf)
-                                nac = int(ord(frame[6:7]) +ord(frame[7:8])&0xf0)
+
+                                duid = int.from_bytes(frame[7:8], "big") & 0xf
+                                nac = (int.from_bytes(frame[6:7], "big")<<4) +((int.from_bytes(frame[7:8],"big")&0xf0)>>4)
+
 
                                 if duid == 0x5 or duid == 0xa:
                                         self.activity()
@@ -413,19 +418,19 @@ class logging_receiver(gr.top_block):
                                 r = {}
                                 try:
                                         if duid == 0x0:
-                                                r = self.procHDU(frame)
+                                                r = self.p25_general.procHDU(frame)
                                         elif duid == 0x3:
-                                                r = self.procTnoLC(frame)
+                                                r = self.p25_general.procTnoLC(frame)
                                         elif duid == 0x5:
-                                                r = self.procLDU1(frame)
+                                                r = self.p25_general.procLDU1(frame)
                                         elif duid == 0x7:
-                                                r = self.procTSDU(frame)
+                                                r = self.p25_general.procTSDU(frame)
                                         elif duid == 0xA:
-                                                r = self.procLDU2(frame)
+                                                r = self.p25_general.procLDU2(frame)
                                         elif duid == 0xC:
-                                                r = self.procPDU(frame)
+                                                r = self.p25_general.procPDU(frame)
                                         elif duid == 0xF:
-                                                r = self.procTLC(frame)
+                                                r = self.p25_general.procTLC(frame)
                                         else:
                                                 self.log.warning("%s: ERROR: Unknown DUID %s" % (self.thread_id, duid))
                                 except Exception as e:
@@ -599,197 +604,6 @@ class logging_receiver(gr.top_block):
                 else:
                         return False
                 return integer
-#Stuff pulled from p25
-        def bin_to_bit(self, input):
-                output = ''
-                for i in range(0, len(input)):
-                        output += bin(ord(input[i]))[2:].zfill(8)
-                return output
-        def procStatus(self, bitframe):
-                r = []
-                returnframe = ''
-                for i in range(0, len(bitframe), 72):
-                        r.append(int(bitframe[i+70:i+72],2))
-                        returnframe += bitframe[i:i+70]
-                        if(len(bitframe) < i+72):
-                                break
-                return [returnframe, r]
-        # fake (10,6,3) shortened Hamming decoder, no error correction
-        def hamming_10_6_3_decode(self, input):
-                rs_code  = bytearray(24)
-                rs_erasures = []
-                for i in range(24):
-                        hamming_code = int(input[i*10: (i+1)*10],2)
-                        hamming_decoded = hamming.decode_lc(hamming_code)
-                        if hamming_decoded is None:
-                                rs_code[i] =  (hamming_code >> 4)
-                                rs_erasures.append(i)
-                        else:
-                                rs_code[i] =  hamming_decoded        
-                return rs_code, rs_erasures
-        def procLDU1(self, frame):
-                r = {'short':'LDU1', 'long':'Logical Link Data Unit 1'}
-                bitframe = self.bin_to_bit(frame)
-                [bitframe, status_symbols] = self.procStatus(bitframe)
-
-                r['status_symbols'] = status_symbols
-                r['fs'] = hex(int(bitframe[:48],2))
-                r['nid'] = hex(int(bitframe[48:112],2))
-                bitframe = bitframe[112:]
-                vc = [] #voice coding, 144 bits ea 88 digital voice imbe, 56 parity
-                lc = '' #link control, 240 bits
-                vc.append(bitframe[:144]) #vc1
-                vc.append(bitframe[144:288]) #vc2
-                lc += bitframe[288:328] #lc1-4
-                vc.append(bitframe[328:472]) #vc3
-                lc += bitframe[472:512] #lc5-8
-                vc.append(bitframe[512:656]) #vc4
-                lc += bitframe[656:696] #lc9-12
-                vc.append(bitframe[696:840]) #vc5
-                lc += bitframe[840:880] #lc13-16
-                vc.append(bitframe[880:1024]) #vc6
-                lc += bitframe[1024:1064] #lc17-20
-                vc.append(bitframe[1064:1208]) #vc7
-                lc += bitframe[1208:1248] #lc21-24
-                vc.append(bitframe[1248:1392]) #vc8
-                r['lsd'] = bitframe[1392:1424]
-                vc.append(bitframe[1424:1568]) #vc9
-
-                rs_code, rs_erasures = self.hamming_10_6_3_decode(lc)
-                r['lc'] = self.subprocLC(rs_code, rs_erasures)
-
-                return r
-        def subprocLC(self, rs_code, rs_erasures):
-                bitframe = self.rs_24_12_13_decode(rs_code, rs_erasures)
-                r = {'short': 'LC', 'long': 'Link Control'}
-                if bitframe == False:
-                        return r #Uncorrectable decode
-                r['p'] = int(bitframe[0:1], 2)
-                r['sf'] = int(bitframe[1:2], 2)
-                r['lcf'] = int(bitframe[2:8],2)
-
-                if r['p'] == 1:
-                        return r
-                if r['sf'] == 0:
-                        r['mfid'] = int(bitframe[8:16], 2)
-                        bitframe = bitframe[16:]
-                else:
-                        r['mfid'] = 0
-                        bitframe = bitframe[8:]
-
-                if r['mfid'] != 0:
-                        r['data'] = bitframe
-                        return r
-
-                if(r['lcf'] == 0): #Group Voice Channel User (LCGVR)
-                        r['lcf_long'] = 'Group Voice Channel User'
-                        r['service options'] = int(bitframe[0:8],2)
-                        r['reserved'] = bitframe[8:15]
-                        r['explicit'] = int(bitframe[15:16],2)
-                        r['tgid'] = int(bitframe[16:32],2)
-                        r['source_id'] = int(bitframe[32:56],2)
-                        if self.cdr['system_user_local'] == 0:
-                                self.cdr['system_user_local'] = r['source_id']
-                        #print 'GV %s %s' %(r['tgid'], r['source_id'])
-                elif r['lcf'] == 2:
-                        r['lcf_long'] = 'Group Voice Channel Update'
-                        r['channel_a'] = int(bitframe[0:16],2)
-                        r['channel_a_group'] = int(bitframe[16:32], 2)
-                        r['channel_b'] = int(bitframe[32:48], 2)
-                        r['channel_b_group'] = int(bitframe[48:64], 2)
-                elif r['lcf'] == 3:
-                        r['lcf_long'] = 'Unit to Unit Voice Channel User'
-                        r['service options'] = int(bitframe[0:8],2)
-                        r['source_address'] = int(bitframe[8:32],2)
-                        r['target_address'] = int(bitframe[32:56],2)
-                elif r['lcf'] == 4:
-                        r['lcf_long'] = 'Group Voice Channel Update - Explicit'
-                        r['reserved'] = bitframe[0:8]
-                        r['service_options'] = int(bitframe[8:16],2)
-                        r['group_address'] = int(bitframe[16:32],2)
-                        r['channel_transmit'] = int(bitframe[32:48],2)
-                        r['chanenl_receive'] = int(bitframe[48:64], 2)
-                elif r['lcf'] == 5:
-                        r['lcf_long'] = 'Unit to Unit Answer Request'
-                        r['service options'] = int(bitframe[0:8],2)
-                        r['reserved'] = bitframe[8:15]
-                        r['explicit'] = int(bitframe[15:16],2)
-                        r['target_address'] = int(bitframe[16:40],2)
-                        r['source_address'] = int(bitframe[40:64],2)
-                elif r['lcf'] == 6:
-                        r['lcf_long'] = 'Telephone Interconnect Voice Channel User'
-                        r['reserved'] = bitframe[0:8]
-                        r['service options'] = int(bitframe[8:16],2)
-                        r['reserved2'] = bitframe[16:24]
-                        r['call_timer'] = int(bitframe[24:40], 2)
-                        r['target_adddress'] = int(bitframe[40:64],2)
-                elif r['lcf'] == 7:
-                        r['lcf_long'] = 'Telephone Interconnect Answer Request'
-                        r['digit_1'] = int(bitframe[8:12],2)
-                        r['digit_2'] = int(bitframe[12:16],2)
-                        r['digit_3'] = int(bitframe[16:20],2)
-                        r['digit_4'] = int(bitframe[20:24],2)
-                        r['digit_5'] = int(bitframe[24:28],2)
-                        r['digit_6'] = int(bitframe[28:32],2)
-                        r['digit_7'] = int(bitframe[32:36],2)
-                        r['digit_8'] = int(bitframe[36:40],2)
-                        r['digit_9'] = int(bitframe[40:44],2)
-                        r['digit_10'] = int(bitframe[44:48],2)
-                        r['target_address'] = int(bitframe[48:64], 2)
-                elif(r['lcf'] == 15): #Call Termination / Cancellation
-                        r['lcf_long'] = 'Call Termination / Cancellation'
-                        r['reserved'] = bitframe[0:40]
-                        r['target_address'] = int(bitframe[40:64], 2)
-                elif r['lcf'] == 16:
-                        r['lcf_long'] = 'Group Affiliation Query'
-                        r['reserved'] = bitframe[0:16]
-                        r['target_address'] = int(bitframe[16:40], 2)
-                        r['source_address'] = int(bitframe[40:64], 2)
-                elif r['lcf'] == 17:
-                        r['lcf_long'] = 'Unit Registration Command'
-                        r['network_id'] = int(bitframe[0:12], 2)
-                        r['system_id'] = int(bitframe[12:24], 2)
-                        r['target_id'] = int(bitframe[24:48], 2)
-                        r['reserved'] = bitframe[48:64]
-                return r
-        def golay_24_12_8_decode(self, input):
-                rs_code = bytearray(24)
-                rs_erasures = []
-        
-                for i in range(12):
-                        golay_code = int(input[i*24: (i+1)*24],2)
-                        golay_decoded= golay.decode_lc(golay_code)
-                        if golay_decoded is None:
-                                rs_code[2*i]   = (golay_code >>18 ) & 0x3F
-                                rs_code[2*i+1] = (golay_code >>12 ) & 0x3F
-                                rs_erasures.append(2*i)
-                                rs_erasures.append(2*i+1)
-                        else:
-                                rs_code[2*i]   = (golay_decoded>> 6) & 0x3F
-                                rs_code[2*i+1] = (golay_decoded) & 0x3F
-
-                return rs_code, rs_erasures
-
-        def procTLC(self, frame):
-                r = {'short': 'TLC', 'Long' : 'Terminator with Link Control'}
-                bitframe = self.bin_to_bit(frame)
-                [bitframe, status_symbols] = self.procStatus(bitframe)
-                r['fs'] = hex(int(bitframe[:48],2))
-                r['nid'] = hex(int(bitframe[48:112],2))
-                bitframe = bitframe[112:-20]
-
-
-                rs_code, rs_erasures = self.golay_24_12_8_decode(bitframe)
-                r['lc'] = self.subprocLC(rs_code, rs_erasures)
-
-                return r
-        def rs_24_12_13_decode(self, rs_code, rs_erasures):
-                data = rs64.decode_lc(rs_code, rs_erasures)
-
-                if data:
-                        return util.bytes_to_binary_str(data)
-                else:
-                        return False
 
 # Demodulator frequency tracker
 #
