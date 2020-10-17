@@ -8,12 +8,13 @@ import random
 import threading
 import time
 import logging
+import uuid
 
 class frontend_connector():
         def __init__(self, parent_instance_uuid, redis_channelizer_manager):
                 #temp hack until I have auto-frontend figured out
 
-                self.log = logging.getLogger('%s.frontend_connector' % parent_instance_uuid)
+                self.log = logging.getLogger('%s.frontend_connector' % (str(uuid.uuid4())))
         
                 self.thread_lock = threading.Lock()
                 self.send_lock = threading.Lock()
@@ -32,6 +33,7 @@ class frontend_connector():
                 self.my_client_id = None
                 self.channel_id = None
                 self.frequency = None
+                self.last_create_channel = None
 
                 connection_handler = threading.Thread(target=self.connection_handler, name='connection_handler')
                 connection_handler.daemon = True
@@ -123,6 +125,7 @@ class frontend_connector():
                     return False
 
         def create_channel(self, channel_rate, freq):
+                self.last_create_channel = time.time()
                 self.frequency = freq
                 self.connection_init(freq)
                 self.connect()
@@ -199,7 +202,8 @@ class frontend_connector():
                             #we haven't initialized yet
                             time.sleep(0.01)
                             continue
-
+                        if self.last_create_channel != None and self.frequency == None and time.time()-self.last_create_channel > 120:
+                            self.log.warning('Idle frontend connector detected idle time: %s' % (time.time()-self.last_create_channel))
                         self.thread_lock.acquire()
                         self.log.debug('Sending heartbeat')
                         try:
