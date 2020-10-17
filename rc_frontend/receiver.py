@@ -65,7 +65,7 @@ class receiver(gr.top_block):
                     for i in list(self.realsources):
                         if i != int(index):
                             del self.realsources[i]
-
+                self.log.info('Sources at init: %s %s' % (self.sources, self.realsources))
 
                 for source in self.realsources:
                         if config.receiver_split2:
@@ -256,6 +256,7 @@ class receiver(gr.top_block):
                                         self.connect((self.sources[source]['pfb'], x), null_sink)
                                 self.connect(self.sources[source]['block'], self.sources[source]['pfb'])
 
+                self.log.info('Sources after init: %s %s' % (self.sources, self.realsources))
                 self.channels = {}
                 #for i in self.sources.keys():
                 #        self.channels[i] = []
