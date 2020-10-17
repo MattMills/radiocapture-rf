@@ -679,7 +679,15 @@ if __name__ == '__main__':
                 try:
                         msg = socket.recv_string(flags=zmq.NOBLOCK)
                         resp = handler(msg, tb)
+                except zmq.Again:
+                    time.sleep(0.001)
+                    continue
+                except Exception as e:
+                        log.error('Exception in recv_string: (%s) %s' % (type(e), e))
+                for t in range(3):
+                    try:
                         socket.send_string(resp)
-                except zmq.Again as e:
-                        time.sleep(0.001)
+                        break
+                    except Exception as e:
+                        log.error('Exception in send_string: (%s) %s' % (type(e), e))
                 #print(tb.channels)
