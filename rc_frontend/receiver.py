@@ -534,14 +534,14 @@ if __name__ == '__main__':
                                 if result == -1:
                                         #Channel failed to release
                                         log.error('failed to release %s %s' % (block_id, c))
-                                        return 'na,%s\n' % block_id
+                                        return 'na,%s' % block_id
                                 else:
                                         log.info('Released channel %s %s' % ( block_id,c))
                                         try:
                                                 clients[c].remove(block_id)
                                         except ValueError as e:
                                                 pass
-                                        return 'release,%s\n'
+                                        return 'release,%s' % block_id
                         except Exception as e:
                                 return 'na\n'
                 elif data[0] == 'scan_mode_set_freq':
