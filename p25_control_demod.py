@@ -37,11 +37,14 @@ import zmq
 # The P25 receiver
 #
 class p25_control_demod (gr.top_block):
-        def __init__(self, system, site_uuid, overseer_uuid):
+        def __init__(self, system, site_uuid, overseer_uuid, rcm=None):
         
                 gr.top_block.__init__(self, "p25 receiver")
 
-                self.rcm = redis_channelizer_manager()
+                if rcm == None:
+                    self.rcm = redis_channelizer_manager()
+                else:
+                    self.rcm = rcm
                 self.zmq_context = zmq.Context()
                 self.zmq_socket = self.zmq_context.socket(zmq.SUB)
                 self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b"")
@@ -532,7 +535,7 @@ class p25_control_demod (gr.top_block):
                 total_messages = self.total_messages
                 last_total = 0
                 last_bad = 0
-                while True:
+                while self.keep_running:
                         sleep(10); #only check messages once per 10second
                         sid = '%s %s-%s %s-%s' % (self.system['id'], self.site_detail['System ID'], self.site_detail['WACN ID'], self.site_detail['RF Sub-system ID'], self.site_detail['Site ID'])
                         

@@ -18,12 +18,13 @@ except:
     pass
 
 class redis_channelizer_manager():
-        def __init__(self, host=None, port=None):
+        def __init__(self, index=None):
                 self.log = logging.getLogger('redis_channelizer_manager')
 
                 self.clients = []
                 self.continue_running = True
-                
+                self.index=index
+
                 self.channelizers = {}
 
                 self.init_connection()
@@ -87,7 +88,10 @@ class redis_channelizer_manager():
                         for instance_uuid in instances:
                                 try:
                                         data = client.get(instance_uuid)
-                                        channelizers[instance_uuid.decode('utf-8')] = json.loads(data)
+                                        if data != None:
+                                            channelizer = json.loads(data)
+                                        if self.index == None or int(channelizer['index']) == self.index:
+                                            channelizers[instance_uuid.decode('utf-8')] = channelizer
                                 except Exception as e:
                                         self.log.error('Exception (%s) %s while loading channelizer instance %s from redis' % (type(e), e, instance_uuid))
                 
