@@ -262,7 +262,7 @@ class receiver(gr.top_block):
                 #for i in self.sources.keys():
                 #        self.channels[i] = []
 
-                self.redis_channel_publisher = redis_channel_publisher(sources=self.sources, channels=self.channels, zmq_socket=self.zmq_socket)
+                self.redis_channel_publisher = redis_channel_publisher(sources=self.sources, channels=self.channels, zmq_socket=self.zmq_socket, index=index)
 
 
                 self.start()

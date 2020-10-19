@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 
 
 class redis_channel_publisher():
-        def __init__(self, host=None, port=None, sources=None, channels=None, zmq_socket=None):
+        def __init__(self, host=None, port=None, sources=None, channels=None, zmq_socket=None, index=None):
                 self.log = logging.getLogger('redis_channel_publisher')
 
                 if(host != None):
@@ -42,6 +42,7 @@ class redis_channel_publisher():
                 self.sources = sources
                 self.channels = channels
                 self.zmq_socket = zmq_socket
+                self.index = index
                 self.instance_uuid = str(uuid.uuid4())
 
                 self.client = None
@@ -73,7 +74,8 @@ class redis_channel_publisher():
                                 }
 
 
-
+                        if self.index != None:
+                            publish_data['index'] = self.index
                         for source_id in self.sources:
                             source = self.sources[source_id]
 
