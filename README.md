@@ -94,4 +94,6 @@ service radiocapture-channelizer start
 service radiocapture-rf start
 
 ```
+At this point you should have a fully functioning system that will capture all audio from the configured trunking sites, audio will be mp3 encoded and tagged with id3v2 tags with relevant metadata. Additionally, call data records (CDRs) will be output to activemq on the hardcoded queue names. This data is vast and intended to be automatically collected and ingested into a larger system, so it isn't exactly in a user-friendly layout, but it is possible to listen to audio clips in the audio directory if necessary. The audio is stored used the current instance_uuid of the active demodulator in the path, so you may need to look at the log output to know which system is which. `tail -F logs/overseer.log | grep 'System Status'` should give you the info you need to understand how your systems are performing and which demodulators are running/what they are locked to.
+
 
