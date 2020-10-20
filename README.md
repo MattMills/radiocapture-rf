@@ -40,13 +40,9 @@ Also, specifically I don't know what I was thinking when I used the terms fronte
 
 ## Where can I find help?
 
-Well... you can't. 
+You can find me in [https://radiocapture.chat](https://radiocapture.chat).
 
-You can find me in [https://radiocapture.chat](https://radiocapture.chat) and ask whatever you like, but as I don't intend this to be a product for anyone to use (sorry! it just isn't documented/written well enough for that yet, it needs work to make it easy to use), I may not be much help. 
-
-Let me put it this way: I am happy to provide direction, guidance, and help to anyone that wants to contribute to the project, via Patreon or with your own efforts to improve the project. Unfortunately my time is limited (and I need to spend it strategically to remain housed/fed).
-
-But don't let that discourage you; I didn't know anything about radio before I started working on this app.
+In the future I plan to have a release build that is more friendly to people who aren't linux sysadmins (like a bootable DVD). I'm not sure what functionality that release will have yet though.
 
 ## How to install:
 ### WARNING WARNING WARNING: Install instructions are still work in progress
