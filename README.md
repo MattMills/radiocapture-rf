@@ -49,5 +49,45 @@ Let me put it this way: I am happy to provide direction, guidance, and help to a
 But don't let that discourage you; I didn't know anything about radio before I started working on this app.
 
 ## How to install:
+### WARNING WARNING WARNING: Install instructions are still work in progress
 
-Coming soon, code is now compatible with python3 and standard ubuntu packages, only required manual compile is op25.
+These are my install instruction notes from a fresh ubuntu 20.04 server install
+
+```
+sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list
+apt-get update
+apt-get install gnuradio gnuradio-dev python3-redis gr-osmosdr librtlsdr-dev libuhd-dev  libhackrf-dev libitpp-dev libpcap-dev git python3-pip redis-tools redis-server activemq
+apt-get build-dep gnuradio
+pip3 install stompest manhole multiprocessing_logging
+cd /opt
+git pull git@github.com:MattMills/radiocapture-rf.git
+#OP25 build DEFINITELY doesn't work right now, needs some code changes to work with python 3.8 and swig right TODO
+git pull git@github.com:MattMills/op25.git
+cd op25
+mkdir build
+cd build
+cmake ..
+make -j 8
+make install
+cd /opt/radiocapture-rf
+#make a config.py
+cd rc_frontend
+ln -s ../config.py
+
+#activemq stomp enable
+#activemq instance enable
+#activemq start
+#redis start
+
+#if cluster:
+#activemq bind 0.0.0.0
+#redis bind 0.0.0.0
+#firewall warning
+#put all redis servers into the config
+#set hosts file hostname to LAN IP not 127.0.0.1
+#systemctl files install
+service radiocapture-channelizer start
+service radiocapture-rf start
+
+```
+
