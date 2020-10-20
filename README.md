@@ -58,12 +58,12 @@ apt-get install sox lame id3v2
 apt-get build-dep gnuradio
 pip3 install stompest manhole multiprocessing_logging
 cd /opt
-git pull git@github.com:MattMills/radiocapture-rf.git
+git clone git@github.com:MattMills/radiocapture-rf.git
 
 # OP25 build DEFINITELY doesn't work right now
 # needs some code changes to work with python 3.8 and swig right TODO
 
-git pull git@github.com:MattMills/op25.git
+git clone git@github.com:MattMills/op25.git
 cd op25
 mkdir build
 cd build
