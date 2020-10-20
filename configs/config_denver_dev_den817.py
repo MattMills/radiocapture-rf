@@ -654,6 +654,7 @@ class rc_config:
                                 'id': 32,
                                 'transmit_site_uuid': '3bf26f46-1261-47c4-b581-50e98816516e',
                                 'system_uuid': '8bd8cbe3-ac9a-4808-b2e4-a8817b6a288f',  #MARC
+                                'modulation': 'CQPSK',
                                 'default_control_channel': 0,
                                 'channels': {
                                         0: 851312500,
@@ -673,9 +674,21 @@ class rc_config:
                                 'system_uuid': '86ed790d-3a7d-4db0-adc8-a9d2e09ac103',
                                 'default_control_channel': 0,
                                 'channels': {
-                                        0: 857712500,
-                                        1: 858437500,
-                                        2: 859437500
+                                       1: 855212500,
+                                       2: 855712500,
+                                       3: 856462500,
+                                       4: 857212500,
+                                       5: 857712500,
+                                       6: 851362500,
+                                       7: 851662500,
+                                       8: 851937500,
+                                       9: 852537500,
+                                       10: 852837500,
+                                       11: 856437500,
+                                       12: 857437500,
+                                       13: 858437500,
+                                       14: 859437500,
+                                       0: 857637500
 
                                 }
                         },
@@ -718,16 +731,16 @@ class rc_config:
                 del self.systems[18]
                 del self.systems[17]
                 del self.systems[16]
-                #del self.systems[15]
-                del self.systems[14]
+                del self.systems[15]
+                #del self.systems[14]
 
 
-                del self.systems[11]#
-                del self.systems[10]#
+                #del self.systems[11]#
+                #del self.systems[10]#
 
-                del self.systems[8]#
-                del self.systems[7]#
-                del self.systems[6]
+                #del self.systems[8]#
+                #del self.systems[7]#
+                #del self.systems[6]
 
                 del self.systems[5]
                 del self.systems[4]
