@@ -54,6 +54,7 @@ sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list
 apt-get update
 apt-get install gnuradio gnuradio-dev python3-redis gr-osmosdr librtlsdr-dev libuhd-dev  
 apt-get install libhackrf-dev libitpp-dev libpcap-dev git python3-pip redis-tools redis-server activemq
+apt-get install sox lame id3v2
 apt-get build-dep gnuradio
 pip3 install stompest manhole multiprocessing_logging
 cd /opt
