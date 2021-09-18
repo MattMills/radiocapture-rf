@@ -91,6 +91,7 @@ class logging_receiver(gr.top_block):
 
                 #Setup connector
                 self.connector = frontend_connector(cdr['instance_uuid'], self.rcm)
+                self.source = None
                 for retry in 1,2,3,4,5:
                         try:
                                 channel_id, port = self.connector.create_channel(int(self.cdr['channel_bandwidth']), int(self.cdr['frequency']))
@@ -100,7 +101,7 @@ class logging_receiver(gr.top_block):
                                 pass
                 if self.source == None:
                         self.connector.exit()
-                        return False
+                        self.log.error("Failed to after five attempts connector.create_channel(%s, %s)" % (int(self.cdr['channel_bandwidth']), int(self.cdr['frequency'])))
 
                 if self.log_dat:
                         self.dat_sink = blocks.file_sink(gr.sizeof_gr_complex*1, self.filename)
