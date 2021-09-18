@@ -71,7 +71,8 @@ class redis_channelizer_manager():
             try:
                 channelizer = random.choice(options[smallest_offset])
                 return (self.channelizers[channelizer]['address'], self.channelizers[channelizer]['port'])
-            except:
+            except Exception as e:
+                self.log.error("Exception in rcm.get_channelizer_for_frequency(%s): %s" % (frequency, e))
                 return (None, None)
 
         def manager_loop(self):
