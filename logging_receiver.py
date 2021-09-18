@@ -40,23 +40,27 @@ import zmq
 
 class logging_receiver(gr.top_block):
         def __init__(self, cdr, client_activemq, client_redis, rcm):
+                gr.top_block.__init__(self, "logging_receiver")
+
+                self.log = logging.getLogger('overseer.logging_receiver')
+                self.log.debug("logging_receiver().__init__(%s, %s, %s, %s, %s" % (self, cdr, client_activemq, client_redis, rcm))
+
+                self.cdr = cdr
+                self.client_activemq = client_activemq
+                self.client_redis = client_redis
+                self.rcm = rcm
+
                 self.thread_lock = threading.Lock()
                 self.thread_lock.acquire()
                 self.audio_capture = True
 
-                gr.top_block.__init__(self, "logging_receiver")
-
-                self.rcm = rcm
                 self.p25_general = p25_general()
 
                 self.zmq_context = zmq.Context()
                 self.zmq_socket = self.zmq_context.socket(zmq.SUB)
                 self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b"")
 
-                self.cdr = cdr
                 self.in_use = False
-                self.client_activemq = client_activemq
-                self.client_redis = client_redis
                 self.thread_id = 'logr-' + str(uuid.uuid4())
 
                 self.filename = "/dev/null"
@@ -80,8 +84,6 @@ class logging_receiver(gr.top_block):
         
                 self.destroyed = False
 
-                self.log = logging.getLogger('overseer.logging_receiver')
-                self.log.debug('Initializing call_recorder')
 
                 #debug = threading.Thread(target=self.debug, name='logging_receiver_debug')
                 #debug.daemon = True
