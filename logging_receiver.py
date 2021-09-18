@@ -309,7 +309,8 @@ class logging_receiver(gr.top_block):
                         #self.debug_sink = blocks.file_sink(1, '/dev/null')
                         #self.connect(self.slicer, self.debug_sink)
 
-                        self.qsink = blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
+                        self.qsink = qsink = zeromq.pub_sink(gr.sizeof_char, 1, 'tcp://127.0.0.1:*')
+                        self.zmq_socket.connect(qsink.last_endpoint())
 
                         self.float_conversion = blocks.short_to_float(1, 8192)
 
