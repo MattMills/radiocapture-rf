@@ -1,15 +1,27 @@
+#!/usr/bin/env python3
+
 import numpy
-import matplotlib.pyplot as plt
 from scipy import signal
 
 from p25_control_demod import p25_control_demod
+from moto_control_demod import moto_control_demod
+from edacs_control_demod import edacs_control_demod
 from redis_channelizer_manager import redis_channelizer_manager
 
 
 from config import rc_config
 
-import time, uuid
+import time
+import uuid
+import json
+import logging
 import argparse
+
+
+with open('config.logging.json', 'rt') as f:
+        config = json.load(f)
+
+logging.config.dictConfig(config)
 
 overseer_uuid = '%s' % str(uuid.uuid4())
 site_uuid = '876c1a54-8183-4134-a41c-67a5b6121fcd'
@@ -23,7 +35,7 @@ args = parser.parse_args()
 
 
 rcm = redis_channelizer_manager(index=args.index)
-
+time.sleep(0.5)
 with open('/tmp/fft_source_%s' % args.index, 'rb') as fh:
     data = numpy.fromfile(fh, numpy.float32) 
 
@@ -61,18 +73,14 @@ for line in peaks[0]:
         print('Peak %s' % int(frequency))
         demods[frequency] = p25_control_demod({
                 'type': 'p25',
-                'id': 'c4fm',
+                'id': 'p25',
                 'modulation': 'C4FM',
                 'default_control_channel': 0,
-                'channels': { 0: frequency},
+                'channels': { 0: frequency, 1:frequency},
             }, site_uuid, overseer_uuid, rcm=rcm)
         demods[frequency].start()
 
-    #    plt.axvline(line, alpha=0.5, color='r')
-    #    plt.text(line, .5, frequency, rotation=90)
-    #else:
-    #    plt.axvline(line, alpha=0.5, color='g')
-time.sleep(10)
+time.sleep(30)
 offsets = []
 for frequency in demods:
             thread = demods[frequency]
@@ -92,8 +100,8 @@ for frequency in demods:
                     thread.keep_running = False
                     with open('fft.scan.output', 'a') as f:
                         f.write('%s %s %s\n' % (frequency, offset, detail))
-
-print('offset average for %s: %s' % (args.index, sum(offsets)/len(offsets)))
+if len(offsets) > 0:
+    print('offset average for %s: %s' % (args.index, sum(offsets)/len(offsets)))
 #plt.plot(data)
 #plt.axhline((data_average*2))
 #plt.show()
