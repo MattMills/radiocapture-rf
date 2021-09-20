@@ -225,9 +225,11 @@ class p25_control_demod (gr.top_block):
                                 self.disconnect(self.source, self.fm_demod)
                                 self.disconnect(self.source, self.resampler)
                 self.connector.release_channel()
+
                 port = False
                 channel_id = False
-                while port == False:
+
+                for x in range(0, 3):
                     try:
                         channel_id, port = self.connector.create_channel(self.channel_rate, self.control_channel)
                     except Exception as e:
@@ -237,6 +239,8 @@ class p25_control_demod (gr.top_block):
                     if port == False or port == None:
                         self.log.error('Something is seriously wrong, unable to create channel for control channel')
                         sleep(1)
+                    else:
+                        break
                 for x in range(0, 3):
                         try:
                                 self.source = zeromq.sub_source(gr.sizeof_gr_complex*1, 1, 'tcp://%s:%s' % (self.connector.host, port))
