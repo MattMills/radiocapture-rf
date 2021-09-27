@@ -167,7 +167,7 @@ class logging_receiver(gr.top_block):
                         self.float_conversion = None
                         self.resampler = None
                 elif self.protocol == 'p25_cqpsk' or self.protocol == 'p25_cqpsk_tdma':
-                        self.disconnect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer, self.decoder2, self.qsink)#, (self.subtract,0))
+                        self.disconnect(self.source, self.prefilter, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer, self.decoder2, self.qsink)#, (self.subtract,0))
                         self.disconnect(self.slicer, self.decoder, self.float_conversion, self.sink)
 
                         self.prefilter = None
@@ -224,8 +224,8 @@ class logging_receiver(gr.top_block):
                         else:
                                 symbol_rate = 4800
                         channel_rate = self.input_rate
-                
-                        self.prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, self.input_rate)
+                        taps = firdes.low_pass_2(1.0,channel_rate,self.channel_rate/2,500.0, 30.0, firdes.WIN_BLACKMAN)               
+                        self.prefilter = filter.freq_xlating_fir_filter_ccc(1, taps, 0, self.input_rate)
         
                         fm_demod_gain = channel_rate / (2.0 * pi * symbol_deviation)
                         self.fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
@@ -279,6 +279,10 @@ class logging_receiver(gr.top_block):
                                 symbol_rate = 6000
                         else:
                                 symbol_rate = 4800
+
+                        taps = firdes.low_pass_2(1.0,self.channel_rate,self.channel_rate/2,500.0, 30.0, firdes.WIN_BLACKMAN)
+                        self.prefilter = filter.freq_xlating_fir_filter_ccc(1, taps, 0, self.input_rate)
+
                         omega = float(self.input_rate) / float(symbol_rate)
                         gain_omega = 0.1  * gain_mu * gain_mu
 
@@ -314,7 +318,7 @@ class logging_receiver(gr.top_block):
 
                         self.float_conversion = blocks.short_to_float(1, 8192)
 
-                        self.connect(self.source, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer, self.decoder2, self.qsink)#, (self.subtract,0))
+                        self.connect(self.source, self.prefilter, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, self.slicer, self.decoder2, self.qsink)#, (self.subtract,0))
                         self.connect(self.slicer, self.decoder, self.float_conversion, self.sink)
                 elif protocol == 'provoice':
                         fm_demod_gain = 0.6

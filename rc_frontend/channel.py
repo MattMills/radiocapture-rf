@@ -29,7 +29,8 @@ class channel ( gr.top_block):
                 self.zmq_sub_source = zeromq.sub_source(gr.sizeof_gr_complex, 1, parent_zmq_address, 100, False, -1)
 
                 decim = int(samp_rate/(channel_rate))/2
-                taps = firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2,4000)
+                #taps = firdes.low_pass(1,self.samp_rate,(self.channel_rate-2000)/2,4000)
+                taps = firdes.low_pass_2(1.0,float(samp_rate),(channel_rate)/2,channel_rate/2, 20.0, firdes.WIN_HAMMING)
                 #print 'taps: %s' % len(taps)
                 self.prefilter = filter.freq_xlating_fir_filter_ccc(decim, (taps), offset, samp_rate)
                 self.sink = zeromq.pub_sink(gr.sizeof_gr_complex*1, 1, 'tcp://0.0.0.0:%s' % port)

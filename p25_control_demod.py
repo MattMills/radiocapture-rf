@@ -101,14 +101,15 @@ class p25_control_demod (gr.top_block):
 
                 # channel filter
                 channel_rate = self.channel_rate*2
-                self.control_prefilter = filter.freq_xlating_fir_filter_ccc(1, (1,), 0, channel_rate)
+                taps = firdes.low_pass_2(1.0,channel_rate,self.channel_rate/2,500.0, 30.0, firdes.WIN_BLACKMAN)
+                self.control_prefilter = filter.freq_xlating_fir_filter_ccc(1, taps, 0, channel_rate)
         
                 # power squelch
                 #power_squelch = gr.pwr_squelch_cc(squelch, 1e-3, 0, True)
                 #self.connect(self.channel_filter, power_squelch)
 
                 autotuneq = gr.msg_queue(2)
-                self.demod_watcher = demod_watcher(self)
+                #self.demod_watcher = demod_watcher(self)
                 self.symbol_deviation = 600.0
 
                 if self.modulation == 'C4FM':
@@ -131,14 +132,14 @@ class p25_control_demod (gr.top_block):
                         demod_fsk4 = op25.fsk4_demod_ff(autotuneq, channel_rate, symbol_rate)
                 elif self.modulation == 'CQPSK':
                         # FM demodulator
-                        fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
-                        self.fm_demod = fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
+                        #fm_demod_gain = channel_rate / (2.0 * pi * self.symbol_deviation)
+                        #self.fm_demod = fm_demod = analog.quadrature_demod_cf(fm_demod_gain)
 
-                        moving_sum = blocks.moving_average_ff(10000, 1, 40000)
-                        subtract = blocks.sub_ff(1)
-                        divide_const = blocks.multiply_const_vff((0.0001, ))
-                        self.probe = blocks.probe_signal_f()
-                        self.connect(fm_demod, moving_sum, divide_const, self.probe)
+                        #moving_sum = blocks.moving_average_ff(10000, 1, 40000)
+                        #subtract = blocks.sub_ff(1)
+                        #divide_const = blocks.multiply_const_vff((0.0001, ))
+                        #self.probe = blocks.probe_signal_f()
+                        #self.connect(fm_demod, moving_sum, divide_const, self.probe)
 
                         #self.resampler = filter.pfb.arb_resampler_ccf(float(48000)/float(channel_rate))
                         self.resampler = blocks.multiply_const_cc(1.0)
@@ -173,15 +174,7 @@ class p25_control_demod (gr.top_block):
                 if self.modulation == 'C4FM':
                         self.connect(self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
                 elif self.modulation == 'CQPSK':
-                        self.connect(self.resampler, self.agc)
-                        self.connect(self.agc, self.symbol_filter_c)
-                        self.connect(self.symbol_filter_c, self.clock)
-                        self.connect(self.clock, self.diffdec)
-                        self.connect(self.diffdec, self.to_float)
-                        self.connect(self.to_float, self.rescale)
-                        self.connect(self.rescale, slicer)
-                        self.connect(slicer, decoder)
-                        self.connect(decoder, qsink)
+                        self.connect(self.control_prefilter, self.resampler, self.agc, self.symbol_filter_c, self.clock, self.diffdec, self.to_float, self.rescale, slicer, decoder, qsink)
         
                 ##################################################
                 # Threads
@@ -222,8 +215,7 @@ class p25_control_demod (gr.top_block):
                         if self.modulation == 'C4FM':
                                 self.disconnect(self.source, self.control_prefilter)
                         elif self.modulation == 'CQPSK':
-                                self.disconnect(self.source, self.fm_demod)
-                                self.disconnect(self.source, self.resampler)
+                                self.disconnect(self.source, self.control_prefilter)
                 self.connector.release_channel()
 
                 port = False
@@ -253,8 +245,7 @@ class p25_control_demod (gr.top_block):
                 if self.modulation == 'C4FM':
                         self.connect(self.source, self.control_prefilter)
                 elif self.modulation == 'CQPSK':
-                        self.connect(self.source, self.fm_demod)
-                        self.connect(self.source, self.resampler)
+                        self.connect(self.source, self.control_prefilter)
 
                 self.unlock()
                 self.log.info('CC Change %s' % self.control_channel)
