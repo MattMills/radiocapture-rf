@@ -1,0 +1,20 @@
+[Unit]
+Description=RadioCapture channelizer service (instance #%i)
+After=syslog.target activemq.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/radiocapture-rf/rc_frontend
+LimitNOFILE=491520
+ExecStart=/opt/radiocapture-rf/rc_frontend/receiver.py -i %i
+StandardOutput=syslog
+StandardError=syslog
+Restart=always
+RestartSec=3
+Environment=PYTHONPATH="/usr/local/lib/python3/dist-packages/:/usr/local/lib/python3.8/dist-packages/"
+
+
+[Install]
+WantedBy=multi-user.target
