@@ -57,7 +57,9 @@ sudo add-apt-repository ppa:mormj/gnuradio-releases-3.8
 sudo apt-get update
 apt-get update
 apt-get install gnuradio gnuradio-dev python3-redis gr-osmosdr librtlsdr-dev libuhd-dev  
-apt-get install libhackrf-dev libitpp-dev libpcap-dev git python3-pip redis-tools redis-server activemq
+apt-get install libhackrf-dev libitpp-dev libpcap-dev git python3-pip redis-tools redis-server 
+# STRONGLY recommend installing activemq from tarball instead of:
+apt-get install activemq
 apt-get install sox lame id3v2
 apt-get build-dep gnuradio
 pip3 install stompest manhole multiprocessing_logging
