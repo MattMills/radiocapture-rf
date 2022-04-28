@@ -52,7 +52,7 @@ class call_recorder_manager():
                 new_process = func(*args, **kwargs)
                 try:
                     while(new_process.keep_running.value == True):
-                        time.sleep(0.001)
+                        time.sleep(0.1)
                 finally:
                     new_process.keep_running.value = False
                     new_process.shutdown()
