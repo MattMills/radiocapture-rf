@@ -47,14 +47,14 @@ class frontend_connector():
 
                 host, port = self.redis_channelizer_manager.get_channelizer_for_frequency(frequency)
                 self.host = host
-                self.log.info('Attempting ZMQ socket connection to tcp://%s:%s' % (host, port))
+                self.log.debug('Attempting ZMQ socket connection to tcp://%s:%s' % (host, port))
                 try:
                     self.socket.connect("tcp://%s:%s" % (host, port))
                 except Exception as e:
                     self.log.error('ZMQ connection failed to tcp://%s:%s Exception: (%s) %s' % (host, port, type(e), e))
                     raise e
 
-                self.log.info('Successful ZMQ socket connection to tcp://%s:%s' % (host, port))
+                self.log.debug('Successful ZMQ socket connection to tcp://%s:%s' % (host, port))
                 self.my_client_id = None
                 self.channel_id = None
                 self.channel_port = 0
