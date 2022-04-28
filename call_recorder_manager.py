@@ -55,6 +55,7 @@ class call_recorder_manager():
                         time.sleep(0.001)
                 finally:
                     new_process.keep_running.value = False
+                    new_process.shutdown()
                     self.log.fatal('call_recorder EXIT args (%s) pid %s' % (args, os.getpid()))
                     self.log.info('THREADSTATE worker EXIT: %s %s' % (os.getpid(), threading.get_native_id()))
                     return
