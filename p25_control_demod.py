@@ -241,11 +241,13 @@ class p25_control_demod (gr.top_block):
                                 self.log.error('Exception in zeromq source creation (%s), try: %s' % (e, x))
                                 sleep(0.1)
                 
-                
-                if self.modulation == 'C4FM':
-                        self.connect(self.source, self.control_prefilter)
-                elif self.modulation == 'CQPSK':
-                        self.connect(self.source, self.control_prefilter)
+                try:
+                    if self.modulation == 'C4FM':
+                            self.connect(self.source, self.control_prefilter)
+                    elif self.modulation == 'CQPSK':
+                            self.connect(self.source, self.control_prefilter)
+                except Exception as e:
+                    self.log.error('Exception in flow graph reconnection: %s %s' % (type(e), e))
 
                 self.unlock()
                 self.log.info('CC Change %s' % self.control_channel)
