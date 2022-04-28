@@ -174,10 +174,11 @@ class client_redis():
                 self.log.info('THREADSTATE worker spawn: %s %s' % (os.getpid(), threading.get_native_id()))
                 while self.continue_running:
                         try:
-                                if(queue.empty()):
-                                    time.sleep(0.001)
-                                    continue
-                                item = queue.get()
+                                try:
+                                    item = queue.get(block=True, timeout=0.1)
+                                except:
+                                    continue #Empty raises exception
+
                                 for x in 1,2,3:
                                         try:
                                                 item['callback'](item['callback_class'], item['data'], item['headers'])
@@ -204,6 +205,7 @@ class client_redis():
                 time.sleep(0.2)
                 self.log.info('THREADSTATE publish_loop spawn: %s %s' % (os.getpid(), threading.get_native_id()))
                 while self.continue_running:
+                        time.sleep(0.01) #safety sleep
                         if self.connection_issue == False:
                                 try:
                                         try:
