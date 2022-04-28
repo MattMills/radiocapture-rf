@@ -12,6 +12,7 @@ import math
 import logging
 import traceback
 import redis
+import os
 import queue as Queue
 
 class client_redis():
@@ -72,7 +73,8 @@ class client_redis():
                         self.threads.append(t)
         def connection_handler(self):
                 #This func will just try to reconnect repeatedly in a thread if we're flagged as having an issue.
-                while(True):
+                self.log.info('THREADSTATE connection_handler spawn: %s %s' % (os.getpid(), threading.get_native_id()))
+                while(self.continue_running):
                         if(self.connection_issue == True):
                                 try:
                                         self.init_connection()
@@ -86,6 +88,8 @@ class client_redis():
                                         self.log.critical('Except: %s' % e)
                         self.build_worker_pool(self.worker_threads)
                         time.sleep(10)
+
+                self.log.info('THREADSTATE connection_handler EXIT: %s %s' % (os.getpid(), threading.get_native_id()))
         def subscribe(self, queue, callback_class, callback, resub=False):
                 #This needs to exist so we can keep track of what subs we have and re-sub on reconnect
                 if queue in self.subscriptions and not resub:
@@ -127,6 +131,7 @@ class client_redis():
                 self.outbound_msg_queue_lazy.append({'destination': destination, 'body': body, 'headers': headers, 'persistent': persistent})
 
         def send_event_lazy_thread(self):
+                self.log.info('THREADSTATE send_event_lazy spawn: %s %s' % (os.getpid(), threading.get_native_id()))
                 while self.continue_running:
                         time.sleep(0.010)
                         #If it gets there, then great, if not, well we tried!
@@ -145,12 +150,12 @@ class client_redis():
                                         self.log.critical('Except: %s' % e)
                                         self.outbound_msg_queue_lazy.insert(0,item)
                                         self.connection_issue = True
-
+                self.log.info('THREADSTATE send_event_lazy EXIT: %s %s' % (os.getpid(), threading.get_native_id()))
         def send_event_hopeful(self, destination, body, persist):
                 self.outbound_msg_queue.append({'destination': destination, 'body': body})
 
         def send_event_hopeful_thread(self):
-
+                self.log.info('THREADSTATE send_event_hopeful spawn: %s %s' % (os.getpid(), threading.get_native_id()))
                 while self.continue_running:
                         time.sleep(0.010)
                         if(self.connection_issue == True):
@@ -164,9 +169,14 @@ class client_redis():
                                         self.log.critical('Except: %s' % e)
                                         self.outbound_msg_queue.insert(0,item)
                                         self.connection_issue = True
+                self.log.info('THREADSTATE send_event_hopeful EXIT: %s %s' % (os.getpid(), threading.get_native_id()))
         def worker(self, queue):
+                self.log.info('THREADSTATE worker spawn: %s %s' % (os.getpid(), threading.get_native_id()))
                 while self.continue_running:
                         try:
+                                if(queue.empty()):
+                                    time.sleep(0.001)
+                                    continue
                                 item = queue.get()
                                 for x in 1,2,3:
                                         try:
@@ -180,13 +190,19 @@ class client_redis():
                                 
                                 
                                 queue.task_done()        
-                        except:
+                        except Exception as e:
+                                self.log.error('Exception in worker: %s %s ' % (type(e), e))
+                                traceback.print_exc()
+                                sys.exc_clear()
                                 time.sleep(0.01)
                                 pass
+                self.log.info('THREADSTATE worker EXIT: %s %s' % (os.getpid(), threading.get_native_id()))
+
 
         def publish_loop(self):
                 self.log.debug('publish_loop() init')
                 time.sleep(0.2)
+                self.log.info('THREADSTATE publish_loop spawn: %s %s' % (os.getpid(), threading.get_native_id()))
                 while self.continue_running:
                         if self.connection_issue == False:
                                 try:
@@ -223,4 +239,4 @@ class client_redis():
                                         self.log.fatal('except: %s %s' % (type(e), e))
                                         self.connection_issue = True
 
-                
+                self.log.info('THREADSTATE publish_loop EXIT: %s %s' % (os.getpid(), threading.get_native_id()))

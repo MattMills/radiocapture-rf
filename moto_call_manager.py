@@ -49,6 +49,7 @@ class moto_call_manager():
         def notify_demod_expire(self, demod_instance_uuid):
                 self.log.info('Notified of expired demod %s' % (demod_instance_uuid))
                 if demod_instance_uuid in self.amq_clients:
+                        self.amq_clients[demod_instance_uuid].continue_running = False
                         self.amq_clients[demod_instance_uuid].unsubscribe('/topic/raw_control/%s' % (demod_instance_uuid))
 
         def get_system_from_instance(self, instance_uuid):
