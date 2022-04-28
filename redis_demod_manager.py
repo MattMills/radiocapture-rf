@@ -77,9 +77,6 @@ class redis_demod_manager():
                         
                                 deletions = []
                                 for demod in demods:
-                                        if demod not in self.demods[demod_type]:
-                                                self.parent_call_manager.notify_demod_new(demod)
-
                                         timestamp = demods[demod]['timestamp']
                                         if(timestamp < time.time()-5):
                                                 self.client.srem('demod:%s' % demod_type, demod)
@@ -87,6 +84,9 @@ class redis_demod_manager():
                                                 deletions.append(demod)
                                                 
                                                 self.parent_call_manager.notify_demod_expire(demod)
+                                        else:
+                                            if demod not in self.demods[demod_type]:
+                                                self.parent_call_manager.notify_demod_new(demod)
                                                 
                                 
                                 for deletion in deletions:
@@ -94,5 +94,5 @@ class redis_demod_manager():
 
                                 self.demods[demod_type] = demods
 
-                        time.sleep(5)
-                        
+                        time.sleep(1)
+
