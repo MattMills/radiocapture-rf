@@ -24,14 +24,14 @@ from client_activemq import client_activemq
 from redis_channelizer_manager import redis_channelizer_manager
 
 class call_recorder():
-        def __init__(self, instance_uuid):
+        def __init__(self, instance_uuid, keep_running):
                 self.log = logging.getLogger('overseer.call_recorder')
                 self.log.info('Initializing call_recorder')
                 self.log.info('%s call recorder startup pid %s' % (instance_uuid, os.getpid()))
                 self.instance_uuid = instance_uuid
                 self.client = None
                 self.connection_issue = True
-                self.keep_running = True
+                self.keep_running = keep_running
                 self.subscriptions = {}
                 self.outbound_msg_queue = []
                 self.rcm = redis_channelizer_manager()
