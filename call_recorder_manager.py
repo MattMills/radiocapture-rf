@@ -48,12 +48,15 @@ class call_recorder_manager():
                 else:
                     self.log.warning('Received notification of expired demod %s but demod not in call recorder table' % (demod_instance_uuid, ))
         def worker(self, func, *args, **kwargs):
+                self.log.info('THREADSTATE worker spawn: %s %s' % (os.getpid(), threading.get_native_id()))
                 new_process = func(*args, **kwargs)
                 try:
                     while(new_process.keep_running.value == True):
                         time.sleep(0.001)
                 finally:
+                    new_process.keep_running.value = False
                     self.log.fatal('call_recorder EXIT args (%s) pid %s' % (args, os.getpid()))
+                    self.log.info('THREADSTATE worker EXIT: %s %s' % (os.getpid(), threading.get_native_id()))
                     return
 
 if __name__ == '__main__':

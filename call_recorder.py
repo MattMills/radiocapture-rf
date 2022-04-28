@@ -81,7 +81,7 @@ if __name__ == '__main__':
         logging.config.dictConfig(config)
 
         main = call_recorder(instance_uuid)
-        while True:
+        while self.keep_running.value == True:
                 time.sleep(5)
                 #print '%s' % main.call_table
                 for system in list(main.call_table):
@@ -101,4 +101,4 @@ if __name__ == '__main__':
                 #time.sleep(100)
                 #for t in threading.enumerate():
                 #        main.log.info('Thread Debug: %s' % t)
-                
+        self.client_redis.keep_running = False       
