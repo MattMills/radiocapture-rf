@@ -97,9 +97,11 @@ for frequency in demods:
                     if offset != None and offset < 5000 and offset > -5000:
                         offsets.append(offset)
                     print('%s %s %s' % (frequency, offset, detail))
-                    thread.keep_running = False
                     with open('fft.scan.output', 'a') as f:
-                        f.write('%s %s %s\n' % (frequency, offset, detail))
+                        f.write('%s %s %s %s %s %s\n' % ( args.index, frequency, offset, detail, thread.quality, thread.bad_messages))
+                    thread.keep_running = False
+
+
 if len(offsets) > 0:
     print('offset average for %s: %s' % (args.index, sum(offsets)/len(offsets)))
 #plt.plot(data)
