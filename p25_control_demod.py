@@ -375,7 +375,7 @@ class p25_control_demod (gr.top_block):
                                         else:
                                                 pass
                                 except Exception as e:
-                                        self.log.info('%s %s %s' % (type(e), e, len(frame)))
+                                        self.log.info('Exception: in packet processing %s %s %s' % (type(e), e, len(frame)))
                                         #TODO: Log invalid frames somewhere, in a loggable format
                                         self.bad_messages = self.bad_messages + 3
                                         continue
@@ -384,7 +384,9 @@ class p25_control_demod (gr.top_block):
                                 try:
                                         r['tsbk']
                                 except:
-                                        self.bad_messages = self.bad_messages + 3
+                                        self.log.info('DUID %s with no tsbk: %s' % (duid, r, ))
+
+                                        #self.bad_messages = self.bad_messages + 3
                                         continue
                                 for i in range(0, len(r['tsbk'])):
                                         t = r['tsbk'][i]
@@ -398,10 +400,12 @@ class p25_control_demod (gr.top_block):
                                                 t['crc']
                                         except:
                                                 self.bad_messages = self.bad_messages + 1
+                                                self.log.info('DUID 0x7 packet with no CRC: %s' % (t, ))
                                                 continue
 
                                         if t['crc'] == 1:
                                                 self.bad_messages = self.bad_messages + 1
+                                                self.log.info('DUID 0x7 packet with bad CRC')
                                                 continue
 
                                         if t['name'] == 'IDEN_UP_VU':
