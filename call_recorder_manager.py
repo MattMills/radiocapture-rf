@@ -11,6 +11,7 @@ import logging
 import logging.config
 import multiprocessing
 import os
+import setproctitle
 
 from redis_demod_manager import redis_demod_manager
 
@@ -22,6 +23,7 @@ class call_recorder_manager():
                 self.log.debug('Initializing call_recorder_manager')
 
                 self.demod_type = 'all'
+                setproctitle.setproctitle('%s - %s_call_recorder_manager' % (setproctitle.getproctitle(),  self.demod_type))
                 self.redis_demod_manager = redis_demod_manager(self)
 
                 self.call_recorders = {}

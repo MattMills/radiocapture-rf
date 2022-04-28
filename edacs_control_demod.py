@@ -16,6 +16,7 @@ import random
 import threading
 import uuid
 import logging
+import setproctitle
 
 from frontend_connector import frontend_connector
 from redis_demod_publisher import redis_demod_publisher
@@ -31,6 +32,8 @@ class edacs_control_demod(gr.top_block):
                 self.rcm = redis_channelizer_manager()
                 self.system = system
                 self.instance_uuid = '%s' % uuid.uuid4()
+
+                setproctitle.setproctitle('%s - edacs demod - %s' % (setproctitle.getproctitle(),  self.instance_uuid))
                 self.log = logging.getLogger('overseer.edacs_control_demod.%s' % self.instance_uuid)
                 self.protocol_log = logging.getLogger('protocol.%s' % self.instance_uuid)
                 self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))

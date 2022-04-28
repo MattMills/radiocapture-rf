@@ -33,6 +33,7 @@ import logging
 import logging.config
 
 import zmq
+import setproctitle
 
 # The P25 receiver
 #
@@ -40,6 +41,7 @@ class p25_control_demod (gr.top_block):
         def __init__(self, system, site_uuid, overseer_uuid, rcm=None):
         
                 gr.top_block.__init__(self, "p25 receiver")
+
 
                 if rcm == None:
                     self.rcm = redis_channelizer_manager()
@@ -55,6 +57,7 @@ class p25_control_demod (gr.top_block):
                 self.p25_general = p25_general()
                 self.instance_uuid = '%s' % str(uuid.uuid4())
 
+                setproctitle.setproctitle('%s - p25 demod - %s' % (setproctitle.getproctitle(),  self.instance_uuid))
                 self.log = logging.getLogger('overseer.p25_control_demod.%s' % self.instance_uuid)
                 self.protocol_log = logging.getLogger('protocol.%s' % self.instance_uuid)
                 self.log.info('Initializing instance: %s site: %s overseer: %s' % (self.instance_uuid, site_uuid, overseer_uuid))

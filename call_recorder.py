@@ -17,6 +17,7 @@ import signal
 import math
 import logging
 import logging.config
+import setproctitle
 
 from logging_receiver import logging_receiver
 from client_redis import client_redis
@@ -28,7 +29,11 @@ class call_recorder():
                 self.log = logging.getLogger('overseer.call_recorder')
                 self.log.info('Initializing call_recorder')
                 self.log.info('%s call recorder startup pid %s' % (instance_uuid, os.getpid()))
+                self.log.info('THREADSTATE call_recorder spawn: %s %s' % (os.getpid(), threading.get_native_id()))
+
                 self.instance_uuid = instance_uuid
+                setproctitle.setproctitle('%s - call_recorder - %s' % (setproctitle.getproctitle(),  self.instance_uuid))
+
                 self.client = None
                 self.connection_issue = True
                 self.keep_running = keep_running

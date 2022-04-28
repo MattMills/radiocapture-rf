@@ -15,6 +15,7 @@ import sys
 import signal
 import math
 import logging
+import setproctitle
 
 from redis_demod_manager import redis_demod_manager
 from client_redis import client_redis
@@ -24,6 +25,7 @@ class moto_call_manager():
                 self.log = logging.getLogger('overseer.moto_call_manager')
                 self.log.info('Initializing moto_call_manager')
                 self.demod_type = 'moto'
+                setproctitle.setproctitle('%s - %s_call_manager' % (setproctitle.getproctitle(),  self.demod_type))
 
                 self.redis_demod_manager = redis_demod_manager(self)
 

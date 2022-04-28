@@ -24,6 +24,7 @@ import sys
 import os
 import time
 import manhole
+import setproctitle
 
 def tb_worker(func, *args, **kwargs):
         #multiprocessing.Process(target=tb_worker, args=())
@@ -109,6 +110,9 @@ call_recorder.start()
 logger.info('call_recorder pid  %s' % call_recorder.pid)
 
 logger.info('Overseer %s initialization complete' % overseer_uuid)
+setproctitle.setproctitle('%s - overseer - Main thread' % (setproctitle.getproctitle(), ))
+
+
 
 while 1:
         for demod in demods.keys():
