@@ -375,7 +375,8 @@ class p25_control_demod (gr.top_block):
                                         else:
                                                 pass
                                 except Exception as e:
-                                        self.log.info('%s' % e)
+                                        self.log.info('%s %s %s' % (type(e), e, len(frame)))
+                                        #TODO: Log invalid frames somewhere, in a loggable format
                                         self.bad_messages = self.bad_messages + 3
                                         continue
                                 if len(self.system['channels']) == 1:
