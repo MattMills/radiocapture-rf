@@ -88,7 +88,12 @@ class redis_demod_manager():
                                             if demod not in self.demods[demod_type]:
                                                 self.parent_call_manager.notify_demod_new(demod)
                                                 
-                                
+                                for demod in self.demods[demod_type]:
+                                    if demod not in demods:
+                                        self.log.info('Found hidden demod expiration %s' % demod)
+                                        self.parent_call_manager.notify_demod_expire(demod)
+                                        deletions.append(demod)
+
                                 for deletion in deletions:
                                         del demods[deletion]
 
