@@ -95,7 +95,10 @@ class redis_demod_manager():
                                         deletions.append(demod)
 
                                 for deletion in deletions:
+                                    try:
                                         del demods[deletion]
+                                    except:
+                                        pass
 
                                 self.demods[demod_type] = demods
 
