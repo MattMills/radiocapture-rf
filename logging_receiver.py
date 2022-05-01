@@ -258,8 +258,12 @@ class logging_receiver(gr.top_block):
                         self.demod_watcher = None #demod_watcher(decodequeue2, self.adjust_channel_offset)
 
                         
-                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, True, (True if protocol == 'p25_tdma' else False))
-                        self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, False, decodequeue3, False, False)
+                        try:
+                            self.decoder  = repeater.p25_frame_assembler('127.0.0.1', 0, 0, True, True, False, decodequeue2, True, (True if protocol == 'p25_tdma' else False))
+                            self.decoder2 = repeater.p25_frame_assembler('127.0.0.1', 0, 0, False, True, False, decodequeue3, False, False)
+                        except:
+                            self.decoder  = repeater.p25_frame_assembler('127.0.0.1', 0, 0, True, True, False, decodequeue2, True, (True if protocol == 'p25_tdma' else False), False)
+                            self.decoder2 = repeater.p25_frame_assembler('127.0.0.1', 0, 0, False, True, False, decodequeue3, False, False, False)
 
                         self.qsink = qsink = zeromq.pub_sink(gr.sizeof_char, 1, 'tcp://127.0.0.1:*')
                         self.zmq_socket.connect(qsink.last_endpoint())
@@ -309,8 +313,12 @@ class logging_receiver(gr.top_block):
                         self.decodequeue = decodequeue = gr.msg_queue(10000)
 
                         #self.demod_watcher = demod_watcher(decodequeue2, self.adjust_channel_offset)
-                        self.decoder  = repeater.p25_frame_assembler('', 0, 0, True, True, False, decodequeue2, True, (False if protocol == 'p25_cqpsk' else True))
-                        self.decoder2 = repeater.p25_frame_assembler('', 0, 0, False, True, True, decodequeue3, False, False)
+                        try:
+                            self.decoder  = repeater.p25_frame_assembler('127.0.0.1', 0, 0, True, True, False, decodequeue2, True, (False if protocol == 'p25_cqpsk' else True))
+                            self.decoder2 = repeater.p25_frame_assembler('127.0.0.1', 0, 0, False, True, True, decodequeue3, False, False)
+                        except:
+                            self.decoder  = repeater.p25_frame_assembler('127.0.0.1', 0, 0, True, True, False, decodequeue2, True, (False if protocol == 'p25_cqpsk' else True), False)
+                            self.decoder2 = repeater.p25_frame_assembler('127.0.0.1', 0, 0, False, True, True, decodequeue3, False, False, False)
 
                         #temp for debug
                         #self.debug_sink = blocks.file_sink(1, '/dev/null')
