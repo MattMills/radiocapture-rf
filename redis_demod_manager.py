@@ -43,6 +43,11 @@ class redis_demod_manager():
                 pipe.set('call_table:%s' % instance_uuid, json.dumps(call_table))
                 pipe.expire('call_table:%s' % instance_uuid, 300)
                 result = pipe.execute()
+        def publish_instance_metadata(self, instance_uuid, instance_metadata):
+                pipe = self.client.pipeline()
+                pipe.set('instance_metadata:%s' % instance_uuid, json.dumps(instance_metadata))
+                pipe.expire('instance_metadata:%s' % instance_uuid, 300)
+                result = pipe.execute()
         def get_instance(self, instance_id):
                 for demod_type in self.demods:
                         if instance_id in self.demods[demod_type]:

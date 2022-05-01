@@ -283,6 +283,7 @@ class p25_call_manager():
                                                                         'Type': 'FDMA',
                                                                         'Slots': 1,
                                                                         }
+                                                                        self.redis_demod_manager.publish_instance_metadata(instance_uuid, self.instance_metadata[instance_uuid]['channel_identifier_table'])
                                                                 except:
                                                                         pass
                                                 elif t['name'] == 'IDEN_UP' and t['crc'] == 0:
@@ -296,6 +297,7 @@ class p25_call_manager():
                                                                         'Type': 'FDMA',
                                                                         'Slots': 1,
                                                                         }
+                                                                        self.redis_demod_manager.publish_instance_metadata(instance_uuid, self.instance_metadata[instance_uuid]['channel_identifier_table'])
                                                                 except:
                                                                         pass
                                                 elif t['name'] == 'IDEN_UP_TDMA' and t['crc'] == 0:
@@ -309,6 +311,7 @@ class p25_call_manager():
                                                                         'Type': t['Access Type'],
                                                                         'Slots': t['Slots'],
                                                                         }
+                                                                        self.redis_demod_manager.publish_instance_metadata(instance_uuid, self.instance_metadata[instance_uuid]['channel_identifier_table'])
                                                                 except:
                                                                         pass
                                                 elif t['name'] == 'GRP_V_CH_GRANT' :
