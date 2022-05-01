@@ -37,6 +37,7 @@ import util
 import sys
 
 import zmq
+import traceback
 
 class logging_receiver(gr.top_block):
         def __init__(self, cdr, client_activemq, client_redis, rcm):
@@ -113,7 +114,9 @@ class logging_receiver(gr.top_block):
                 if self.cdr['modulation_type'] == 'p25_tdma' or self.cdr['modulation_type'] == 'p25_cqpsk_tdma' :
                         try:
                                 self.set_p25_xor_chars(p25p2_lfsr(int(self.cdr['p25_nac']),int(self.cdr['p25_system_id'],0),int(self.cdr['p25_wacn'],0)).xor_chars)
-                        except:
+                        except Exception as e:
+                                traceback.print_exc()
+                                self.log.error('Failed to set XOR chars %s %s %s' % (cdr['instance_uuid'], type(e), e))
                                 pass
                         self.set_p25_tdma_slot(self.cdr['slot'])
 
@@ -519,8 +522,8 @@ class logging_receiver(gr.top_block):
                 if self.cdr['modulation_type'] in ['p25', 'p25_cqpsk', 'p25_tdma', 'p25_cqpsk_tdma']:
                         try:
                                 self.cdr['errors'] = self.decoder.get_errors()
-                        except e:
-                                self.log.error('Exception calling decoder.get_errors(): ' %s)
+                        except Exception as e:
+                                self.log.error('Exception calling decoder.get_errors(): %s %s' % (type(e), e))
                                 self.cdr['errors'] = 9999999
 
                 if(self.audio_capture):
