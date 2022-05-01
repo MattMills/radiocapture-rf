@@ -508,11 +508,14 @@ class logging_receiver(gr.top_block):
                         try: 
                                 if not self.log_wav:
                                         os.remove(filename[:-4] + '.wav')
+                                        self.log.info('Deleting %s wav file' % (cdr['uuid'],))
                         except:
                                 self.log.info('error removing ' + filename[:-4] + '.wav')
                         try:
                                 if not self.log_wav:
+                                        
                                         os.remove(filename[:-4] + '-sox.wav')
+                                        self.log.info('Deleting %s post sox wav file' % (cdr['uuid'],))
                         except:
                                 pass
 
