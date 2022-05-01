@@ -179,7 +179,20 @@ class p25_call_manager():
         
                         #for x in self.instance_metadata[instance_uuid]:
                         #        if self.instance_metadata[instance_uuid][x]
-                                
+                        try: 
+                            p25_wacn = instance['site_detail']['WACN ID']
+                        except:
+                            p25_wacn = 0x0
+                        try: 
+                            p25_system_id = instance['site_detail']['System ID']
+                        except:
+                            p25_system_id = 0x0
+
+                        try: 
+                            p25_nac = instance['site_detail']['NAC']
+                        except:
+                            p25_nac = 0x0
+                        
                         cdr = {
                                 'call_uuid': call_uuid,
                                 'system_id': system_uuid,
@@ -196,9 +209,9 @@ class p25_call_manager():
                                 'hang_time': self.hang_time,
                                 'time_open': time.time(),
                                 'time_activity': time.time(),
-                                'p25_wacn': instance['site_detail']['WACN ID'],
-                                'p25_system_id': instance['site_detail']['System ID'],
-                                'p25_nac': instance['site_detail']['NAC']
+                                'p25_wacn': p25_wacn,
+                                'p25_system_id': p25_system_id,
+                                'p25_nac': p25_nac
                                 
                                 }
                         
