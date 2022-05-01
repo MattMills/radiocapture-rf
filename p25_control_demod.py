@@ -172,7 +172,10 @@ class p25_control_demod (gr.top_block):
                 print('%s' % qsink.last_endpoint())
                 self.zmq_socket.connect(qsink.last_endpoint())
                 #blocks.message_sink(gr.sizeof_char, self.decodequeue, False)
-                self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False, False)
+                try:
+                    self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False, False)
+                except:
+                    self.decoder = decoder = repeater.p25_frame_assembler('', 0, 0, False, True, True, autotuneq, False, False, False)
         
                 if self.modulation == 'C4FM':
                         self.connect(self.control_prefilter, fm_demod, symbol_filter, demod_fsk4, slicer, decoder, qsink)
