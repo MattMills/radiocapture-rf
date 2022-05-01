@@ -30,7 +30,10 @@ class receiver(gr.top_block):
         def __init__(self, index):
                 gr.top_block.__init__(self, 'receiver')
 
-                self.log = logging.getLogger('frontend')
+                if(index == None):
+                    self.log = logging.getLogger('frontend')
+                else:
+                    self.log = logging.getLogger('frontend-%s' % (index, ))
 
                 try:
                         gr.enable_realtime_scheduling()
@@ -320,6 +323,7 @@ class receiver(gr.top_block):
                                 port = random.randint(10000,60000)
                                 try:
                                     block = channel.channel('ipc:///tmp/rx_source_%s' % (real_source_id), port, channel_rate,(source_samp_rate), offset)
+                                    break
                                 except RuntimeError as err:
                                         self.log.error('Failed to build channel on port: %s attempt: %s' % (port, x))
                                         return False, False
@@ -480,7 +484,10 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         logging.config.dictConfig(config)
-        log = logging.getLogger('frontend')
+        if(args.index == None):
+            log = logging.getLogger('frontend')
+        else:
+            log = logging.getLogger('frontend-%s' % (args.index, ))
 
 
         tb = receiver(args.index)
